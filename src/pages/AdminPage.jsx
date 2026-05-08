@@ -530,8 +530,7 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 
 // ─── Settings Panel ───────────────────────────────────────────────────────────
 function SettingsPanel({ config, onSave, showToast, currentUserId }) {
-  const [adminWalletMainnet, setAdminWalletMainnet] = useState(config.adminWalletMainnet || config.adminWallet || '')
-  const [adminWalletTestnet, setAdminWalletTestnet] = useState(config.adminWalletTestnet || '')
+  const [adminWallet,  setAdminWallet]  = useState(config.adminWallet  || '')
   const [adminIds,     setAdminIds]     = useState(
     Array.isArray(config.adminIds) ? config.adminIds.join(', ') : config.adminIds || String(currentUserId||'')
   )
@@ -550,19 +549,9 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
 
   const handleSave = () => {
     const parsedIds = adminIds.split(/[\s,]+/).map(s=>s.trim()).filter(Boolean).map(Number).filter(n=>!isNaN(n)&&n>0)
-    const activeWallet = tonNetwork === 'mainnet' ? adminWalletMainnet : adminWalletTestnet
-    if (!activeWallet.trim()) { showToast(`${tonNetwork === 'mainnet' ? 'Mainnet' : 'Testnet'} wallet cannot be empty`, 'err'); return }
+    if (!adminWallet.trim()) { showToast('Admin wallet cannot be empty','err'); return }
     if (parsedIds.length === 0) { showToast('Add at least one Admin Telegram ID','err'); return }
-    onSave({
-      adminWallet: activeWallet.trim(),
-      adminWalletMainnet: adminWalletMainnet.trim(),
-      adminWalletTestnet: adminWalletTestnet.trim(),
-      adminIds: parsedIds,
-      botUsername: botUsername.trim(),
-      referralRate: +referralRate,
-      minWithdraw: +minWithdraw,
-      tonNetwork
-    })
+    onSave({ adminWallet:adminWallet.trim(), adminIds:parsedIds, botUsername:botUsername.trim(), referralRate:+referralRate, minWithdraw:+minWithdraw, tonNetwork })
   }
 
   const refLink = botUsername.trim() ? `https://t.me/${botUsername.trim()}?start=${currentUserId}` : '(enter bot username to preview)'
@@ -572,40 +561,10 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       <div className="adm-sec-title">⚙ Bot Settings</div>
       <div className="settings-info">Settings synced to Supabase — all admin devices share the same config.</div>
 
-      {/* ── Mainnet Wallet ── */}
       <div className="setting-group">
-        <div className="sg-label">
-          <span className="sg-icon">🚀</span>Mainnet Wallet Address (TON)
-          {tonNetwork === 'mainnet' && <span style={{marginLeft:8,fontSize:11,color:'var(--green)',fontWeight:700}}>● ACTIVE</span>}
-        </div>
-        <div className="sg-desc">Receives deposits on <strong>Mainnet</strong>. Uses real TON. Must be a valid TON address (UQ… or EQ…).</div>
-        <input
-          className="sg-input"
-          type="text"
-          value={adminWalletMainnet}
-          onChange={e => setAdminWalletMainnet(e.target.value)}
-          placeholder="UQD… (Mainnet)"
-          spellCheck={false}
-          style={tonNetwork === 'mainnet' ? { borderColor: 'var(--green)', boxShadow: '0 0 0 1px var(--green)' } : {}}
-        />
-      </div>
-
-      {/* ── Testnet Wallet ── */}
-      <div className="setting-group">
-        <div className="sg-label">
-          <span className="sg-icon">🧪</span>Testnet Wallet Address (TON)
-          {tonNetwork === 'testnet' && <span style={{marginLeft:8,fontSize:11,color:'var(--blue)',fontWeight:700}}>● ACTIVE</span>}
-        </div>
-        <div className="sg-desc">Receives deposits on <strong>Testnet</strong>. Uses test TON only. Must be a valid TON address.</div>
-        <input
-          className="sg-input"
-          type="text"
-          value={adminWalletTestnet}
-          onChange={e => setAdminWalletTestnet(e.target.value)}
-          placeholder="UQD… (Testnet)"
-          spellCheck={false}
-          style={tonNetwork === 'testnet' ? { borderColor: 'var(--blue)', boxShadow: '0 0 0 1px var(--blue)' } : {}}
-        />
+        <div className="sg-label"><span className="sg-icon">💎</span>Admin Wallet Address (TON)</div>
+        <div className="sg-desc">Receives all deposits. Must be a valid TON address (UQ… or EQ…).</div>
+        <input className="sg-input" type="text" value={adminWallet} onChange={e=>setAdminWallet(e.target.value)} placeholder="UQD…" spellCheck={false}/>
       </div>
 
       <div className="setting-group">
@@ -645,15 +604,11 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
           <button className={`net-btn ${tonNetwork==='testnet'?'net-active testnet':'net-inactive'}`} onClick={() => handleNetworkSwitch('testnet')}><span className="net-dot"/>🧪 Testnet</button>
           <button className={`net-btn ${tonNetwork==='mainnet'?'net-active mainnet':'net-inactive'}`} onClick={() => handleNetworkSwitch('mainnet')}><span className="net-dot"/>🚀 Mainnet</button>
         </div>
-        <div className={`network-badge ${tonNetwork}`}>{tonNetwork==='testnet'?'🧪 Currently on TESTNET — using Testnet wallet':'🚀 Currently on MAINNET — using Mainnet wallet'}</div>
+        <div className={`network-badge ${tonNetwork}`}>{tonNetwork==='testnet'?'🧪 Currently on TESTNET':'🚀 Currently on MAINNET'}</div>
         {showNetConfirm && (
           <div className="net-confirm-box">
             <div className="net-confirm-title">⚠️ Switch to {pendingNetwork}?</div>
-            <div className="net-confirm-desc">
-              {pendingNetwork==='mainnet'
-                ? `Mainnet uses real TON. Deposits will go to: ${adminWalletMainnet || '(not set)'}`
-                : `Testnet uses test TON. Deposits will go to: ${adminWalletTestnet || '(not set)'}`}
-            </div>
+            <div className="net-confirm-desc">{pendingNetwork==='mainnet'?'Mainnet uses real TON. Real funds.':'Testnet uses test TON only.'}</div>
             <div className="net-confirm-btns">
               <button className="net-confirm-yes" onClick={() => { setTonNetwork(pendingNetwork); setShowNetConfirm(false); setPendingNetwork(null) }}>Yes, Switch</button>
               <button className="net-confirm-no"  onClick={() => { setShowNetConfirm(false); setPendingNetwork(null) }}>Cancel</button>

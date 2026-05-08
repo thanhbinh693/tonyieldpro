@@ -102,45 +102,37 @@ export async function saveUserBundle(telegramId, bundle) {
 
 /**
  * Register user — handles both first-time registration and referral tracking.
- *
- * Bug 2 fix: upsert with ignoreDuplicates:true silently skips ALL fields for
- * existing rows, so referred_by was never written. Now we use a two-step
- * approach: upsert the row (creates if new), then conditionally update
- * referred_by using a DB-side WHERE clause to stay race-condition safe.
+ * For NEW users: inserts with referral_code + referred_by in one go.
+ * For EXISTING users: only sets referred_by if it wasn't already set.
  */
 export async function registerUser(telegramId, referredByCode = '') {
   const id = Number(telegramId)
   if (!id) return
 
-  const now = new Date().toISOString()
+  const referral_code = String(id)
 
-  // Step 1: Ensure the user row exists with a referral_code.
-  // Use upsert with ignoreDuplicates:false so the referral_code column is
-  // always written even for existing rows (idempotent — same value every time).
+  // Step 1: Try insert (new user). ignoreDuplicates avoids error for existing users.
   await supabase.from('users').upsert(
-    { id, referral_code: String(id), updated_at: now },
-    { onConflict: 'id', ignoreDuplicates: false }
+    { id, referral_code },
+    { onConflict: 'id', ignoreDuplicates: true }
   )
 
-  // Step 2: Write referred_by ONLY if:
-  //   • a valid referral code was provided
-  //   • it's not the user's own ID (self-referral)
-  //   • referred_by is still blank in the DB (prevent hijacking & double-credit)
+  // Step 2: If referral code provided, set referred_by ONLY if not already set.
+  // This handles the case where user existed but opened app again via a referral link.
   if (referredByCode && String(referredByCode) !== String(id)) {
-    // Verify the referrer actually exists before writing
-    const { data: referrer } = await supabase
+    const { data: existing } = await supabase
       .from('users')
-      .select('id')
-      .eq('referral_code', String(referredByCode))
-      .maybeSingle()
-    if (!referrer) return  // invalid code — referrer not found
-
-    // Atomic: only update rows where referred_by IS NULL or ''
-    await supabase
-      .from('users')
-      .update({ referred_by: String(referredByCode), updated_at: now })
+      .select('referred_by')
       .eq('id', id)
-      .or('referred_by.is.null,referred_by.eq.')
+      .maybeSingle()
+
+    // Only set if not already referred (prevent referral hijacking)
+    if (existing && (!existing.referred_by || existing.referred_by === '')) {
+      await supabase.from('users').update({
+        referred_by: referredByCode,
+        updated_at:  new Date().toISOString(),
+      }).eq('id', id)
+    }
   }
 }
 
@@ -173,35 +165,47 @@ export async function getUserReferredBy(telegramId) {
   return data?.referred_by || ''
 }
 
-/** Credit commission + update friends count directly on referrer row */
+/**
+ * Credit referral commission server-side via Edge Function.
+ * Gọi sau khi deposit tx đã được insert vào DB.
+ * Edge Function tự kiểm tra: first deposit only, idempotency, referrer lookup.
+ *
+ * @param {number} userId - Telegram ID của người vừa deposit
+ * @param {number} depositAmount - Số TON deposit
+ * @param {string} depositTxId - ID của deposit transaction (để idempotency)
+ */
+export async function creditReferralViaServer(userId, depositAmount, depositTxId) {
+  try {
+    const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import('./config.js')
+    const url = SUPABASE_URL.replace('/rest/v1', '') + '/functions/v1/credit-referral'
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        user_id:        Number(userId),
+        deposit_amount: depositAmount,
+        deposit_tx_id:  depositTxId,
+      }),
+    })
+    const data = await res.json()
+    console.log('[creditReferralViaServer]', data)
+    return data
+  } catch (e) {
+    // Non-fatal: deposit đã success, chỉ referral fail
+    console.warn('[creditReferralViaServer] failed (non-fatal):', e)
+    return null
+  }
+}
+
+/**
+ * @deprecated Dùng creditReferralViaServer thay thế.
+ * Giữ lại để backward compat nếu có code nào đó vẫn import.
+ */
 export async function creditReferralCommission(referrerId, commission, inviteeUsername, inviteeId, now) {
-  const rid = Number(referrerId)
-  // Read current referrer stats
-  const { data: ref } = await supabase
-    .from('users')
-    .select('balance, referral_friends, referral_commission')
-    .eq('id', rid)
-    .maybeSingle()
-  if (!ref) return
-
-  // Update referrer balance + stats
-  await supabase.from('users').update({
-    balance:             +((Number(ref.balance) || 0) + commission).toFixed(2),
-    referral_friends:    (ref.referral_friends || 0) + 1,
-    referral_commission: +((Number(ref.referral_commission) || 0) + commission).toFixed(2),
-    updated_at:          new Date().toISOString(),
-  }).eq('id', rid)
-
-  // Add referral transaction for referrer
-  await supabase.from('transactions').insert({
-    id:         'ref-' + rid + '-' + now,
-    user_id:    rid,
-    type:       'referral',
-    label:      `Referral · @${inviteeUsername || inviteeId}`,
-    amount:     commission,
-    status:     'completed',
-    created_at: now,
-  })
+  console.warn('[creditReferralCommission] deprecated — use creditReferralViaServer instead')
 }
 
 // ─── REGISTRY ─────────────────────────────────────────────────────────────────
@@ -217,42 +221,29 @@ export async function getRegistry() {
 export async function getAdminConfig(fallback = null) {
   const { data } = await supabase.from('admin_config').select('*').eq('id', 1).maybeSingle()
   if (!data) return fallback
-  // Bug 5 fix: read per-network wallet fields
-  const adminWalletMainnet = data.admin_wallet_mainnet || ''
-  const adminWalletTestnet = data.admin_wallet_testnet || ''
-  const tonNetwork         = data.ton_network || 'testnet'
-  // adminWallet = whichever wallet is active on current network (backward compat)
-  const adminWallet = tonNetwork === 'mainnet'
-    ? (adminWalletMainnet || data.admin_wallet || '')
-    : (adminWalletTestnet || data.admin_wallet || '')
   return {
-    minWithdraw:         data.min_withdraw,
-    referralRate:        data.referral_rate,
-    maintenanceMode:     data.maintenance_mode,
-    adminWallet,
-    adminWalletMainnet,
-    adminWalletTestnet,
-    adminIds:            data.admin_ids || [],
-    botUsername:         data.bot_username || '',
-    tonNetwork,
+    minWithdraw:      data.min_withdraw,
+    referralRate:     data.referral_rate,
+    maintenanceMode:  data.maintenance_mode,
+    adminWallet:      data.admin_wallet,
+    adminIds:         data.admin_ids || [],
+    botUsername:      data.bot_username || '',
+    tonNetwork:       data.ton_network || 'testnet',
   }
 }
 
 export async function saveAdminConfig(cfg) {
-  // Bug 5 fix: persist per-network wallet fields
   check(
     await supabase.from('admin_config').upsert({
-      id:                    1,
-      min_withdraw:          cfg.minWithdraw,
-      referral_rate:         cfg.referralRate,
-      maintenance_mode:      cfg.maintenanceMode,
-      admin_wallet:          cfg.adminWallet     || '',
-      admin_wallet_mainnet:  cfg.adminWalletMainnet || '',
-      admin_wallet_testnet:  cfg.adminWalletTestnet || '',
-      admin_ids:             cfg.adminIds || [],
-      bot_username:          cfg.botUsername || '',
-      ton_network:           cfg.tonNetwork || 'testnet',
-      updated_at:            new Date().toISOString(),
+      id:               1,
+      min_withdraw:     cfg.minWithdraw,
+      referral_rate:    cfg.referralRate,
+      maintenance_mode: cfg.maintenanceMode,
+      admin_wallet:     cfg.adminWallet,
+      admin_ids:        cfg.adminIds || [],
+      bot_username:     cfg.botUsername || '',
+      ton_network:      cfg.tonNetwork || 'testnet',
+      updated_at:       new Date().toISOString(),
     }, { onConflict: 'id' }),
     'saveAdminConfig'
   )

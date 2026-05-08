@@ -22,7 +22,7 @@ import {
   getUserBundle,
   registerUser,
   getAllUsersData,
-  getReferrerByCode, getUserReferredBy, creditReferralCommission,
+  creditReferralViaServer,
   getAdminConfig, saveAdminConfig,
   getAdminPlans, saveAdminPlans,
 } from '../utils/supabase'
@@ -76,8 +76,6 @@ const DEFAULT_CONFIG = {
   referralRate: 5,
   maintenanceMode: false,
   adminWallet: ADMIN_WALLET,
-  adminWalletMainnet: '',
-  adminWalletTestnet: ADMIN_WALLET,
   adminIds: [...ADMIN_IDS],
   botUsername: '',
   tonNetwork: TON_NETWORK,
@@ -154,9 +152,8 @@ export function useApp() {
         if (cfg)        setConfig(p => ({ ...DEFAULT_CONFIG, ...cfg }))
         if (savedPlans) setPlans(savedPlans)
 
-        // Bug 1 fix: accept any numeric Telegram ID (can be 1-15 digits, not just 5+)
-        const sp = (window.Telegram?.WebApp?.initDataUnsafe?.start_param || '').trim()
-        const referredByCode = /^\d{1,15}$/.test(sp) && String(sp) !== String(tid) ? sp : ''
+        const sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param || ''
+        const referredByCode = /^\d{5,15}$/.test(sp) ? sp : ''
         await registerUser(tid, referredByCode)
 
         if (tgUser.id) {
@@ -282,40 +279,14 @@ export function useApp() {
     .filter(i => i.status === 'active')
     .map(enrichInvestment)
 
-  // ─── Referral commission helper ────────────────────────────────────────────
-  const applyReferralCommission = useCallback(async (amount, now) => {
+  // ─── Referral commission — server-side via Edge Function ─────────────────
+  // Được gọi sau khi deposit tx đã insert vào DB.
+  // Edge Function tự kiểm tra: first deposit only, idempotency, referrer lookup.
+  const applyReferralCommission = useCallback(async (amount, txId) => {
     try {
-      // Bug 3 fix: always query DB for referred_by — never rely on stale state
-      const referredBy = await getUserReferredBy(tid)
-      if (!referredBy || String(referredBy) === String(tid)) return
-
-      // Bug 3 fix: count deposits fresh from DB, not stale React state
-      const { count } = await supabase
-        .from('transactions')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', Number(tid))
-        .eq('type', 'deposit')
-      // Only credit on the very first deposit (count will be 0 before this insert completes)
-      if ((count || 0) >= 1) return
-
-      // Bug 4 fix: idempotency guard — check if referral tx already exists for this pair
-      const { count: alreadyCredited } = await supabase
-        .from('transactions')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', Number(referredBy))
-        .eq('type', 'referral')
-        .like('label', `%${tid}%`)
-      if ((alreadyCredited || 0) >= 1) return
-
-      const referrer = await getReferrerByCode(referredBy)
-      if (!referrer || Number(referrer.id) === Number(tid)) return
-
-      const rate = Number(config.referralRate) || 5
-      const commission = +(parseFloat(amount) * (rate / 100)).toFixed(2)
-      if (commission <= 0) return
-      await creditReferralCommission(referrer.id, commission, user.username || tid, tid, now)
+      await creditReferralViaServer(tid, parseFloat(amount), txId)
     } catch(e) { console.warn('[applyReferralCommission]', e) }
-  }, [tid, user.username, config.referralRate]) // removed stale 'transactions' dep
+  }, [tid])
 
   // ─── DEPOSIT ───────────────────────────────────────────────────────────────
   const submitDeposit = useCallback(async (planId, amount, paymentMethod = 'wallet') => {
@@ -323,23 +294,7 @@ export function useApp() {
     if (!plan) return false
     const now = Date.now()
     const iid = makeInvId(tid, planId)
-
-    // ── Pick the correct admin wallet based on active network ──────────────
-    const activeNetwork = config.tonNetwork || TON_NETWORK
-    const aw = activeNetwork === 'mainnet'
-      ? (config.adminWalletMainnet || config.adminWallet || ADMIN_WALLET)
-      : (config.adminWalletTestnet || config.adminWallet || ADMIN_WALLET)
-
-    // ── Validate connected wallet is on the correct chain ─────────────────
-    if (paymentMethod !== 'balance' && wallet?.account?.chain) {
-      const walletChain = wallet.account.chain   // '-239' = mainnet, '-3' = testnet
-      const expectedChain = activeNetwork === 'mainnet' ? '-239' : '-3'
-      if (String(walletChain) !== expectedChain) {
-        const networkLabel = activeNetwork === 'mainnet' ? 'Mainnet' : 'Testnet'
-        showToast(`Please connect a ${networkLabel} wallet`, 'err')
-        return false
-      }
-    }
+    const aw  = config.adminWallet || ADMIN_WALLET
 
     const rIms = plan.profitIntervalMs
       || (plan.profitIntervalMinutes ? plan.profitIntervalMinutes*60_000 : 0)
@@ -398,7 +353,9 @@ export function useApp() {
         validUntil: Math.floor(now/1000)+600,
         messages: [{ address:aw, amount:toNano(amount), payload:buildPayload(iid) }],
       })
-      await applyReferralCommission(amount, now)
+
+      // Credit referral commission server-side (first deposit only, idempotent)
+      await applyReferralCommission(amount, 'tx-'+now)
 
       const amt = parseFloat(amount)
       const { data: dbUser, error: readErr } = await supabase
@@ -436,7 +393,7 @@ export function useApp() {
       else { console.error('[deposit]',e); showToast('Transaction failed. Try again.','err') }
       return false
     }
-  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletMainnet, config.adminWalletTestnet, config.tonNetwork, wallet, user.balance, user.totalDeposit, applyReferralCommission])
+  }, [plans, tid, tonUI, showToast, config.adminWallet, user.balance, user.totalDeposit, applyReferralCommission])
 
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
