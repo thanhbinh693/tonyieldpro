@@ -65,8 +65,6 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
   }
 
   const menu = [
-    { icon: '◎', color: 'gold',  label: 'TON Wallet',        sub: user?.walletAddr ? (user.walletAddr.slice(0,8)+'...') : 'Not connected', action: () => showToast('Wallet settings') },
-    { icon: '⊙', color: 'green', label: 'Support',           sub: '24/7 live chat',     action: () => showToast('Support opened') },
     walletConnected
       ? { icon: '⊗', color: 'red',   label: 'Disconnect Wallet', sub: 'Unlink TON Connect', danger: true, action: () => setShowDisconnect(true) }
       : { icon: '◎', color: 'blue',  label: 'Connect Wallet',    sub: 'Link your TON wallet', action: () => connectWallet && connectWallet() },
