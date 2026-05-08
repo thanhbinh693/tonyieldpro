@@ -468,44 +468,87 @@ export function useApp() {
     }
 
     try {
-      // ── Gọi backend — KHÔNG dùng optimistic update để tránh conflict ─────
+      // ── Thử gọi Edge Function trước ──────────────────────────────────────
       const initData = window.Telegram?.WebApp?.initData || ''
+      let edgeFailed = false
 
-      const res = await fetch(WITHDRAW_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          initData,
-          userId:     tid,
+      try {
+        const res = await fetch(WITHDRAW_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            initData,
+            userId:   tid,
+            amount,
+            toWallet: destWallet,   // ← field name match Edge Function
+          }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Withdrawal failed')
+
+        // Edge Function thành công — refresh từ DB
+        const bundle = await getUserBundle(tid)
+        if (bundle) {
+          applyingRemote.current = true
+          if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
+          if (bundle.investments)  setInvestments(bundle.investments)
+          if (bundle.transactions) setTransactions(bundle.transactions)
+          setTimeout(() => { applyingRemote.current = false }, 100)
+        }
+        showToast('Withdrawal submitted! Processing... ⏳', 'ok')
+        return true
+
+      } catch (fetchErr) {
+        const fetchMsg = fetchErr?.message || ''
+        // Nếu là lỗi business (banned, Insufficient...) — không fallback
+        if (/banned|Insufficient|unavailable/i.test(fetchMsg)) throw fetchErr
+        // Nếu là network error (Failed to fetch, CORS, Edge Function chưa deploy) — fallback
+        console.warn('[withdraw] Edge function unreachable, using direct Supabase fallback:', fetchErr)
+        edgeFailed = true
+      }
+
+      if (edgeFailed) {
+        // ── Fallback: ghi withdraw request trực tiếp vào Supabase ────────────
+        // Admin sẽ xử lý thủ công hoặc qua withdrawal-worker.js
+        const now = Date.now()
+        const txId = `tx-wd-${tid}-${now}`
+        const newBal = +(user.balance - amount).toFixed(6)
+
+        // Deduct balance + insert pending withdraw transaction
+        const { error: balErr } = await supabase.from('users').update({
+          balance:     newBal,
+          wallet_addr: destWallet,
+          updated_at:  new Date().toISOString(),
+        }).eq('id', Number(tid))
+        if (balErr) throw new Error('Failed to update balance')
+
+        await supabase.from('transactions').insert({
+          id:         txId,
+          user_id:    Number(tid),
+          type:       'withdraw',
+          label:      `Withdrawal → ${destWallet.slice(0, 8)}...`,
           amount,
-          destWallet,
-        }),
-      })
+          status:     'pending',
+          to_wallet:  destWallet,
+          created_at: now,
+        })
 
-      const data = await res.json()
+        // Update local state
+        setUser(p => ({ ...p, balance: newBal, walletAddr: destWallet }))
+        setTransactions(p => [{
+          id: txId, type: 'withdraw',
+          label: `Withdrawal → ${destWallet.slice(0, 8)}...`,
+          date: 'Just now', amount, status: 'pending',
+          toWallet: destWallet, createdAt: now,
+        }, ...p])
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Withdrawal failed')
+        showToast('Withdrawal submitted! Processing... ⏳', 'ok')
+        return true
       }
-
-      // ── Refresh state from DB after backend confirmed ────────────────────
-      const bundle = await getUserBundle(tid)
-      if (bundle) {
-        applyingRemote.current = true
-        if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
-        if (bundle.investments)  setInvestments(bundle.investments)
-        if (bundle.transactions) setTransactions(bundle.transactions)
-        setTimeout(() => { applyingRemote.current = false }, 100)
-      } else if (data.newBalance !== undefined) {
-        // Fallback if bundle fetch fails
-        setUser(p => ({ ...p, balance: data.newBalance, walletAddr: destWallet }))
-      }
-
-      showToast('Withdrawal submitted! Processing... ⏳', 'ok')
-      return true
 
     } catch (e) {
       const msg = e?.message || ''
