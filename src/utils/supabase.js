@@ -102,37 +102,45 @@ export async function saveUserBundle(telegramId, bundle) {
 
 /**
  * Register user — handles both first-time registration and referral tracking.
- * For NEW users: inserts with referral_code + referred_by in one go.
- * For EXISTING users: only sets referred_by if it wasn't already set.
+ *
+ * Bug 2 fix: upsert with ignoreDuplicates:true silently skips ALL fields for
+ * existing rows, so referred_by was never written. Now we use a two-step
+ * approach: upsert the row (creates if new), then conditionally update
+ * referred_by using a DB-side WHERE clause to stay race-condition safe.
  */
 export async function registerUser(telegramId, referredByCode = '') {
   const id = Number(telegramId)
   if (!id) return
 
-  const referral_code = String(id)
+  const now = new Date().toISOString()
 
-  // Step 1: Try insert (new user). ignoreDuplicates avoids error for existing users.
+  // Step 1: Ensure the user row exists with a referral_code.
+  // Use upsert with ignoreDuplicates:false so the referral_code column is
+  // always written even for existing rows (idempotent — same value every time).
   await supabase.from('users').upsert(
-    { id, referral_code },
-    { onConflict: 'id', ignoreDuplicates: true }
+    { id, referral_code: String(id), updated_at: now },
+    { onConflict: 'id', ignoreDuplicates: false }
   )
 
-  // Step 2: If referral code provided, set referred_by ONLY if not already set.
-  // This handles the case where user existed but opened app again via a referral link.
+  // Step 2: Write referred_by ONLY if:
+  //   • a valid referral code was provided
+  //   • it's not the user's own ID (self-referral)
+  //   • referred_by is still blank in the DB (prevent hijacking & double-credit)
   if (referredByCode && String(referredByCode) !== String(id)) {
-    const { data: existing } = await supabase
+    // Verify the referrer actually exists before writing
+    const { data: referrer } = await supabase
       .from('users')
-      .select('referred_by')
-      .eq('id', id)
+      .select('id')
+      .eq('referral_code', String(referredByCode))
       .maybeSingle()
+    if (!referrer) return  // invalid code — referrer not found
 
-    // Only set if not already referred (prevent referral hijacking)
-    if (existing && (!existing.referred_by || existing.referred_by === '')) {
-      await supabase.from('users').update({
-        referred_by: referredByCode,
-        updated_at:  new Date().toISOString(),
-      }).eq('id', id)
-    }
+    // Atomic: only update rows where referred_by IS NULL or ''
+    await supabase
+      .from('users')
+      .update({ referred_by: String(referredByCode), updated_at: now })
+      .eq('id', id)
+      .or('referred_by.is.null,referred_by.eq.')
   }
 }
 
@@ -209,29 +217,42 @@ export async function getRegistry() {
 export async function getAdminConfig(fallback = null) {
   const { data } = await supabase.from('admin_config').select('*').eq('id', 1).maybeSingle()
   if (!data) return fallback
+  // Bug 5 fix: read per-network wallet fields
+  const adminWalletMainnet = data.admin_wallet_mainnet || ''
+  const adminWalletTestnet = data.admin_wallet_testnet || ''
+  const tonNetwork         = data.ton_network || 'testnet'
+  // adminWallet = whichever wallet is active on current network (backward compat)
+  const adminWallet = tonNetwork === 'mainnet'
+    ? (adminWalletMainnet || data.admin_wallet || '')
+    : (adminWalletTestnet || data.admin_wallet || '')
   return {
-    minWithdraw:      data.min_withdraw,
-    referralRate:     data.referral_rate,
-    maintenanceMode:  data.maintenance_mode,
-    adminWallet:      data.admin_wallet,
-    adminIds:         data.admin_ids || [],
-    botUsername:      data.bot_username || '',
-    tonNetwork:       data.ton_network || 'testnet',
+    minWithdraw:         data.min_withdraw,
+    referralRate:        data.referral_rate,
+    maintenanceMode:     data.maintenance_mode,
+    adminWallet,
+    adminWalletMainnet,
+    adminWalletTestnet,
+    adminIds:            data.admin_ids || [],
+    botUsername:         data.bot_username || '',
+    tonNetwork,
   }
 }
 
 export async function saveAdminConfig(cfg) {
+  // Bug 5 fix: persist per-network wallet fields
   check(
     await supabase.from('admin_config').upsert({
-      id:               1,
-      min_withdraw:     cfg.minWithdraw,
-      referral_rate:    cfg.referralRate,
-      maintenance_mode: cfg.maintenanceMode,
-      admin_wallet:     cfg.adminWallet,
-      admin_ids:        cfg.adminIds || [],
-      bot_username:     cfg.botUsername || '',
-      ton_network:      cfg.tonNetwork || 'testnet',
-      updated_at:       new Date().toISOString(),
+      id:                    1,
+      min_withdraw:          cfg.minWithdraw,
+      referral_rate:         cfg.referralRate,
+      maintenance_mode:      cfg.maintenanceMode,
+      admin_wallet:          cfg.adminWallet     || '',
+      admin_wallet_mainnet:  cfg.adminWalletMainnet || '',
+      admin_wallet_testnet:  cfg.adminWalletTestnet || '',
+      admin_ids:             cfg.adminIds || [],
+      bot_username:          cfg.botUsername || '',
+      ton_network:           cfg.tonNetwork || 'testnet',
+      updated_at:            new Date().toISOString(),
     }, { onConflict: 'id' }),
     'saveAdminConfig'
   )

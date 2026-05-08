@@ -154,8 +154,9 @@ export function useApp() {
         if (cfg)        setConfig(p => ({ ...DEFAULT_CONFIG, ...cfg }))
         if (savedPlans) setPlans(savedPlans)
 
-        const sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param || ''
-        const referredByCode = /^\d{5,15}$/.test(sp) ? sp : ''
+        // Bug 1 fix: accept any numeric Telegram ID (can be 1-15 digits, not just 5+)
+        const sp = (window.Telegram?.WebApp?.initDataUnsafe?.start_param || '').trim()
+        const referredByCode = /^\d{1,15}$/.test(sp) && String(sp) !== String(tid) ? sp : ''
         await registerUser(tid, referredByCode)
 
         if (tgUser.id) {
@@ -284,17 +285,37 @@ export function useApp() {
   // ─── Referral commission helper ────────────────────────────────────────────
   const applyReferralCommission = useCallback(async (amount, now) => {
     try {
+      // Bug 3 fix: always query DB for referred_by — never rely on stale state
       const referredBy = await getUserReferredBy(tid)
-      if (!referredBy) return
-      const depositCount = transactions.filter(t => t.type === 'deposit').length
-      if (depositCount >= 1) return
+      if (!referredBy || String(referredBy) === String(tid)) return
+
+      // Bug 3 fix: count deposits fresh from DB, not stale React state
+      const { count } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', Number(tid))
+        .eq('type', 'deposit')
+      // Only credit on the very first deposit (count will be 0 before this insert completes)
+      if ((count || 0) >= 1) return
+
+      // Bug 4 fix: idempotency guard — check if referral tx already exists for this pair
+      const { count: alreadyCredited } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', Number(referredBy))
+        .eq('type', 'referral')
+        .like('label', `%${tid}%`)
+      if ((alreadyCredited || 0) >= 1) return
+
       const referrer = await getReferrerByCode(referredBy)
       if (!referrer || Number(referrer.id) === Number(tid)) return
-      const commission = +(parseFloat(amount) * ((Number(config.referralRate)||5) / 100)).toFixed(2)
+
+      const rate = Number(config.referralRate) || 5
+      const commission = +(parseFloat(amount) * (rate / 100)).toFixed(2)
       if (commission <= 0) return
       await creditReferralCommission(referrer.id, commission, user.username || tid, tid, now)
     } catch(e) { console.warn('[applyReferralCommission]', e) }
-  }, [tid, user.username, config.referralRate, transactions]) // eslint-disable-line
+  }, [tid, user.username, config.referralRate]) // removed stale 'transactions' dep
 
   // ─── DEPOSIT ───────────────────────────────────────────────────────────────
   const submitDeposit = useCallback(async (planId, amount, paymentMethod = 'wallet') => {
