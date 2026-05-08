@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
               .update({ status: 'completed', earned: 0, updated_at: new Date().toISOString() })
               .eq('id', inv.id),
             supabase.from('transactions')
-              .insert({
+              .upsert({
                 id: `ret-${iid}-${now}`,
                 user_id:    inv.user_id,
                 type:       'deposit',
@@ -112,9 +112,7 @@ Deno.serve(async (req) => {
                 invoice_id: iid,
                 plan_id:    inv.plan_id,
                 created_at: now,
-              })
-              .onConflict('id')
-              .ignore(),
+              }, { onConflict: 'id', ignoreDuplicates: true }),
           ])
           processed++
         }
