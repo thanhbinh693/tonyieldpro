@@ -10,9 +10,17 @@ import WithdrawModal from './components/WithdrawModal'
 import Toast from './components/Toast'
 import './App.css'
 
-export default function App() {
+export default function App({ onNetworkChange }) {
   const appState = useApp()
   const { tab, toast, isAdmin, isAdminView } = appState
+
+  // Wrap adminSaveSettings to also update TonConnectUIProvider network
+  const adminSaveSettingsWithNetwork = (updates) => {
+    appState.adminSaveSettings(updates)
+    if (updates.tonNetwork && onNetworkChange) {
+      onNetworkChange(updates.tonNetwork)
+    }
+  }
   const [depositOpen, setDepositOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [depositPlan, setDepositPlan] = useState(null)
@@ -143,7 +151,7 @@ export default function App() {
       <div className="app">
         <div className="noise" />
         <div className="glow-top glow-red on" />
-        <AdminPage {...appState} />
+        <AdminPage {...appState} adminSaveSettings={adminSaveSettingsWithNetwork} />
         {toast && <Toast msg={toast.msg} type={toast.type} />}
       </div>
     )

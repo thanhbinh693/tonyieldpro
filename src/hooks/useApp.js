@@ -76,6 +76,8 @@ const DEFAULT_CONFIG = {
   referralRate: 5,
   maintenanceMode: false,
   adminWallet: ADMIN_WALLET,
+  adminWalletMainnet: '',
+  adminWalletTestnet: ADMIN_WALLET,
   adminIds: [...ADMIN_IDS],
   botUsername: '',
   tonNetwork: TON_NETWORK,
@@ -300,7 +302,23 @@ export function useApp() {
     if (!plan) return false
     const now = Date.now()
     const iid = makeInvId(tid, planId)
-    const aw  = config.adminWallet || ADMIN_WALLET
+
+    // ── Pick the correct admin wallet based on active network ──────────────
+    const activeNetwork = config.tonNetwork || TON_NETWORK
+    const aw = activeNetwork === 'mainnet'
+      ? (config.adminWalletMainnet || config.adminWallet || ADMIN_WALLET)
+      : (config.adminWalletTestnet || config.adminWallet || ADMIN_WALLET)
+
+    // ── Validate connected wallet is on the correct chain ─────────────────
+    if (paymentMethod !== 'balance' && wallet?.account?.chain) {
+      const walletChain = wallet.account.chain   // '-239' = mainnet, '-3' = testnet
+      const expectedChain = activeNetwork === 'mainnet' ? '-239' : '-3'
+      if (String(walletChain) !== expectedChain) {
+        const networkLabel = activeNetwork === 'mainnet' ? 'Mainnet' : 'Testnet'
+        showToast(`Please connect a ${networkLabel} wallet`, 'err')
+        return false
+      }
+    }
 
     const rIms = plan.profitIntervalMs
       || (plan.profitIntervalMinutes ? plan.profitIntervalMinutes*60_000 : 0)
@@ -397,7 +415,7 @@ export function useApp() {
       else { console.error('[deposit]',e); showToast('Transaction failed. Try again.','err') }
       return false
     }
-  }, [plans, tid, tonUI, showToast, config.adminWallet, user.balance, user.totalDeposit, applyReferralCommission])
+  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletMainnet, config.adminWalletTestnet, config.tonNetwork, wallet, user.balance, user.totalDeposit, applyReferralCommission])
 
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
