@@ -22,9 +22,10 @@ function toFriendlyAddr(rawAddr, isTestnet) {
 
 function isValidTonAddress(addr) {
   if (!addr || typeof addr !== 'string') return false
-  // Hỗ trợ mainnet (UQ.../EQ...) và testnet (kQ.../0Q...)
-  // Khớp với regex trong useApp.js và backend worker
-  return /^[EUk0][Qg][A-Za-z0-9+/_-]{46}$/.test(addr.trim())
+  // mainnet: UQ.../EQ... | testnet: kQ.../0Q...
+  // base64url alphabet includes A-Z a-z 0-9 _ - and trailing = padding
+  // BUG FIX: match đúng UQ/EQ (mainnet) và kQ/0Q (testnet), độ dài chuẩn 48 ký tự
+  return /^[UEk0][Qq][A-Za-z0-9_-]{46}=?$/.test(addr.trim())
 }
 
 /**

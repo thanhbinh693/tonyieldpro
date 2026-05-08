@@ -163,7 +163,7 @@ export default function App() {
         {tab === 'profile' && <ProfilePage {...appState} />}
       </div>
 
-      <BottomNav tab={tab} setTab={appState.setTab} isAdmin={false} />
+      <BottomNav tab={tab} setTab={appState.setTab} isAdmin={appState.isAdmin} />
 
       {depositOpen && (
         <DepositModal

@@ -92,6 +92,7 @@ export function useApp() {
   const adminMode    = checkIsAdmin(tid, config.adminIds)
   const inited       = useRef(false)
   const applyingRemote = useRef(false)
+  const lastSnapshot = useRef('')
 
   // ─── LOAD on mount: DB is source of truth ─────────────────────────────────
   useEffect(() => {
@@ -367,7 +368,7 @@ export function useApp() {
       const referredBy = await getUserReferredBy(tid)
       if (!referredBy) return
       const depositCount = transactions.filter(t => t.type === 'deposit').length
-      if (depositCount > 1) return
+      if (depositCount >= 1) return
       const referrer = await getReferrerByCode(referredBy)
       if (!referrer || Number(referrer.id) === Number(tid)) return
       const commission = +(parseFloat(amount) * ((Number(config.referralRate)||5) / 100)).toFixed(2)
@@ -461,7 +462,7 @@ export function useApp() {
     if (!destWallet) { showToast('Connect your TON wallet first', 'err'); return false }
 
     // Validate địa chỉ TON — TEP-0002
-    if (!/^[EUk0][Qg][A-Za-z0-9+/_-]{46}$/.test(destWallet)) {
+    if (!/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(destWallet)) {
       showToast('Invalid wallet address. Please reconnect your wallet.', 'err')
       return false
     }
