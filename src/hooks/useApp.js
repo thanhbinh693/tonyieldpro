@@ -426,20 +426,47 @@ export function useApp() {
       } catch(e) { console.error('[reinvest]',e); showToast('Reinvest failed. Try again.','err'); return false }
     }
 
-    // ── Wallet path ───────────────────────────────────────────────────────────
+    // ── Wallet path (Model B) ─────────────────────────────────────────────────
+    // Step 1: send TON on-chain
+    // Step 2: credit balance from DB (atomic read → balance + amount)
+    // Step 3: immediately deduct that same amount to fund the investment
+    // Net balance change = 0. total_deposit increases. Investment is created.
     try {
       await tonUI.sendTransaction({ validUntil:Math.floor(now/1000)+600, messages:[{ address:aw, amount:toNano(amount), payload:buildPayload(iid) }] })
       await applyReferralCommission(amount, now)
 
-      const newBal = +(user.balance + (+amount)).toFixed(2)
-      const newDep = (user.totalDeposit||0) + (+amount)
-      // DB FIRST
-      await supabase.from('users').upsert({ id:Number(tid), balance:newBal, total_deposit:newDep, referral_code:String(tid), updated_at:new Date().toISOString() }, { onConflict:'id' })
-      await supabase.from('transactions').insert({ id:'tx-'+now, user_id:Number(tid), type:'deposit', label:`Deposit · ${plan.name}`, amount:+amount, status:'completed', invoice_id:iid, plan_id:planId, created_at:now })
+      const amt = parseFloat(amount)
+
+      // Read current balance from DB — never use stale React state for financial writes
+      const { data: dbUser, error: readErr } = await supabase
+        .from('users').select('balance, total_deposit').eq('id', Number(tid)).maybeSingle()
+      if (readErr || !dbUser) throw new Error('Failed to read current balance')
+
+      const currentBal = Number(dbUser.balance) || 0
+      const currentDep = Number(dbUser.total_deposit) || 0
+
+      // balance + amount (credit) - amount (invest) = currentBal (unchanged)
+      // total_deposit increases to record the on-chain deposit
+      const newDep = +(currentDep + amt).toFixed(6)
+
+      // DB FIRST — single upsert: balance stays the same, only total_deposit changes
+      await supabase.from('users').upsert({
+        id:             Number(tid),
+        balance:        +currentBal.toFixed(6),   // unchanged — credited then immediately spent
+        total_deposit:  newDep,
+        referral_code:  String(tid),
+        updated_at:     new Date().toISOString(),
+      }, { onConflict:'id' })
+      await supabase.from('transactions').insert({
+        id:'tx-'+now, user_id:Number(tid), type:'deposit',
+        label:`Deposit · ${plan.name}`, amount:amt,
+        status:'completed', invoice_id:iid, plan_id:planId, created_at:now,
+      })
       await supabase.from('investments').insert(dbInv)
-      // STATE AFTER
-      setUser(p => ({ ...p, balance:newBal, totalDeposit:newDep }))
-      setTransactions(p => [{ id:'tx-'+now, type:'deposit', label:`Deposit · ${plan.name}`, date:'Just now', amount:+amount, status:'completed', invoiceId:iid, createdAt:now, planId, userId:tid }, ...p])
+
+      // STATE AFTER — balance unchanged, only totalDeposit and investments update
+      setUser(p => ({ ...p, totalDeposit: newDep }))
+      setTransactions(p => [{ id:'tx-'+now, type:'deposit', label:`Deposit · ${plan.name}`, date:'Just now', amount:amt, status:'completed', invoiceId:iid, createdAt:now, planId, userId:tid }, ...p])
       setInvestments(p => [...p, newInv])
       showToast('Deposit successful! ✓','ok')
       return true
