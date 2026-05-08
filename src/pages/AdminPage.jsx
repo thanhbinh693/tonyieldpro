@@ -22,6 +22,7 @@ export default function AdminPage({
   adminApproveWithdraw, adminRejectWithdraw,
   adminToggleBan, adminUpdatePlan, adminToggleMaintenance,
   adminUpdateUser, adminSaveSettings,
+  adminGetWithdrawQueue, adminUpdateWithdrawStatus,
   config, showToast, setIsAdmin
 }) {
   const [section, setSection] = useState('overview')
@@ -31,26 +32,43 @@ export default function AdminPage({
   const [txFilter, setTxFilter] = useState('all')
   const [selectedUser, setSelectedUser] = useState(null)
 
-  const [adminStats, setAdminStats]   = useState(null)
-  const [allUsers,   setAllUsers]     = useState([])
-  const [allTx,      setAllTx]        = useState([])
-  const [dataLoading, setDataLoading] = useState(true)
+  const [adminStats, setAdminStats]     = useState(null)
+  const [allUsers,   setAllUsers]       = useState([])
+  const [allTx,      setAllTx]          = useState([])
+  const [withdrawQueue, setWithdrawQueue] = useState([])
+  const [wdStatusMap,   setWdStatusMap]   = useState({}) // txId → loading state
+  const [dataLoading, setDataLoading]   = useState(true)
 
   const loadAdminData = async () => {
     setDataLoading(true)
     try {
-      const [stats, users, txs] = await Promise.all([
+      const [stats, users, txs, wdQueue] = await Promise.all([
         computeAdminStats(),
         getAllUsers(),
         getAllTransactions(),
+        adminGetWithdrawQueue ? adminGetWithdrawQueue() : Promise.resolve([]),
       ])
       setAdminStats(stats)
       setAllUsers(users)
       setAllTx(txs)
+      setWithdrawQueue(wdQueue)
     } catch(e) {
       console.warn('[AdminPage] load error:', e)
     } finally {
       setDataLoading(false)
+    }
+  }
+
+  const handleWithdrawAction = async (txId, newStatus) => {
+    setWdStatusMap(p => ({ ...p, [txId]: true }))
+    try {
+      await adminUpdateWithdrawStatus(txId, newStatus)
+      setWithdrawQueue(p => p.map(w => w.id === txId ? { ...w, status: newStatus } : w))
+      // Refresh stats
+      const stats = await computeAdminStats()
+      setAdminStats(stats)
+    } finally {
+      setWdStatusMap(p => { const n = { ...p }; delete n[txId]; return n })
     }
   }
 
@@ -304,47 +322,87 @@ export default function AdminPage({
         </div>
       )}
 
-      {/* ─── WITHDRAWALS ───────────────────────────────────────────────────── */}
+      {/* ─── WITHDRAW QUEUE ────────────────────────────────────────────────── */}
       {section === 'withdraws' && !dataLoading && (
         <div className="adm-section">
-          <div className="adm-sec-title">Withdrawals ({allTx.filter(t=>t.type==='withdraw').length})</div>
-          {/* Status summary */}
-          {allTx.filter(t=>t.type==='withdraw').length > 0 && (
-            <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
-              {['pending','processing','completed','failed'].map(s => {
-                const count = allTx.filter(t=>t.type==='withdraw'&&t.status===s).length
-                if (!count) return null
-                const colors = { pending:'#f5a623', processing:'#3d9be9', completed:'#4cd964', failed:'#ff3b30' }
-                return (
-                  <div key={s} style={{ background:'var(--card)', borderRadius:8, padding:'4px 10px', fontSize:12, color:colors[s]||'var(--muted)', fontWeight:600, border:`1px solid ${colors[s]}33` }}>
-                    {s}: {count}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          {allTx.filter(t=>t.type==='withdraw').length === 0 && <div className="adm-empty">No withdrawals yet</div>}
-          {allTxSorted.filter(t=>t.type==='withdraw').map(tx => (
-            <div key={tx.id} className="adm-tx-row">
-              <div className="atr-ico withdraw">↑</div>
-              <div className="atr-left">
-                <div className="atr-label">
-                  {(() => {
-                    const u = allUsers.find(u => Number(u.id)===Number(tx.userId))
-                    return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User #${tx.userId}`
-                  })()}
-                  <span style={{marginLeft:6, color:'var(--red)', fontWeight:700}}> · {Math.abs(tx.amount)} TON</span>
+          <div className="adm-sec-title" style={{display:'flex',alignItems:'center',gap:8}}>
+            Withdraw Queue
+            {withdrawQueue.filter(w=>w.status==='pending').length > 0 && (
+              <span style={{background:'var(--red)',color:'#fff',borderRadius:10,padding:'1px 8px',fontSize:11,fontWeight:700}}>
+                {withdrawQueue.filter(w=>w.status==='pending').length} pending
+              </span>
+            )}
+          </div>
+
+          {/* Status summary pills */}
+          <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+            {['pending','processing','completed','failed'].map(s => {
+              const count = withdrawQueue.filter(w=>w.status===s).length
+              if (!count) return null
+              const colors = { pending:'#f5a623', processing:'#3d9be9', completed:'#4cd964', failed:'#ff3b30' }
+              return (
+                <div key={s} style={{ background:'var(--card)', borderRadius:8, padding:'4px 10px', fontSize:12, color:colors[s], fontWeight:600, border:`1px solid ${colors[s]}33` }}>
+                  {s}: {count}
                 </div>
-                {tx.toWallet && (
-                  <div className="atr-date" style={{ fontSize:11, marginTop:2, color:'var(--blue)', fontFamily:'monospace' }}>
-                    → {shortWallet(tx.toWallet)}
+              )
+            })}
+          </div>
+
+          {withdrawQueue.length === 0 && <div className="adm-empty">No withdrawal requests</div>}
+
+          {/* Pending first, then rest */}
+          {[...withdrawQueue].sort((a,b) => {
+            const order = { pending:0, processing:1, completed:2, failed:3 }
+            return (order[a.status]??4) - (order[b.status]??4) || (b.createdAt||0) - (a.createdAt||0)
+          }).map(w => {
+            const u = allUsers.find(u => Number(u.id)===Number(w.userId))
+            const isPending = w.status === 'pending'
+            const isLoading = wdStatusMap[w.id]
+            return (
+              <div key={w.id} className={`adm-tx-row wd-queue-row ${isPending ? 'wd-pending' : ''}`} style={{alignItems:'flex-start', padding:'10px 12px', gap:10}}>
+                <div className="atr-ico withdraw" style={{marginTop:2}}>↑</div>
+                <div className="atr-left" style={{flex:1, minWidth:0}}>
+                  <div className="atr-label" style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
+                    {u ? <><strong>@{u.username||u.firstName||'—'}</strong><span style={{color:'var(--muted)',fontSize:11}}>#{w.userId}</span></> : `User #${w.userId}`}
+                    <span style={{marginLeft:4,color:'var(--red)',fontWeight:700}}>{w.amount.toFixed(4)} TON</span>
+                  </div>
+                  {w.toWallet && (
+                    <div style={{fontSize:11,marginTop:2,color:'var(--blue)',fontFamily:'monospace',wordBreak:'break-all'}}>
+                      → {shortWallet(w.toWallet)}
+                    </div>
+                  )}
+                  <div className="atr-date">{fmtDate(w.createdAt)}</div>
+                  <span className={`adm-status ${w.status}`} style={{marginTop:4,display:'inline-block'}}>{w.status}</span>
+                </div>
+                {/* Action buttons — only show for pending/processing */}
+                {(isPending || w.status==='processing') && (
+                  <div style={{display:'flex',flexDirection:'column',gap:6,minWidth:80}}>
+                    <button
+                      disabled={isLoading}
+                      onClick={() => handleWithdrawAction(w.id, 'completed')}
+                      style={{background:'var(--green,#4cd964)',color:'#000',border:'none',borderRadius:6,padding:'4px 8px',fontSize:11,fontWeight:700,cursor:isLoading?'wait':'pointer',opacity:isLoading?0.6:1}}
+                    >
+                      {isLoading ? '…' : '✓ Approve'}
+                    </button>
+                    <button
+                      disabled={isLoading}
+                      onClick={() => handleWithdrawAction(w.id, 'processing')}
+                      style={{background:'var(--blue)',color:'#fff',border:'none',borderRadius:6,padding:'4px 8px',fontSize:11,fontWeight:700,cursor:isLoading?'wait':'pointer',opacity:isLoading?0.6:1,display: w.status==='processing'?'none':'block'}}
+                    >
+                      Processing
+                    </button>
+                    <button
+                      disabled={isLoading}
+                      onClick={() => handleWithdrawAction(w.id, 'failed')}
+                      style={{background:'var(--red,#ff3b30)',color:'#fff',border:'none',borderRadius:6,padding:'4px 8px',fontSize:11,fontWeight:700,cursor:isLoading?'wait':'pointer',opacity:isLoading?0.6:1}}
+                    >
+                      ✕ Reject
+                    </button>
                   </div>
                 )}
-                <div className="atr-date">{fmtDate(tx.createdAt)}</div>
               </div>
-              <span className={`adm-status ${tx.status}`}>{tx.status}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

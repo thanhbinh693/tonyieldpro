@@ -187,6 +187,25 @@ export function useApp() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${tid}` }, refreshFromDb)
       .subscribe()
 
+    // Admin broadcast: plan/config updates pushed by admin to all clients
+    const adminChannel = supabase
+      .channel('admin-broadcast')
+      .on('broadcast', { event: 'adminUpdatePlan' }, ({ payload }) => {
+        if (payload) setPlans(prev => prev.map(p => p.id === payload.planId ? { ...p, ...payload.updates } : p))
+      })
+      .on('broadcast', { event: 'adminConfig' }, ({ payload }) => {
+        if (payload) setConfig(prev => ({ ...DEFAULT_CONFIG, ...prev, ...payload }))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'admin_config' }, async () => {
+        const cfg = await getAdminConfig(null)
+        if (cfg) setConfig(prev => ({ ...DEFAULT_CONFIG, ...cfg }))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, async () => {
+        const savedPlans = await getAdminPlans(null)
+        if (savedPlans) setPlans(savedPlans)
+      })
+      .subscribe()
+
     const onFocus = () => refreshFromDb()
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onFocus)
@@ -196,6 +215,7 @@ export function useApp() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
       supabase.removeChannel(channel)
+      supabase.removeChannel(adminChannel)
     }
   }, [loading, tid]) // eslint-disable-line
 
@@ -426,47 +446,20 @@ export function useApp() {
       } catch(e) { console.error('[reinvest]',e); showToast('Reinvest failed. Try again.','err'); return false }
     }
 
-    // ── Wallet path (Model B) ─────────────────────────────────────────────────
-    // Step 1: send TON on-chain
-    // Step 2: credit balance from DB (atomic read → balance + amount)
-    // Step 3: immediately deduct that same amount to fund the investment
-    // Net balance change = 0. total_deposit increases. Investment is created.
+    // ── Wallet path ───────────────────────────────────────────────────────────
     try {
       await tonUI.sendTransaction({ validUntil:Math.floor(now/1000)+600, messages:[{ address:aw, amount:toNano(amount), payload:buildPayload(iid) }] })
       await applyReferralCommission(amount, now)
 
-      const amt = parseFloat(amount)
-
-      // Read current balance from DB — never use stale React state for financial writes
-      const { data: dbUser, error: readErr } = await supabase
-        .from('users').select('balance, total_deposit').eq('id', Number(tid)).maybeSingle()
-      if (readErr || !dbUser) throw new Error('Failed to read current balance')
-
-      const currentBal = Number(dbUser.balance) || 0
-      const currentDep = Number(dbUser.total_deposit) || 0
-
-      // balance + amount (credit) - amount (invest) = currentBal (unchanged)
-      // total_deposit increases to record the on-chain deposit
-      const newDep = +(currentDep + amt).toFixed(6)
-
-      // DB FIRST — single upsert: balance stays the same, only total_deposit changes
-      await supabase.from('users').upsert({
-        id:             Number(tid),
-        balance:        +currentBal.toFixed(6),   // unchanged — credited then immediately spent
-        total_deposit:  newDep,
-        referral_code:  String(tid),
-        updated_at:     new Date().toISOString(),
-      }, { onConflict:'id' })
-      await supabase.from('transactions').insert({
-        id:'tx-'+now, user_id:Number(tid), type:'deposit',
-        label:`Deposit · ${plan.name}`, amount:amt,
-        status:'completed', invoice_id:iid, plan_id:planId, created_at:now,
-      })
+      const newBal = +(user.balance + (+amount)).toFixed(2)
+      const newDep = (user.totalDeposit||0) + (+amount)
+      // DB FIRST
+      await supabase.from('users').upsert({ id:Number(tid), balance:newBal, total_deposit:newDep, referral_code:String(tid), updated_at:new Date().toISOString() }, { onConflict:'id' })
+      await supabase.from('transactions').insert({ id:'tx-'+now, user_id:Number(tid), type:'deposit', label:`Deposit · ${plan.name}`, amount:+amount, status:'completed', invoice_id:iid, plan_id:planId, created_at:now })
       await supabase.from('investments').insert(dbInv)
-
-      // STATE AFTER — balance unchanged, only totalDeposit and investments update
-      setUser(p => ({ ...p, totalDeposit: newDep }))
-      setTransactions(p => [{ id:'tx-'+now, type:'deposit', label:`Deposit · ${plan.name}`, date:'Just now', amount:amt, status:'completed', invoiceId:iid, createdAt:now, planId, userId:tid }, ...p])
+      // STATE AFTER
+      setUser(p => ({ ...p, balance:newBal, totalDeposit:newDep }))
+      setTransactions(p => [{ id:'tx-'+now, type:'deposit', label:`Deposit · ${plan.name}`, date:'Just now', amount:+amount, status:'completed', invoiceId:iid, createdAt:now, planId, userId:tid }, ...p])
       setInvestments(p => [...p, newInv])
       showToast('Deposit successful! ✓','ok')
       return true
@@ -682,8 +675,16 @@ export function useApp() {
     } catch(e) { console.error('[adminUpdateUser]',e); showToast('Failed to update user','err') }
   }, [tid, showToast])
 
-  const adminUpdatePlan = useCallback((planId, updates) => {
-    setPlans(prev => { const next = prev.map(p => p.id===planId ? { ...p, ...updates } : p); saveAdminPlans(next); return next })
+  const adminUpdatePlan = useCallback(async (planId, updates) => {
+    setPlans(prev => {
+      const next = prev.map(p => p.id===planId ? { ...p, ...updates } : p)
+      saveAdminPlans(next)
+      // Broadcast plan update via Supabase realtime channel
+      supabase.channel('admin-broadcast').send({
+        type: 'broadcast', event: 'adminUpdatePlan', payload: { planId, updates }
+      }).catch(() => {})
+      return next
+    })
     showToast('Plan updated!','ok')
   }, [showToast])
 
@@ -691,10 +692,97 @@ export function useApp() {
     setConfig(prev => { const next = { ...prev, maintenanceMode:!prev.maintenanceMode }; saveAdminConfig(next); return next })
   }, [])
 
+  // ─── ADMIN: Withdraw Queue ────────────────────────────────────────────────
+  const adminGetWithdrawQueue = useCallback(async () => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('type', 'withdraw')
+      .order('created_at', { ascending: false })
+    return (data || []).map(t => ({
+      id:        t.id,
+      userId:    t.user_id,
+      amount:    Number(t.amount),
+      toWallet:  t.to_wallet  || '',
+      status:    t.status     || 'pending',
+      label:     t.label      || '',
+      createdAt: t.created_at,
+    }))
+  }, [])
+
+  const adminUpdateWithdrawStatus = useCallback(async (txId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', txId)
+      if (error) throw error
+
+      // If approved → update user totalWithdraw
+      if (newStatus === 'completed') {
+        const { data: tx } = await supabase
+          .from('transactions').select('amount, user_id').eq('id', txId).maybeSingle()
+        if (tx) {
+          const { data: u } = await supabase
+            .from('users').select('total_withdraw').eq('id', tx.user_id).maybeSingle()
+          const newTotal = +((Number(u?.total_withdraw)||0) + Math.abs(tx.amount)).toFixed(6)
+          await supabase.from('users').update({
+            total_withdraw: newTotal, updated_at: new Date().toISOString()
+          }).eq('id', tx.user_id)
+        }
+      }
+
+      // If rejected → refund balance
+      if (newStatus === 'failed') {
+        const { data: tx } = await supabase
+          .from('transactions').select('amount, user_id').eq('id', txId).maybeSingle()
+        if (tx) {
+          const { data: u } = await supabase
+            .from('users').select('balance').eq('id', tx.user_id).maybeSingle()
+          const refunded = +((Number(u?.balance)||0) + Math.abs(tx.amount)).toFixed(6)
+          await supabase.from('users').update({
+            balance: refunded, updated_at: new Date().toISOString()
+          }).eq('id', tx.user_id)
+        }
+      }
+
+      showToast(`Withdrawal ${newStatus}!`, 'ok')
+    } catch(e) {
+      console.error('[adminUpdateWithdrawStatus]', e)
+      showToast('Failed to update withdrawal', 'err')
+    }
+  }, [showToast])
+
   const adminSaveSettings = useCallback((updates) => {
-    setConfig(prev => { const next = { ...prev, ...updates }; saveAdminConfig(next); return next })
+    setConfig(prev => {
+      const next = { ...prev, ...updates }
+      saveAdminConfig(next)
+      // Broadcast config to all connected clients via Realtime
+      supabase.channel('admin-broadcast').send({
+        type: 'broadcast', event: 'adminConfig', payload: next
+      }).catch(() => {})
+      return next
+    })
     showToast('Settings saved!','ok')
   }, [showToast])
+
+  // ─── todayProfit: reset at midnight local time ─────────────────────────────
+  useEffect(() => {
+    if (loading) return
+    const scheduleReset = () => {
+      const now = new Date()
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5)
+      const ms = midnight - now
+      return setTimeout(async () => {
+        // Reset today_profit in DB and locally
+        await supabase.from('users').update({ today_profit: 0, updated_at: new Date().toISOString() }).eq('id', Number(tid)).catch(() => {})
+        setUser(p => ({ ...p, todayProfit: 0 }))
+        scheduleReset() // reschedule for next midnight
+      }, ms)
+    }
+    const timer = scheduleReset()
+    return () => clearTimeout(timer)
+  }, [loading, tid]) // eslint-disable-line
 
   // Build referral object for display — use referralLink (URL), not DB referral_code
   const referralDisplay = {
@@ -714,5 +802,6 @@ export function useApp() {
     adminApproveWithdraw:()=>{}, adminRejectWithdraw:()=>{},
     adminToggleBan, adminUpdateUser, adminUpdatePlan,
     adminToggleMaintenance, adminSaveSettings,
+    adminGetWithdrawQueue, adminUpdateWithdrawStatus,
   }
 }
