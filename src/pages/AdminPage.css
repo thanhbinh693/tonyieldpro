@@ -595,8 +595,3 @@
   font-size: 10px;
 }
 
-
-/* ─── Withdraw Queue ──────────────────────────────────────────────────────── */
-.wd-queue-row { background: var(--card); border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--border); }
-.wd-queue-row.wd-pending { border-color: var(--gold,#f5a623)44; background: #f5a62308; }
-.adm-status.processing { background: #3d9be920; color: var(--blue); }

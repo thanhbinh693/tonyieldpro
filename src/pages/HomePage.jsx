@@ -18,20 +18,25 @@ function getNextActiveDay(inv) {
 }
 
 // ─── Plan Progress Ring + Ripple Wave ────────────────────────────────────────
+//
+// Local countdown timer — không poll DB, chỉ đọc nextProfitTime từ props.
+// Khi server tick xong → Realtime WS → parent cập nhật inv.nextProfitTime
+// → component re-render với nextProfitTime mới → timer reset tự động.
+//
 function PlanRing({ inv, onActivate, onCollect }) {
-  const [remaining, setRemaining] = useState(0)
-  const [expired, setExpired] = useState(false)
+  // remaining được tính trực tiếp từ nextProfitTime — không lưu trong state
+  // để tránh drift khi nextProfitTime thay đổi từ Realtime update
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    const tick = () => {
-      const left = Math.max(0, inv.nextProfitTime - Date.now())
-      setRemaining(left)
-      setExpired(left === 0)
-    }
-    tick()
-    const id = setInterval(tick, 1000)
+    // setInterval 1s chỉ để force re-render mỗi giây
+    // Giá trị thực tế luôn được tính từ inv.nextProfitTime live
+    const id = setInterval(() => setTick(t => t + 1), 1000)
     return () => clearInterval(id)
-  }, [inv.nextProfitTime])
+  }, []) // mount once — không depend on nextProfitTime
+
+  const remaining = Math.max(0, inv.nextProfitTime - Date.now())
+  const expired   = remaining === 0
 
   const h = Math.floor(remaining / 3600000)
   const m = Math.floor((remaining % 3600000) / 60000)
