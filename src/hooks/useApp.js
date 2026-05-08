@@ -414,7 +414,7 @@ export function useApp() {
       const newDep = (user.totalDeposit||0) + amt
       try {
         // DB FIRST
-        await supabase.from('users').update({ balance:newBal, total_deposit:newDep, updated_at:new Date().toISOString() }).eq('id', Number(tid))
+        await supabase.from('users').upsert({ id:Number(tid), balance:newBal, total_deposit:newDep, referral_code:String(tid), updated_at:new Date().toISOString() }, { onConflict:'id' })
         await supabase.from('transactions').insert({ id:'tx-'+now, user_id:Number(tid), type:'deposit', label:`Reinvest · ${plan.name}`, amount:amt, status:'completed', invoice_id:iid, plan_id:planId, created_at:now })
         await supabase.from('investments').insert(dbInv)
         // STATE AFTER
@@ -434,7 +434,7 @@ export function useApp() {
       const newBal = +(user.balance + (+amount)).toFixed(2)
       const newDep = (user.totalDeposit||0) + (+amount)
       // DB FIRST
-      await supabase.from('users').update({ balance:newBal, total_deposit:newDep, updated_at:new Date().toISOString() }).eq('id', Number(tid))
+      await supabase.from('users').upsert({ id:Number(tid), balance:newBal, total_deposit:newDep, referral_code:String(tid), updated_at:new Date().toISOString() }, { onConflict:'id' })
       await supabase.from('transactions').insert({ id:'tx-'+now, user_id:Number(tid), type:'deposit', label:`Deposit · ${plan.name}`, amount:+amount, status:'completed', invoice_id:iid, plan_id:planId, created_at:now })
       await supabase.from('investments').insert(dbInv)
       // STATE AFTER
@@ -486,12 +486,14 @@ export function useApp() {
         return false
       }
 
-      // 2. Trừ balance + lưu wallet address
-      const { error: balErr } = await supabase.from('users').update({
+      // 2. Upsert user (đảm bảo row tồn tại) + trừ balance + lưu wallet
+      const { error: balErr } = await supabase.from('users').upsert({
+        id:          Number(tid),
         balance:     newBal,
         wallet_addr: destWallet,
+        referral_code: String(tid),
         updated_at:  new Date().toISOString(),
-      }).eq('id', Number(tid))
+      }, { onConflict: 'id' })
       if (balErr) throw new Error('Failed to update balance')
 
       // 3. Insert pending withdraw transaction — worker sẽ pick up
@@ -558,7 +560,7 @@ export function useApp() {
     const now    = Date.now()
     const newBal = +(user.balance + uncollected).toFixed(2)
     try {
-      await supabase.from('users').update({ balance:newBal, updated_at:new Date().toISOString() }).eq('id', Number(tid))
+      await supabase.from('users').upsert({ id:Number(tid), balance:newBal, referral_code:String(tid), updated_at:new Date().toISOString() }, { onConflict:'id' })
       await supabase.from('investments').update({ status:'completed', earned:0 }).eq('id', invId)
       await supabase.from('transactions').insert({ id:'collect-'+now, user_id:Number(tid), type:'profit', label:'Profit collected · '+(inv.plan||'Plan'), amount:uncollected, status:'completed', created_at:now })
       setUser(p => ({ ...p, balance:newBal }))
