@@ -468,95 +468,68 @@ export function useApp() {
     }
 
     try {
-      // ── Thử gọi Edge Function trước ──────────────────────────────────────
-      const initData = window.Telegram?.WebApp?.initData || ''
-      let edgeFailed = false
+      // ── Ghi withdraw request trực tiếp vào Supabase ──────────────────────
+      // withdrawal-worker.js (backend) sẽ poll bảng transactions để gửi TON thật
+      const now  = Date.now()
+      const txId = `tx-wd-${tid}-${now}`
+      const newBal = +(user.balance - amount).toFixed(6)
 
-      try {
-        const res = await fetch(WITHDRAW_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type':  'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            initData,
-            userId:   tid,
-            amount,
-            toWallet: destWallet,   // ← field name match Edge Function
-          }),
-        })
-
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Withdrawal failed')
-
-        // Edge Function thành công — refresh từ DB
-        const bundle = await getUserBundle(tid)
-        if (bundle) {
-          applyingRemote.current = true
-          if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
-          if (bundle.investments)  setInvestments(bundle.investments)
-          if (bundle.transactions) setTransactions(bundle.transactions)
-          setTimeout(() => { applyingRemote.current = false }, 100)
-        }
-        showToast('Withdrawal submitted! Processing... ⏳', 'ok')
-        return true
-
-      } catch (fetchErr) {
-        const fetchMsg = fetchErr?.message || ''
-        // Nếu là lỗi business (banned, Insufficient...) — không fallback
-        if (/banned|Insufficient|unavailable/i.test(fetchMsg)) throw fetchErr
-        // Nếu là network error (Failed to fetch, CORS, Edge Function chưa deploy) — fallback
-        console.warn('[withdraw] Edge function unreachable, using direct Supabase fallback:', fetchErr)
-        edgeFailed = true
+      // 1. Kiểm tra user không bị banned + balance từ DB
+      const { data: dbUser } = await supabase
+        .from('users').select('status, balance').eq('id', Number(tid)).maybeSingle()
+      if (dbUser?.status === 'banned') {
+        showToast('Your account is suspended.', 'err')
+        return false
+      }
+      if (Number(dbUser?.balance) < amount) {
+        showToast('Insufficient balance.', 'err')
+        return false
       }
 
-      if (edgeFailed) {
-        // ── Fallback: ghi withdraw request trực tiếp vào Supabase ────────────
-        // Admin sẽ xử lý thủ công hoặc qua withdrawal-worker.js
-        const now = Date.now()
-        const txId = `tx-wd-${tid}-${now}`
-        const newBal = +(user.balance - amount).toFixed(6)
+      // 2. Trừ balance + lưu wallet address
+      const { error: balErr } = await supabase.from('users').update({
+        balance:     newBal,
+        wallet_addr: destWallet,
+        updated_at:  new Date().toISOString(),
+      }).eq('id', Number(tid))
+      if (balErr) throw new Error('Failed to update balance')
 
-        // Deduct balance + insert pending withdraw transaction
-        const { error: balErr } = await supabase.from('users').update({
-          balance:     newBal,
-          wallet_addr: destWallet,
-          updated_at:  new Date().toISOString(),
+      // 3. Insert pending withdraw transaction — worker sẽ pick up
+      const { error: txErr } = await supabase.from('transactions').insert({
+        id:         txId,
+        user_id:    Number(tid),
+        type:       'withdraw',
+        label:      `Withdrawal → ${destWallet.slice(0, 8)}...`,
+        amount,
+        status:     'pending',
+        to_wallet:  destWallet,
+        created_at: now,
+      })
+      if (txErr) {
+        // Rollback balance nếu insert thất bại
+        await supabase.from('users').update({
+          balance: user.balance, updated_at: new Date().toISOString(),
         }).eq('id', Number(tid))
-        if (balErr) throw new Error('Failed to update balance')
-
-        await supabase.from('transactions').insert({
-          id:         txId,
-          user_id:    Number(tid),
-          type:       'withdraw',
-          label:      `Withdrawal → ${destWallet.slice(0, 8)}...`,
-          amount,
-          status:     'pending',
-          to_wallet:  destWallet,
-          created_at: now,
-        })
-
-        // Update local state
-        setUser(p => ({ ...p, balance: newBal, walletAddr: destWallet }))
-        setTransactions(p => [{
-          id: txId, type: 'withdraw',
-          label: `Withdrawal → ${destWallet.slice(0, 8)}...`,
-          date: 'Just now', amount, status: 'pending',
-          toWallet: destWallet, createdAt: now,
-        }, ...p])
-
-        showToast('Withdrawal submitted! Processing... ⏳', 'ok')
-        return true
+        throw new Error('Failed to create transaction')
       }
+
+      // 4. Cập nhật local state ngay lập tức
+      setUser(p => ({ ...p, balance: newBal, walletAddr: destWallet }))
+      setTransactions(p => [{
+        id: txId, type: 'withdraw',
+        label: `Withdrawal → ${destWallet.slice(0, 8)}...`,
+        date: 'Just now', amount, status: 'pending',
+        toWallet: destWallet, createdAt: now, userId: tid,
+      }, ...p])
+
+      showToast('Withdrawal submitted! Processing... ⏳', 'ok')
+      return true
 
     } catch (e) {
       const msg = e?.message || ''
-      if (/banned/i.test(msg))              showToast('Your account is suspended.', 'err')
-      else if (/Insufficient/i.test(msg))   showToast('Insufficient balance.', 'err')
-      else if (/unavailable/i.test(msg))    showToast('Service busy. Please try again later.', 'err')
-      else                                  showToast('Withdrawal failed. Please try again.', 'err')
-
+      if (/banned/i.test(msg))            showToast('Your account is suspended.', 'err')
+      else if (/Insufficient/i.test(msg)) showToast('Insufficient balance.', 'err')
+      else                                showToast('Withdrawal failed. Please try again.', 'err')
       console.error('[withdraw]', e)
       return false
     }
