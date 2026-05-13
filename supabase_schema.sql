@@ -73,6 +73,8 @@ create table if not exists admin_config (
   referral_rate   numeric default 5,
   maintenance_mode boolean default false,
   admin_wallet    text    default '',
+  admin_wallet_testnet text default '',
+  admin_wallet_mainnet text default '',
   admin_ids       bigint[] default '{}',
   bot_username    text    default '',
   ton_network     text    not null default 'testnet' check (ton_network in ('mainnet', 'testnet')),

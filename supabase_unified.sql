@@ -68,6 +68,8 @@ create table if not exists admin_config (
   referral_rate numeric(8,4) default 5,
   maintenance_mode boolean default false,
   admin_wallet text default '',
+  admin_wallet_testnet text default '',
+  admin_wallet_mainnet text default '',
   admin_ids bigint[] default '{}',
   bot_username text default '',
   ton_network text not null default 'testnet' check (ton_network in ('mainnet', 'testnet')),
@@ -96,6 +98,8 @@ create table if not exists plans (
 
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';
+alter table admin_config add column if not exists admin_wallet_testnet text default '';
+alter table admin_config add column if not exists admin_wallet_mainnet text default '';
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';
 alter table transactions add column if not exists updated_at timestamptz default now();

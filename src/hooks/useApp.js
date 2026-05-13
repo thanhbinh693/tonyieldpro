@@ -46,6 +46,11 @@ function buildPayload(text) {
 }
 function makeInvId(tid,pid){return String((Date.now()%900000)+100000+Number(pid))}
 function toNano(a){return String(Math.round(parseFloat(a)*1e9))}
+function isNetworkWallet(addr, network) {
+  const a = String(addr || '').trim()
+  if (network === 'mainnet') return /^[UE]Q[A-Za-z0-9_-]{46}=?$/.test(a)
+  return /^[k0]Q[A-Za-z0-9_-]{46}=?$/.test(a)
+}
 
 function getTgUser(){
   try{const u=window.Telegram?.WebApp?.initDataUnsafe?.user; if(u&&u.id)return u}catch{}
@@ -76,6 +81,8 @@ const DEFAULT_CONFIG = {
   referralRate: 5,
   maintenanceMode: false,
   adminWallet: ADMIN_WALLET,
+  adminWalletTestnet: ADMIN_WALLET,
+  adminWalletMainnet: '',
   adminIds: [...ADMIN_IDS],
   botUsername: '',
   tonNetwork: TON_NETWORK,
@@ -127,6 +134,14 @@ export function useApp() {
   const adminMode   = checkIsAdmin(tid, config.adminIds)
   const inited      = useRef(false)
 
+  const withTimeout = useCallback((promise, ms, fallback) => {
+    let timer
+    return Promise.race([
+      promise,
+      new Promise(resolve => { timer = setTimeout(() => resolve(fallback), ms) }),
+    ]).finally(() => clearTimeout(timer))
+  }, [])
+
   // ─── Load on mount ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (inited.current) return
@@ -139,9 +154,9 @@ export function useApp() {
     async function load() {
       try {
         const [bundle, cfg, savedPlans] = await Promise.all([
-          getUserBundle(tid),
-          getAdminConfig(null),
-          getAdminPlans(null),
+          withTimeout(getUserBundle(tid).catch(() => null), 4000, null),
+          withTimeout(getAdminConfig(null).catch(() => null), 4000, null),
+          withTimeout(getAdminPlans(null).catch(() => null), 4000, null),
         ])
         if (bundle) {
           if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
@@ -154,7 +169,7 @@ export function useApp() {
 
         const sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param || ''
         const referredByCode = /^\d{5,15}$/.test(sp) ? sp : ''
-        await registerUser(tid, referredByCode)
+        registerUser(tid, referredByCode).catch(e => console.warn('[registerUser]', e))
 
         if (tgUser.id) {
           supabase.from('users').update({
@@ -169,10 +184,10 @@ export function useApp() {
           }).catch(() => {})
         }
       } catch(e) { console.warn('[load]', e) }
-      finally { setTimeout(() => setLoading(false), 500) }
+      finally { setLoading(false) }
     }
     load()
-  }, []) // eslint-disable-line
+  }, [withTimeout]) // eslint-disable-line
 
   // ─── Realtime WebSocket — thay thế toàn bộ polling ────────────────────────
   //
@@ -294,7 +309,18 @@ export function useApp() {
     if (!plan) return false
     const now = Date.now()
     const iid = makeInvId(tid, planId)
-    const aw  = config.adminWallet || ADMIN_WALLET
+    const activeNetwork = config.tonNetwork || TON_NETWORK
+    const aw  = activeNetwork === 'mainnet'
+      ? (config.adminWalletMainnet || config.adminWallet || '')
+      : (config.adminWalletTestnet || config.adminWallet || ADMIN_WALLET)
+    if (!aw) {
+      showToast(`Admin ${activeNetwork} wallet is not configured.`, 'err')
+      return false
+    }
+    if (!isNetworkWallet(aw, activeNetwork)) {
+      showToast(`Admin wallet does not match ${activeNetwork}. Check Admin Settings.`, 'err')
+      return false
+    }
 
     const rIms = plan.profitIntervalMs
       || (plan.profitIntervalMinutes ? plan.profitIntervalMinutes*60_000 : 0)
@@ -392,11 +418,11 @@ export function useApp() {
     } catch(e) {
       const m = e?.message||''
       if (/User rejects|CANCELLED|user rejected|Transaction was not sent|not sent/i.test(m)) showToast('Transaction cancelled','err')
-      else if (/invalid address/i.test(m)) showToast('Error: ADMIN_WALLET not configured.','err')
-      else { console.error('[deposit]',e); showToast('Transaction failed. Try again.','err') }
+      else if (/invalid address/i.test(m)) showToast(`Invalid ${activeNetwork} admin wallet. Check Admin Settings.`, 'err')
+      else { console.error('[deposit]',e); showToast(`Deposit failed: ${m || 'try again'}`,'err') }
       return false
     }
-  }, [plans, tid, tonUI, showToast, config.adminWallet, user.balance, user.totalDeposit, applyReferralCommission])
+  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, user.totalDeposit, applyReferralCommission])
 
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
@@ -604,7 +630,11 @@ export function useApp() {
       if (updates.referralDepositVolume !== undefined) dbPatch.referral_deposit_volume = Number(updates.referralDepositVolume)
       if (updates.status         !== undefined) dbPatch.status          = updates.status
       if (updates.walletAddr     !== undefined) dbPatch.wallet_addr     = updates.walletAddr
-      const { error } = await supabase.from('users').update(dbPatch).eq('id', id)
+      let { error } = await supabase.from('users').update(dbPatch).eq('id', id)
+      if (error && /referral_deposit_volume/i.test(error.message || '')) {
+        delete dbPatch.referral_deposit_volume
+        ;({ error } = await supabase.from('users').update(dbPatch).eq('id', id))
+      }
       if (error) throw error
       if (id===Number(tid)) setUser(p => ({ ...p, ...updates }))
       showToast('User updated!','ok')

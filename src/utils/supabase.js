@@ -227,6 +227,8 @@ export async function getAdminConfig(fallback = null) {
     referralRate:     data.referral_rate,
     maintenanceMode:  data.maintenance_mode,
     adminWallet:      data.admin_wallet,
+    adminWalletTestnet: data.admin_wallet_testnet || data.admin_wallet || '',
+    adminWalletMainnet: data.admin_wallet_mainnet || '',
     adminIds:         data.admin_ids || [],
     botUsername:      data.bot_username || '',
     tonNetwork:       data.ton_network || 'testnet',
@@ -234,20 +236,26 @@ export async function getAdminConfig(fallback = null) {
 }
 
 export async function saveAdminConfig(cfg) {
-  check(
-    await supabase.from('admin_config').upsert({
+  const row = {
       id:               1,
       min_withdraw:     cfg.minWithdraw,
       referral_rate:    cfg.referralRate,
       maintenance_mode: cfg.maintenanceMode,
       admin_wallet:     cfg.adminWallet,
+      admin_wallet_testnet: cfg.adminWalletTestnet || cfg.adminWallet || '',
+      admin_wallet_mainnet: cfg.adminWalletMainnet || '',
       admin_ids:        cfg.adminIds || [],
       bot_username:     cfg.botUsername || '',
       ton_network:      cfg.tonNetwork || 'testnet',
       updated_at:       new Date().toISOString(),
-    }, { onConflict: 'id' }),
-    'saveAdminConfig'
-  )
+  }
+  let result = await supabase.from('admin_config').upsert(row, { onConflict: 'id' })
+  if (result.error && /admin_wallet_(testnet|mainnet)/i.test(result.error.message || '')) {
+    delete row.admin_wallet_testnet
+    delete row.admin_wallet_mainnet
+    result = await supabase.from('admin_config').upsert(row, { onConflict: 'id' })
+  }
+  check(result, 'saveAdminConfig')
 }
 
 // ─── PLANS ────────────────────────────────────────────────────────────────────

@@ -74,7 +74,8 @@ Update `src/utils/config.js`:
 
 Then set admin settings inside the app Admin Panel:
 
-- Admin wallet
+- Admin wallet testnet
+- Admin wallet mainnet
 - Admin Telegram IDs
 - Bot username
 - Referral percent
