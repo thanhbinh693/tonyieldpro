@@ -57,6 +57,7 @@ export async function getUserBundle(telegramId) {
       code:       user.referral_code    || String(id),
       friends:    user.referral_friends || 0,
       commission: user.referral_commission || 0,
+      depositVolume: user.referral_deposit_volume || 0,
     },
   }
 }
@@ -168,7 +169,7 @@ export async function getUserReferredBy(telegramId) {
 /**
  * Credit referral commission server-side via Edge Function.
  * Gọi sau khi deposit tx đã được insert vào DB.
- * Edge Function tự kiểm tra: first deposit only, idempotency, referrer lookup.
+ * Edge Function credits every deposit and keeps idempotency by deposit tx id.
  *
  * @param {number} userId - Telegram ID của người vừa deposit
  * @param {number} depositAmount - Số TON deposit
@@ -348,6 +349,7 @@ export async function getAllUsersData() {
           code:       u.referral_code || String(uid).slice(-6),
           friends:    u.referral_friends || 0,
           commission: u.referral_commission || 0,
+          depositVolume: u.referral_deposit_volume || 0,
         },
       },
     }
@@ -399,6 +401,7 @@ function appUserToDb(id, user, referral = {}) {
     referred_by:          user?.referredBy    || '',
     referral_friends:     referral?.friends   || 0,
     referral_commission:  Number(referral?.commission) || 0,
+    referral_deposit_volume: Number(referral?.depositVolume) || 0,
     updated_at:           new Date().toISOString(),
   }
 }

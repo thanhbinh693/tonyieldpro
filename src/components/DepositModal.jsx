@@ -19,13 +19,14 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
 
   const autoPlan = detectPlan(plans, amount)
   const amt = parseFloat(amount) || 0
-  const activeDaysPerWeek = autoPlan ? (autoPlan.activeDays || [1,2,3,4,5]).length : 5
-  const activeDaysInTerm = autoPlan
-    ? Math.round((autoPlan.activeDays || [1,2,3,4,5]).length / 7 * (autoPlan.duration || 30))
-    : 22
-  const daily   = autoPlan && amt ? (amt * autoPlan.rate / 100).toFixed(3) : null
-  const weekly  = daily ? (parseFloat(daily) * activeDaysPerWeek).toFixed(3) : null
-  const monthly = daily ? (parseFloat(daily) * activeDaysInTerm).toFixed(3) : null
+  const intervalMin = autoPlan?.profitIntervalMinutes || 1440
+  const durationMs = autoPlan
+    ? autoPlan.durationMs || (autoPlan.duration * (autoPlan.durationUnit === 'hours' ? 3_600_000 : 86_400_000))
+    : 0
+  const totalIntervals = autoPlan ? Math.floor(durationMs / (intervalMin * 60_000)) : 0
+  const perInterval = autoPlan && amt ? (amt * autoPlan.rate / 100).toFixed(4) : null
+  const hourly = perInterval ? (parseFloat(perInterval) * (60 / intervalMin)).toFixed(4) : null
+  const totalReturn = perInterval ? (parseFloat(perInterval) * totalIntervals).toFixed(4) : null
   const amountValid = autoPlan && amt >= autoPlan.min && (!autoPlan.max || amt <= autoPlan.max)
 
   // If wallet connects while modal is open, advance to deposit step
@@ -194,16 +195,16 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
                 <div className="est-title">Estimated Returns</div>
                 <div className="er-grid">
                   <div className="er-item">
-                    <div className="er-val" style={{color: planColor}}>{daily ? '+'+daily : '—'}</div>
-                    <div className="er-lbl">Per day</div>
+                    <div className="er-val" style={{color: planColor}}>{perInterval ? '+'+perInterval : '—'}</div>
+                    <div className="er-lbl">Per interval</div>
                   </div>
                   <div className="er-item">
-                    <div className="er-val" style={{color: planColor}}>{weekly ? '+'+weekly : '—'}</div>
-                    <div className="er-lbl">Per week ({activeDaysPerWeek}d)</div>
+                    <div className="er-val" style={{color: planColor}}>{hourly ? '+'+hourly : '—'}</div>
+                    <div className="er-lbl">Per hour</div>
                   </div>
                   <div className="er-item">
-                    <div className="er-val" style={{color: planColor}}>{monthly ? '+'+monthly : '—'}</div>
-                    <div className="er-lbl">{autoPlan?.duration || 30}d ({activeDaysInTerm} active)</div>
+                    <div className="er-val" style={{color: planColor}}>{totalReturn ? '+'+totalReturn : '—'}</div>
+                    <div className="er-lbl">Total term</div>
                   </div>
                 </div>
                 <div className="er-note">{autoPlan?.profitIntervalMinutes || 5}min interval · {autoPlan?.duration || 1}{autoPlan?.durationUnit === 'hours' ? 'hr' : 'd'} term · principal returned on completion</div>

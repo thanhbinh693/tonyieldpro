@@ -281,7 +281,7 @@ export function useApp() {
 
   // ─── Referral commission — server-side via Edge Function ─────────────────
   // Được gọi sau khi deposit tx đã insert vào DB.
-  // Edge Function tự kiểm tra: first deposit only, idempotency, referrer lookup.
+  // Edge Function credits every deposit and keeps idempotency by deposit tx id.
   const applyReferralCommission = useCallback(async (amount, txId) => {
     try {
       await creditReferralViaServer(tid, parseFloat(amount), txId)
@@ -336,6 +336,7 @@ export function useApp() {
           status:'completed', invoice_id:iid, plan_id:planId, created_at:now,
         })
         await supabase.from('investments').insert(dbInv)
+        await applyReferralCommission(amount, 'tx-'+now)
         setUser(p => ({ ...p, balance:newBal, totalDeposit:newDep }))
         setTransactions(p => [{
           id:'tx-'+now, type:'deposit', label:`Reinvest · ${plan.name}`,
@@ -354,10 +355,8 @@ export function useApp() {
         messages: [{ address:aw, amount:toNano(amount), payload:buildPayload(iid) }],
       })
 
-      // Credit referral commission server-side (first deposit only, idempotent)
-      await applyReferralCommission(amount, 'tx-'+now)
-
       const amt = parseFloat(amount)
+      const txId = 'tx-'+now
       const { data: dbUser, error: readErr } = await supabase
         .from('users').select('balance, total_deposit').eq('id', Number(tid)).maybeSingle()
       if (readErr || !dbUser) throw new Error('Failed to read current balance')
@@ -371,15 +370,19 @@ export function useApp() {
         referral_code:String(tid), updated_at:new Date().toISOString(),
       }, { onConflict:'id' })
       await supabase.from('transactions').insert({
-        id:'tx-'+now, user_id:Number(tid), type:'deposit',
+        id:txId, user_id:Number(tid), type:'deposit',
         label:`Deposit · ${plan.name}`, amount:amt,
         status:'completed', invoice_id:iid, plan_id:planId, created_at:now,
       })
       await supabase.from('investments').insert(dbInv)
 
+      // Credit referral commission after the deposit tx exists.
+      // The Edge Function credits every deposit and ignores duplicate tx ids.
+      await applyReferralCommission(amount, txId)
+
       setUser(p => ({ ...p, totalDeposit: newDep }))
       setTransactions(p => [{
-        id:'tx-'+now, type:'deposit', label:`Deposit · ${plan.name}`,
+        id:txId, type:'deposit', label:`Deposit · ${plan.name}`,
         date:'Just now', amount:amt, status:'completed',
         invoiceId:iid, createdAt:now, planId, userId:tid,
       }, ...p])
@@ -535,6 +538,7 @@ export function useApp() {
       withdrawCount:      (bundle.transactions || []).filter(t => t.type==='withdraw').length,
       referralFriends:    bundle.referral?.friends   || 0,
       referralCommission: bundle.referral?.commission || 0,
+      referralDepositVolume: bundle.referral?.depositVolume || 0,
       pendingWithdraw:    (bundle.transactions || []).filter(t => t.type==='withdraw' && t.status==='pending').reduce((s,t) => s+Math.abs(t.amount), 0),
     }))
     if (!users.some(u => Number(u.id)===Number(tid))) {
@@ -595,6 +599,9 @@ export function useApp() {
       if (updates.totalWithdraw  !== undefined) dbPatch.total_withdraw  = Number(updates.totalWithdraw)
       if (updates.todayProfit    !== undefined) dbPatch.today_profit    = Number(updates.todayProfit)
       if (updates.referrals      !== undefined) dbPatch.referrals       = Number(updates.referrals)
+      if (updates.referralFriends !== undefined) dbPatch.referral_friends = Number(updates.referralFriends)
+      if (updates.referralCommission !== undefined) dbPatch.referral_commission = Number(updates.referralCommission)
+      if (updates.referralDepositVolume !== undefined) dbPatch.referral_deposit_volume = Number(updates.referralDepositVolume)
       if (updates.status         !== undefined) dbPatch.status          = updates.status
       if (updates.walletAddr     !== undefined) dbPatch.wallet_addr     = updates.walletAddr
       const { error } = await supabase.from('users').update(dbPatch).eq('id', id)
@@ -628,8 +635,6 @@ export function useApp() {
     connectWallet, disconnectWallet, showToast,
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
     computeAdminStats, getAllUsers, getAllTransactions,
-    adminApproveDeposit:()=>{}, adminRejectDeposit:()=>{},
-    adminApproveWithdraw:()=>{}, adminRejectWithdraw:()=>{},
     adminToggleBan, adminUpdateUser, adminUpdatePlan,
     adminToggleMaintenance, adminSaveSettings,
   }

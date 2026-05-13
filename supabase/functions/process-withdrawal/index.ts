@@ -23,7 +23,7 @@ import { Address } from 'npm:@ton/core'
 
 // ─── ENV ──────────────────────────────────────────────────────────────────────
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_KEY')!
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_KEY') || ''
 const ADMIN_MNEMONIC       = Deno.env.get('ADMIN_MNEMONIC')!
 const TON_NETWORK          = Deno.env.get('TON_NETWORK') || 'testnet'
 const TON_API_KEY          = Deno.env.get('TON_API_KEY') || ''
@@ -38,6 +38,10 @@ const ENDPOINT = TON_NETWORK === 'mainnet'
 const cors = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
+}
+
+if (!SUPABASE_SERVICE_KEY) {
+  console.error('[process-withdrawal] Missing SUPABASE_SERVICE_ROLE_KEY secret')
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

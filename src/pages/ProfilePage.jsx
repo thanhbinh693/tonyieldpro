@@ -178,6 +178,10 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
             <div className="rfs-val">{referral?.commission} TON</div>
             <div className="rfs-label">Commission earned</div>
           </div>
+          <div className="rfs-item">
+            <div className="rfs-val">{(referral?.depositVolume || 0).toFixed(2)} TON</div>
+            <div className="rfs-label">Friends deposited</div>
+          </div>
         </div>
       </div>
 
