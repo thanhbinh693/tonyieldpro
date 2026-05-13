@@ -51,6 +51,9 @@ function isNetworkWallet(addr, network) {
   if (network === 'mainnet') return /^[UE]Q[A-Za-z0-9_-]{46}=?$/.test(a)
   return /^[k0]Q[A-Za-z0-9_-]{46}=?$/.test(a)
 }
+function isFetchFailure(err) {
+  return /failed to fetch|networkerror|load failed/i.test(err?.message || String(err || ''))
+}
 
 function getTgUser(){
   try{const u=window.Telegram?.WebApp?.initDataUnsafe?.user; if(u&&u.id)return u}catch{}
@@ -299,6 +302,60 @@ export function useApp() {
     } catch(e) { console.warn('[applyReferralCommission]', e) }
   }, [tid])
 
+  const recordDeposit = useCallback(async ({ amt, txId, newInv, dbInv, plan, fromBalance }) => {
+    const rpcPayload = {
+      p_user_id: Number(tid),
+      p_username: user.username || tgUser.username || '',
+      p_first_name: user.firstName || tgUser.first_name || '',
+      p_amount: amt,
+      p_from_balance: !!fromBalance,
+      p_tx_id: txId,
+      p_inv_id: newInv.id,
+      p_invoice_id: newInv.invoiceId,
+      p_plan_id: plan.id,
+      p_plan: plan.name,
+      p_plan_color: plan.color,
+      p_rate: plan.rate,
+      p_days_total: plan.duration,
+      p_profit_interval_ms: dbInv.profit_interval_ms,
+      p_profit_interval_minutes: dbInv.profit_interval_minutes,
+      p_profit_interval_hours: dbInv.profit_interval_hours,
+      p_active_days: dbInv.active_days,
+      p_start_time: dbInv.start_time,
+      p_end_time: dbInv.end_time,
+      p_next_profit_time: dbInv.next_profit_time,
+    }
+
+    const { data, error } = await supabase.rpc('record_deposit', rpcPayload)
+    if (!error) return data?.[0] || null
+    if (!/record_deposit/i.test(error.message || '')) throw error
+
+    const { data: dbUser } = await supabase
+      .from('users').select('balance, total_deposit').eq('id', Number(tid)).maybeSingle()
+    const currentBal = Number(dbUser?.balance) || 0
+    const currentDep = Number(dbUser?.total_deposit) || 0
+    if (fromBalance && currentBal < amt) throw new Error('Insufficient balance')
+    const nextBal = +(currentBal - (fromBalance ? amt : 0)).toFixed(6)
+    const nextDep = +(currentDep + amt).toFixed(6)
+
+    await supabase.from('users').upsert({
+      id:Number(tid),
+      username: user.username || tgUser.username || '',
+      first_name: user.firstName || tgUser.first_name || '',
+      balance: nextBal,
+      total_deposit: nextDep,
+      referral_code:String(tid),
+      updated_at:new Date().toISOString(),
+    }, { onConflict:'id' })
+    await supabase.from('transactions').insert({
+      id:txId, user_id:Number(tid), type:'deposit',
+      label:`${fromBalance ? 'Reinvest' : 'Deposit'} · ${plan.name}`, amount:amt,
+      status:'completed', invoice_id:newInv.invoiceId, plan_id:plan.id, created_at:dbInv.start_time,
+    })
+    await supabase.from('investments').insert(dbInv)
+    return { balance: nextBal, total_deposit: nextDep }
+  }, [tid, user.username, user.firstName, tgUser.username, tgUser.first_name])
+
   // ─── DEPOSIT ───────────────────────────────────────────────────────────────
   const submitDeposit = useCallback(async (planId, amount, paymentMethod = 'wallet') => {
     const plan = plans.find(p => p.id===planId)
@@ -345,30 +402,28 @@ export function useApp() {
     if (paymentMethod === 'balance') {
       const amt = parseFloat(amount)
       if (amt > user.balance) { showToast('Insufficient balance','err'); return false }
-      const newBal = Math.max(0, user.balance - amt)
-      const newDep = (user.totalDeposit||0) + amt
+      const txId = 'tx-'+now
       try {
-        await supabase.from('users').upsert({
-          id:Number(tid), balance:newBal, total_deposit:newDep,
-          referral_code:String(tid), updated_at:new Date().toISOString(),
-        }, { onConflict:'id' })
-        await supabase.from('transactions').insert({
-          id:'tx-'+now, user_id:Number(tid), type:'deposit',
-          label:`Reinvest · ${plan.name}`, amount:amt,
-          status:'completed', invoice_id:iid, plan_id:planId, created_at:now,
-        })
-        await supabase.from('investments').insert(dbInv)
-        await applyReferralCommission(amount, 'tx-'+now)
-        setUser(p => ({ ...p, balance:newBal, totalDeposit:newDep }))
+        const saved = await recordDeposit({ amt, txId, newInv, dbInv, plan, fromBalance:true })
+        await applyReferralCommission(amount, txId)
+        setUser(p => ({
+          ...p,
+          balance:Number(saved?.balance ?? Math.max(0, p.balance - amt)),
+          totalDeposit:Number(saved?.total_deposit ?? ((p.totalDeposit || 0) + amt)),
+        }))
         setTransactions(p => [{
-          id:'tx-'+now, type:'deposit', label:`Reinvest · ${plan.name}`,
+          id:txId, type:'deposit', label:`Reinvest · ${plan.name}`,
           date:'Just now', amount:amt, status:'completed',
           invoiceId:iid, createdAt:now, planId, userId:tid,
         }, ...p])
         setInvestments(p => [...p, newInv])
         showToast('Reinvest successful! ✓','ok')
         return true
-      } catch(e) { console.error('[reinvest]',e); showToast('Reinvest failed. Try again.','err'); return false }
+      } catch(e) {
+        console.error('[reinvest]',e)
+        showToast(isFetchFailure(e) ? 'Supabase connection failed. Check URL/key/CORS.' : `Reinvest failed: ${e?.message || 'try again'}`,'err')
+        return false
+      }
     }
 
     try {
@@ -387,30 +442,16 @@ export function useApp() {
 
       const amt = parseFloat(amount)
       const txId = 'tx-'+now
-      const { data: dbUser, error: readErr } = await supabase
-        .from('users').select('balance, total_deposit').eq('id', Number(tid)).maybeSingle()
-      if (readErr) throw new Error(readErr.message || 'Failed to read current balance')
-
-      const currentBal = Number(dbUser?.balance) || 0
-      const currentDep = Number(dbUser?.total_deposit) || 0
-      const newDep     = +(currentDep + amt).toFixed(6)
-
-      await supabase.from('users').upsert({
-        id:Number(tid), balance:+currentBal.toFixed(6), total_deposit:newDep,
-        referral_code:String(tid), updated_at:new Date().toISOString(),
-      }, { onConflict:'id' })
-      await supabase.from('transactions').insert({
-        id:txId, user_id:Number(tid), type:'deposit',
-        label:`Deposit · ${plan.name}`, amount:amt,
-        status:'completed', invoice_id:iid, plan_id:planId, created_at:now,
-      })
-      await supabase.from('investments').insert(dbInv)
-
+      const saved = await recordDeposit({ amt, txId, newInv, dbInv, plan, fromBalance:false })
       // Credit referral commission after the deposit tx exists.
       // The Edge Function credits every deposit and ignores duplicate tx ids.
       await applyReferralCommission(amount, txId)
 
-      setUser(p => ({ ...p, totalDeposit: newDep }))
+      setUser(p => ({
+        ...p,
+        balance:Number(saved?.balance ?? p.balance),
+        totalDeposit:Number(saved?.total_deposit ?? ((p.totalDeposit || 0) + amt)),
+      }))
       setTransactions(p => [{
         id:txId, type:'deposit', label:`Deposit · ${plan.name}`,
         date:'Just now', amount:amt, status:'completed',
@@ -423,10 +464,11 @@ export function useApp() {
       const m = e?.message||''
       if (/User rejects|CANCELLED|user rejected|Transaction was not sent|not sent/i.test(m)) showToast('Transaction cancelled','err')
       else if (/invalid address/i.test(m)) showToast(`Invalid ${activeNetwork} admin wallet. Check Admin Settings.`, 'err')
+      else if (isFetchFailure(e)) showToast('Deposit failed: Supabase connection failed. Check URL/key/CORS.', 'err')
       else { console.error('[deposit]',e); showToast(`Deposit failed: ${m || 'try again'}`,'err') }
       return false
     }
-  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, user.totalDeposit, applyReferralCommission])
+  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, recordDeposit, applyReferralCommission])
 
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
@@ -623,28 +665,35 @@ export function useApp() {
   const adminUpdateUser = useCallback(async (userId, updates) => {
     try {
       const id = Number(userId)
-      const dbPatch = { updated_at: new Date().toISOString() }
-      if (updates.balance        !== undefined) dbPatch.balance         = Number(updates.balance)
-      if (updates.totalDeposit   !== undefined) dbPatch.total_deposit   = Number(updates.totalDeposit)
-      if (updates.totalWithdraw  !== undefined) dbPatch.total_withdraw  = Number(updates.totalWithdraw)
-      if (updates.todayProfit    !== undefined) dbPatch.today_profit    = Number(updates.todayProfit)
-      if (updates.referrals      !== undefined) dbPatch.referrals       = Number(updates.referrals)
-      if (updates.referralFriends !== undefined) dbPatch.referral_friends = Number(updates.referralFriends)
-      if (updates.referralCommission !== undefined) dbPatch.referral_commission = Number(updates.referralCommission)
-      if (updates.referralDepositVolume !== undefined) dbPatch.referral_deposit_volume = Number(updates.referralDepositVolume)
-      if (updates.status         !== undefined) dbPatch.status          = updates.status
-      if (updates.walletAddr     !== undefined) dbPatch.wallet_addr     = updates.walletAddr
-      let { error } = await supabase.from('users').update(dbPatch).eq('id', id)
-      if (error && /(referral_deposit_volume|referral_friends|referral_commission)/i.test(error.message || '')) {
-        delete dbPatch.referral_deposit_volume
-        delete dbPatch.referral_friends
-        delete dbPatch.referral_commission
-        ;({ error } = await supabase.from('users').update(dbPatch).eq('id', id))
+      const updatedAt = new Date().toISOString()
+      const corePatch = { updated_at: updatedAt }
+      const referralPatch = { updated_at: updatedAt }
+      if (updates.balance        !== undefined) corePatch.balance         = Number(updates.balance)
+      if (updates.totalDeposit   !== undefined) corePatch.total_deposit   = Number(updates.totalDeposit)
+      if (updates.totalWithdraw  !== undefined) corePatch.total_withdraw  = Number(updates.totalWithdraw)
+      if (updates.todayProfit    !== undefined) corePatch.today_profit    = Number(updates.todayProfit)
+      if (updates.referrals      !== undefined) corePatch.referrals       = Number(updates.referrals)
+      if (updates.status         !== undefined) corePatch.status          = updates.status
+      if (updates.walletAddr     !== undefined) corePatch.wallet_addr     = updates.walletAddr
+      if (updates.referralFriends !== undefined) referralPatch.referral_friends = Number(updates.referralFriends)
+      if (updates.referralCommission !== undefined) referralPatch.referral_commission = Number(updates.referralCommission)
+      if (updates.referralDepositVolume !== undefined) referralPatch.referral_deposit_volume = Number(updates.referralDepositVolume)
+
+      const { error: coreError } = await supabase.from('users').update(corePatch).eq('id', id)
+      if (coreError) throw coreError
+
+      if (Object.keys(referralPatch).length > 1) {
+        const { error: referralError } = await supabase.from('users').update(referralPatch).eq('id', id)
+        if (referralError && !/(referral_deposit_volume|referral_friends|referral_commission)/i.test(referralError.message || '')) {
+          throw referralError
+        }
       }
-      if (error) throw error
       if (id===Number(tid)) setUser(p => ({ ...p, ...updates }))
       showToast('User updated!','ok')
-    } catch(e) { console.error('[adminUpdateUser]',e); showToast('Failed to update user','err') }
+    } catch(e) {
+      console.error('[adminUpdateUser]',e)
+      showToast(isFetchFailure(e) ? 'Failed to update user: Supabase connection failed' : `Failed to update user: ${e?.message || 'try again'}`,'err')
+    }
   }, [tid, showToast])
 
   const adminUpdatePlan = useCallback((planId, updates) => {

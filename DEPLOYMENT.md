@@ -4,12 +4,20 @@
 
 1. Open Supabase Dashboard -> SQL Editor.
 2. Paste and run the full contents of `supabase_unified.sql`.
-3. Confirm Realtime includes:
+3. Run this check. Every row must return `true`:
+
+```sql
+select * from tonyield_healthcheck order by check_name;
+```
+
+4. Confirm Realtime includes:
    - `users`
    - `investments`
    - `transactions`
    - `plans`
    - `admin_config`
+
+Deposit uses the `record_deposit` RPC so `users.balance`, `users.total_deposit`, `transactions`, and `investments` update atomically.
 
 ## 2. Supabase Edge Functions
 
@@ -63,6 +71,8 @@ https://<PROJECT_REF>.supabase.co/functions/v1/tick-profits
 ```
 
 Schedule it every minute in Supabase Cron or another trusted scheduler.
+
+Realtime WebSocket sync is handled in the app through Supabase Realtime. Any insert/update/delete on `users`, `investments`, `transactions`, `plans`, or `admin_config` is pushed to the client/admin panel without polling.
 
 ## 4. Frontend config
 

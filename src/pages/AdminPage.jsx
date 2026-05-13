@@ -33,7 +33,7 @@ export default function AdminPage({
   const [adminStats, setAdminStats]   = useState(null)
   const [allUsers,   setAllUsers]     = useState([])
   const [allTx,      setAllTx]        = useState([])
-  const [dataLoading, setDataLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(false)
 
   const loadAdminData = async (silent = false) => {
     if (!silent) setDataLoading(true)
@@ -54,7 +54,7 @@ export default function AdminPage({
   }
 
   useEffect(() => {
-    loadAdminData()
+    loadAdminData(true)
     const refresh = () => loadAdminData(true)
     const channel = supabase
       .channel('admin-realtime')
@@ -135,12 +135,8 @@ export default function AdminPage({
         ))}
       </div>
 
-      {dataLoading && !['settings','plans'].includes(section) && (
-        <div className="adm-loading">Loading data from Supabase…</div>
-      )}
-
       {/* ─── OVERVIEW ──────────────────────────────────────────────────────── */}
-      {section === 'overview' && !dataLoading && (
+      {section === 'overview' && (
         <div className="adm-section">
           <div className="stat-grid">
             {stats.map((s,i) => (
@@ -188,7 +184,7 @@ export default function AdminPage({
       )}
 
       {/* ─── USERS ─────────────────────────────────────────────────────────── */}
-      {section === 'users' && !dataLoading && (
+      {section === 'users' && (
         <div className="adm-section">
           <div className="adm-sec-title">All Users ({filteredUsers.length})</div>
           {/* Search */}
@@ -288,7 +284,7 @@ export default function AdminPage({
       )}
 
       {/* ─── DEPOSITS ──────────────────────────────────────────────────────── */}
-      {section === 'deposits' && !dataLoading && (
+      {section === 'deposits' && (
         <div className="adm-section">
           <div className="adm-sec-title">All Deposits ({allTx.filter(t=>t.type==='deposit').length})</div>
           {allTx.filter(t=>t.type==='deposit').length === 0 && <div className="adm-empty">No deposits yet</div>}
@@ -312,7 +308,7 @@ export default function AdminPage({
       )}
 
       {/* ─── WITHDRAWALS ───────────────────────────────────────────────────── */}
-      {section === 'withdraws' && !dataLoading && (
+      {section === 'withdraws' && (
         <div className="adm-section">
           <div className="adm-sec-title">Withdrawals ({allTx.filter(t=>t.type==='withdraw').length})</div>
           {/* Status summary */}
@@ -356,7 +352,7 @@ export default function AdminPage({
       )}
 
       {/* ─── HISTORY ───────────────────────────────────────────────────────── */}
-      {section === 'history' && !dataLoading && (
+      {section === 'history' && (
         <div className="adm-section">
           <div className="adm-sec-title">Transaction History ({filteredTx.length})</div>
           {/* Filter pills */}

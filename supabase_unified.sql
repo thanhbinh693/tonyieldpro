@@ -177,6 +177,7 @@ create or replace function credit_profit(
 ) returns boolean
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
   updated_count int;
@@ -210,6 +211,98 @@ $$;
 
 grant execute on function credit_profit(bigint, text, numeric, numeric, bigint, bigint, text, text, bigint)
   to anon, authenticated;
+
+create or replace function record_deposit(
+  p_user_id bigint,
+  p_username text,
+  p_first_name text,
+  p_amount numeric,
+  p_from_balance boolean,
+  p_tx_id text,
+  p_inv_id text,
+  p_invoice_id text,
+  p_plan_id int,
+  p_plan text,
+  p_plan_color text,
+  p_rate numeric,
+  p_days_total int,
+  p_profit_interval_ms bigint,
+  p_profit_interval_minutes numeric,
+  p_profit_interval_hours numeric,
+  p_active_days int[],
+  p_start_time bigint,
+  p_end_time bigint,
+  p_next_profit_time bigint
+) returns table(balance numeric, total_deposit numeric)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_balance numeric;
+begin
+  insert into users (id, username, first_name, referral_code, join_date, updated_at)
+  values (p_user_id, coalesce(p_username, ''), coalesce(p_first_name, ''), p_user_id::text, current_date::text, now())
+  on conflict (id) do update set
+    username = coalesce(nullif(excluded.username, ''), users.username),
+    first_name = coalesce(nullif(excluded.first_name, ''), users.first_name),
+    referral_code = coalesce(nullif(users.referral_code, ''), excluded.referral_code),
+    updated_at = now();
+
+  select users.balance into current_balance
+  from users
+  where id = p_user_id
+  for update;
+
+  if p_from_balance and current_balance < p_amount then
+    raise exception 'Insufficient balance';
+  end if;
+
+  update users
+  set balance = case when p_from_balance then balance - p_amount else balance end,
+      total_deposit = total_deposit + p_amount,
+      updated_at = now()
+  where id = p_user_id
+  returning users.balance, users.total_deposit
+  into balance, total_deposit;
+
+  insert into transactions (id, user_id, type, label, amount, status, invoice_id, plan_id, created_at, updated_at)
+  values (
+    p_tx_id,
+    p_user_id,
+    'deposit',
+    case when p_from_balance then 'Reinvest - ' || p_plan else 'Deposit - ' || p_plan end,
+    p_amount,
+    'completed',
+    p_invoice_id,
+    p_plan_id,
+    p_start_time,
+    now()
+  )
+  on conflict (id) do nothing;
+
+  insert into investments (
+    id, user_id, plan, plan_color, plan_id, amount, rate, earned, days_total,
+    profit_interval_ms, profit_interval_minutes, profit_interval_hours,
+    active_days, start_time, end_time, next_profit_time, status, activated,
+    invoice_id, updated_at
+  )
+  values (
+    p_inv_id, p_user_id, p_plan, p_plan_color, p_plan_id, p_amount, p_rate, 0, p_days_total,
+    p_profit_interval_ms, p_profit_interval_minutes, p_profit_interval_hours,
+    p_active_days, p_start_time, p_end_time, p_next_profit_time, 'active', false,
+    p_invoice_id, now()
+  )
+  on conflict (id) do nothing;
+
+  return next;
+end;
+$$;
+
+grant execute on function record_deposit(
+  bigint, text, text, numeric, boolean, text, text, text, int, text, text,
+  numeric, int, bigint, numeric, numeric, int[], bigint, bigint, bigint
+) to anon, authenticated;
 
 create or replace function retry_stuck_withdrawals()
 returns void
@@ -277,3 +370,42 @@ select schemaname, tablename
 from pg_publication_tables
 where pubname = 'supabase_realtime'
   and tablename in ('users', 'investments', 'transactions', 'plans', 'admin_config');
+
+create or replace view tonyield_healthcheck as
+select 'users.balance' as check_name,
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='balance') as ok
+union all
+select 'users.total_deposit',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='total_deposit')
+union all
+select 'users.referral_commission',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='referral_commission')
+union all
+select 'users.referral_deposit_volume',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='referral_deposit_volume')
+union all
+select 'admin_config.admin_wallet_testnet',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='admin_wallet_testnet')
+union all
+select 'admin_config.admin_wallet_mainnet',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='admin_wallet_mainnet')
+union all
+select 'function.record_deposit',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='record_deposit')
+union all
+select 'realtime.users',
+       exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='users')
+union all
+select 'realtime.investments',
+       exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='investments')
+union all
+select 'realtime.transactions',
+       exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='transactions')
+union all
+select 'realtime.plans',
+       exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='plans')
+union all
+select 'realtime.admin_config',
+       exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='admin_config');
+
+select * from tonyield_healthcheck order by check_name;
