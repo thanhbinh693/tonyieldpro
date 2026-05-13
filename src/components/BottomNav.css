@@ -5,8 +5,4 @@
 .ni-lbl { font-size:10px;font-weight:600;color:var(--muted);transition:.18s; }
 .ni.on .ni-ico { color:var(--gold); }
 .ni.on .ni-lbl { color:var(--gold); }
-.ni.admin-tab .ni-ico { color:var(--red); }
-.ni.admin-tab .ni-lbl { color:var(--red); }
-.ni.on.admin-tab .ni-ico, .ni.on.admin-tab .ni-lbl { color:var(--red); }
 .ni-active-dot { position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:2px;background:var(--gold); }
-.ni.admin-tab .ni-active-dot { background:var(--red); }

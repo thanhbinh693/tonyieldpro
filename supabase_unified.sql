@@ -261,9 +261,19 @@ begin
     alter publication supabase_realtime add table transactions;
   exception when duplicate_object then null;
   end;
+
+  begin
+    alter publication supabase_realtime add table plans;
+  exception when duplicate_object then null;
+  end;
+
+  begin
+    alter publication supabase_realtime add table admin_config;
+  exception when duplicate_object then null;
+  end;
 end $$;
 
 select schemaname, tablename
 from pg_publication_tables
 where pubname = 'supabase_realtime'
-  and tablename in ('users', 'investments', 'transactions');
+  and tablename in ('users', 'investments', 'transactions', 'plans', 'admin_config');

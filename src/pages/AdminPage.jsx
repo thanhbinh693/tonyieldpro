@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { DAY_NAMES, DAY_NAMES_FULL } from '../utils/config'
+import { supabase } from '../utils/supabase'
 import './AdminPage.css'
 
 const fmtDate = (ts) => {
@@ -34,8 +35,8 @@ export default function AdminPage({
   const [allTx,      setAllTx]        = useState([])
   const [dataLoading, setDataLoading] = useState(true)
 
-  const loadAdminData = async () => {
-    setDataLoading(true)
+  const loadAdminData = async (silent = false) => {
+    if (!silent) setDataLoading(true)
     try {
       const [stats, users, txs] = await Promise.all([
         computeAdminStats(),
@@ -54,8 +55,16 @@ export default function AdminPage({
 
   useEffect(() => {
     loadAdminData()
-    const id = setInterval(loadAdminData, 30_000)
-    return () => clearInterval(id)
+    const refresh = () => loadAdminData(true)
+    const channel = supabase
+      .channel('admin-realtime')
+      .on('postgres_changes', { event:'*', schema:'public', table:'users' }, refresh)
+      .on('postgres_changes', { event:'*', schema:'public', table:'investments' }, refresh)
+      .on('postgres_changes', { event:'*', schema:'public', table:'transactions' }, refresh)
+      .on('postgres_changes', { event:'*', schema:'public', table:'plans' }, refresh)
+      .on('postgres_changes', { event:'*', schema:'public', table:'admin_config' }, refresh)
+      .subscribe()
+    return () => supabase.removeChannel(channel)
   }, []) // eslint-disable-line
 
   const allTxSorted = [...allTx].sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
@@ -529,7 +538,6 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 
 // ─── Settings Panel ───────────────────────────────────────────────────────────
 function SettingsPanel({ config, onSave, showToast, currentUserId }) {
-  const [adminWallet,  setAdminWallet]  = useState(config.adminWallet  || '')
   const [adminWalletTestnet, setAdminWalletTestnet] = useState(config.adminWalletTestnet || config.adminWallet || '')
   const [adminWalletMainnet, setAdminWalletMainnet] = useState(config.adminWalletMainnet || '')
   const [adminIds,     setAdminIds]     = useState(
@@ -573,21 +581,15 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       <div className="settings-info">Settings synced to Supabase — all admin devices share the same config.</div>
 
       <div className="setting-group">
-        <div className="sg-label"><span className="sg-icon">💎</span>Admin Wallet Address (TON)</div>
-        <div className="sg-desc">Receives all deposits. Must be a valid TON address (UQ… or EQ…).</div>
-        <input className="sg-input" type="text" value={adminWallet} onChange={e=>setAdminWallet(e.target.value)} placeholder="UQD…" spellCheck={false}/>
-      </div>
-
-      <div className="setting-group">
         <div className="sg-label"><span className="sg-icon">💎</span>Admin Wallet Testnet</div>
         <div className="sg-desc">Receives testnet deposits. Usually starts with kQ or 0Q.</div>
-        <input className="sg-input" type="text" value={adminWalletTestnet} onChange={e=>{ setAdminWalletTestnet(e.target.value); if (tonNetwork === 'testnet') setAdminWallet(e.target.value) }} placeholder="0Q..." spellCheck={false}/>
+        <input className="sg-input" type="text" value={adminWalletTestnet} onChange={e=>setAdminWalletTestnet(e.target.value)} placeholder="0Q..." spellCheck={false}/>
       </div>
 
       <div className="setting-group">
         <div className="sg-label"><span className="sg-icon">💎</span>Admin Wallet Mainnet</div>
         <div className="sg-desc">Receives real TON deposits. Usually starts with UQ or EQ.</div>
-        <input className="sg-input" type="text" value={adminWalletMainnet} onChange={e=>{ setAdminWalletMainnet(e.target.value); if (tonNetwork === 'mainnet') setAdminWallet(e.target.value) }} placeholder="UQ..." spellCheck={false}/>
+        <input className="sg-input" type="text" value={adminWalletMainnet} onChange={e=>setAdminWalletMainnet(e.target.value)} placeholder="UQ..." spellCheck={false}/>
       </div>
 
       <div className="setting-group">
@@ -633,7 +635,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
             <div className="net-confirm-title">⚠️ Switch to {pendingNetwork}?</div>
             <div className="net-confirm-desc">{pendingNetwork==='mainnet'?'Mainnet uses real TON. Real funds.':'Testnet uses test TON only.'}</div>
             <div className="net-confirm-btns">
-              <button className="net-confirm-yes" onClick={() => { setTonNetwork(pendingNetwork); setAdminWallet(pendingNetwork === 'mainnet' ? adminWalletMainnet : adminWalletTestnet); setShowNetConfirm(false); setPendingNetwork(null) }}>Yes, Switch</button>
+              <button className="net-confirm-yes" onClick={() => { setTonNetwork(pendingNetwork); setShowNetConfirm(false); setPendingNetwork(null) }}>Yes, Switch</button>
               <button className="net-confirm-no"  onClick={() => { setShowNetConfirm(false); setPendingNetwork(null) }}>Cancel</button>
             </div>
           </div>

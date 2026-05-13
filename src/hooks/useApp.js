@@ -203,12 +203,9 @@ export function useApp() {
   useEffect(() => {
     if (loading || !tid) return
 
-    let debounceTimer = null
-
-    const refreshFromDb = () => {
+    const refreshFromDb = async () => {
       // Debounce 300ms để tránh burst khi nhiều bảng thay đổi cùng lúc
-      clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(async () => {
+      {
         try {
           const bundle = await getUserBundle(tid)
           if (!bundle) return
@@ -219,7 +216,7 @@ export function useApp() {
         } catch (e) {
           console.warn('[ws refresh]', e)
         }
-      }, 300)
+      }
     }
 
     // WebSocket channel — lắng nghe 3 bảng của user hiện tại
@@ -251,7 +248,6 @@ export function useApp() {
     document.addEventListener('visibilitychange', onVisible)
 
     return () => {
-      clearTimeout(debounceTimer)
       window.removeEventListener('focus', onVisible)
       document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
@@ -376,6 +372,14 @@ export function useApp() {
     }
 
     try {
+      await supabase.from('users').upsert({
+        id:Number(tid),
+        username: user.username || tgUser.username || '',
+        first_name: user.firstName || tgUser.first_name || '',
+        referral_code:String(tid),
+        updated_at:new Date().toISOString(),
+      }, { onConflict:'id' })
+
       await tonUI.sendTransaction({
         validUntil: Math.floor(now/1000)+600,
         messages: [{ address:aw, amount:toNano(amount), payload:buildPayload(iid) }],
@@ -385,10 +389,10 @@ export function useApp() {
       const txId = 'tx-'+now
       const { data: dbUser, error: readErr } = await supabase
         .from('users').select('balance, total_deposit').eq('id', Number(tid)).maybeSingle()
-      if (readErr || !dbUser) throw new Error('Failed to read current balance')
+      if (readErr) throw new Error(readErr.message || 'Failed to read current balance')
 
-      const currentBal = Number(dbUser.balance) || 0
-      const currentDep = Number(dbUser.total_deposit) || 0
+      const currentBal = Number(dbUser?.balance) || 0
+      const currentDep = Number(dbUser?.total_deposit) || 0
       const newDep     = +(currentDep + amt).toFixed(6)
 
       await supabase.from('users').upsert({
@@ -631,8 +635,10 @@ export function useApp() {
       if (updates.status         !== undefined) dbPatch.status          = updates.status
       if (updates.walletAddr     !== undefined) dbPatch.wallet_addr     = updates.walletAddr
       let { error } = await supabase.from('users').update(dbPatch).eq('id', id)
-      if (error && /referral_deposit_volume/i.test(error.message || '')) {
+      if (error && /(referral_deposit_volume|referral_friends|referral_commission)/i.test(error.message || '')) {
         delete dbPatch.referral_deposit_volume
+        delete dbPatch.referral_friends
+        delete dbPatch.referral_commission
         ;({ error } = await supabase.from('users').update(dbPatch).eq('id', id))
       }
       if (error) throw error

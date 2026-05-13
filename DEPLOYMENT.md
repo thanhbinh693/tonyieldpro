@@ -8,6 +8,8 @@
    - `users`
    - `investments`
    - `transactions`
+   - `plans`
+   - `admin_config`
 
 ## 2. Supabase Edge Functions
 
