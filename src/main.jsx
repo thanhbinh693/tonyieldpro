@@ -7,7 +7,7 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react'
 import App from './App'
 import './index.css'
 
-const MANIFEST_URL = 'https://tonyield-two.vercel.app/tonconnect-manifest.json'
+const MANIFEST_URL = 'https://tonyieldpro.vercel.app/tonconnect-manifest.json'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <TonConnectUIProvider
