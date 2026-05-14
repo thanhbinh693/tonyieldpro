@@ -218,11 +218,51 @@ function groupTxByDay(txs) {
   return groups
 }
 
+function getProfitPlanId(tx) {
+  if (tx.invoiceId) return String(tx.invoiceId)
+  const match = String(tx.id || '').match(/^prf-([^-]+)-/)
+  if (match?.[1]) return match[1]
+  if (tx.planId) return `plan-${tx.planId}`
+  return 'unknown'
+}
+
+function getProfitPlanName(items, investments) {
+  const first = items[0] || {}
+  const key = getProfitPlanId(first)
+  const inv = investments.find(i => String(i.invoiceId || i.id || i.planId) === String(key))
+  if (inv?.plan) return inv.plan
+  return String(first.label || '').replace(/^Profit collected ·\s*|^Profit ·\s*/i, '') || 'Plan'
+}
+
+function buildTxDisplayItems(items, investments) {
+  const output = []
+  const profitGroups = new Map()
+
+  items.forEach(tx => {
+    if (tx.type !== 'profit') {
+      output.push({ kind:'tx', tx })
+      return
+    }
+    const key = getProfitPlanId(tx)
+    if (!profitGroups.has(key)) {
+      const group = { kind:'profitGroup', key, items:[], firstCreatedAt:tx.createdAt || 0 }
+      profitGroups.set(key, group)
+      output.push(group)
+    }
+    const group = profitGroups.get(key)
+    group.items.push(tx)
+    group.firstCreatedAt = Math.max(group.firstCreatedAt, tx.createdAt || 0)
+  })
+
+  return output
+}
+
 export default function HomePage({ user, investments, transactions, plans, config, referral, onDeposit, onWithdraw, setTab, setIsAdmin, isAdmin, isAdminView, activateInvestment, collectProfit }) {
   const logoRef = useRef(null)
   const pressRef = useRef(null)
   const [showAllTx, setShowAllTx] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
+  const [expandedProfitIds, setExpandedProfitIds] = useState({})
 
   // Determine today's inactive plans
   const inactivePlans = (plans || []).filter(p => !(p.activeDays || [1,2,3,4,5]).includes(TODAY_DOW))
@@ -450,6 +490,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
           const groups = groupTxByDay(transactions)
           const activeDay = selectedDay || groups[0]?.label
           const activeItems = groups.find(g => g.label === activeDay)?.items || []
+          const displayItems = buildTxDisplayItems(activeItems, investments)
           return (
             <>
               {/* Day tab strip — swipe left/right */}
@@ -464,19 +505,63 @@ export default function HomePage({ user, investments, transactions, plans, confi
               </div>
               {/* Transactions for selected day */}
               <div className="tx-list card">
-                {activeItems.map(tx => (
-                  <div key={tx.id} className="tx-row">
-                    <div className={`tx-ico ${txClass[tx.type]}`}>{txIcon[tx.type]}</div>
-                    <div className="tx-inf">
-                      <div className="tx-n">{tx.label}</div>
-                      {tx.invoiceId && <div className="tx-id">ID {tx.invoiceId}</div>}
+                {displayItems.map(item => {
+                  if (item.kind === 'profitGroup') {
+                    const opened = !!expandedProfitIds[item.key]
+                    const total = item.items.reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0)
+                    const planName = getProfitPlanName(item.items, investments)
+                    return (
+                      <div key={`profit-${item.key}`} className={`tx-profit-group ${opened ? 'open' : ''}`}>
+                        <button
+                          type="button"
+                          className="tx-row tx-profit-head"
+                          onClick={() => setExpandedProfitIds(p => ({ ...p, [item.key]: !p[item.key] }))}
+                        >
+                          <div className={`tx-ico ${txClass.profit}`}>{opened ? '−' : '+'}</div>
+                          <div className="tx-inf">
+                            <div className="tx-n">ID {item.key} · {planName}</div>
+                            <div className="tx-id">{item.items.length} profit · returned</div>
+                          </div>
+                          <div className="tx-right">
+                            <div className="tx-a pos">+{total.toFixed(2)}</div>
+                            <span className="tx-badge badge-ok">Returned</span>
+                          </div>
+                        </button>
+                        {opened && (
+                          <div className="tx-profit-items">
+                            {item.items.map(tx => (
+                              <div key={tx.id} className="tx-row tx-profit-child">
+                                <div className={`tx-ico ${txClass.profit}`}>{txIcon.profit}</div>
+                                <div className="tx-inf">
+                                  <div className="tx-n">{tx.label}</div>
+                                  <div className="tx-id">{new Date(tx.createdAt || Date.now()).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</div>
+                                </div>
+                                <div className="tx-right">
+                                  <div className="tx-a pos">+{Math.abs(Number(tx.amount) || 0).toFixed(2)}</div>
+                                  {statusBadge(tx.status)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                  const tx = item.tx
+                  return (
+                    <div key={tx.id} className="tx-row">
+                      <div className={`tx-ico ${txClass[tx.type]}`}>{txIcon[tx.type]}</div>
+                      <div className="tx-inf">
+                        <div className="tx-n">{tx.label}</div>
+                        {tx.invoiceId && <div className="tx-id">ID {tx.invoiceId}</div>}
+                      </div>
+                      <div className="tx-right">
+                        <div className={`tx-a ${tx.amount > 0 ? 'pos' : 'neg'}`}>{tx.amount > 0 ? '+' : ''}{Math.abs(tx.amount).toFixed(2)}</div>
+                        {statusBadge(tx.status)}
+                      </div>
                     </div>
-                    <div className="tx-right">
-                      <div className={`tx-a ${tx.amount > 0 ? 'pos' : 'neg'}`}>{tx.amount > 0 ? '+' : ''}{Math.abs(tx.amount).toFixed(2)}</div>
-                      {statusBadge(tx.status)}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </>
           )

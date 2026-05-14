@@ -79,22 +79,13 @@ Deno.serve(async (req) => {
       return json({ ok: true, credited: false, reason: 'already credited' })
     }
 
-    const { count: previousReferralCredits } = await supabase
-      .from('transactions')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', referrer.id)
-      .eq('type', 'referral')
-      .ilike('id', `ref-${referrer.id}-${user_id}-%`)
-
     const now = Date.now()
     const inviteeName = user.username || user.first_name || String(user_id)
-    const isNewFriend = (previousReferralCredits || 0) === 0
 
     const { error: updateErr } = await supabase
       .from('users')
       .update({
         balance: +((Number(referrer.balance) || 0) + commission).toFixed(6),
-        referral_friends: (Number(referrer.referral_friends) || 0) + (isNewFriend ? 1 : 0),
         referral_commission: +((Number(referrer.referral_commission) || 0) + commission).toFixed(6),
         referral_deposit_volume: +((Number(referrer.referral_deposit_volume) || 0) + deposit_amount).toFixed(6),
         updated_at: new Date().toISOString(),

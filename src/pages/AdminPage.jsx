@@ -344,6 +344,11 @@ export default function AdminPage({
                   </div>
                 )}
                 <div className="atr-date">{fmtDate(tx.createdAt)}</div>
+                {tx.failReason && (
+                  <div className="atr-date" style={{ fontSize:11, marginTop:2, color:'var(--red)' }}>
+                    {tx.failReason}
+                  </div>
+                )}
               </div>
               <span className={`adm-status ${tx.status}`}>{tx.status}</span>
             </div>

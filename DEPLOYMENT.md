@@ -52,9 +52,38 @@ supabase functions deploy process-withdrawal --no-verify-jwt
 Database webhook for automatic withdraw:
 
 - Table: `transactions`
-- Event: `INSERT`
+- Events: `INSERT` and `UPDATE`
 - URL: `https://<PROJECT_REF>.supabase.co/functions/v1/process-withdrawal`
 - Header: `x-webhook-secret: <WEBHOOK_SECRET>`
+
+If Database Webhook shows no Edge Function logs, use the built-in Postgres trigger fallback from `supabase_unified.sql`:
+
+```sql
+update admin_config
+set withdrawal_webhook_url = 'https://<PROJECT_REF>.supabase.co/functions/v1/process-withdrawal',
+    withdrawal_webhook_secret = '<WEBHOOK_SECRET>',
+    updated_at = now()
+where id = 1;
+```
+
+Then retry pending withdrawals:
+
+```sql
+update transactions
+set updated_at = now(),
+    fail_reason = 'manual retry'
+where type = 'withdraw'
+  and status = 'pending';
+```
+
+To inspect pg_net delivery errors:
+
+```sql
+select *
+from net._http_response
+order by created desc
+limit 20;
+```
 
 Telegram referral webhook:
 
@@ -141,6 +170,7 @@ After deploy, update `public/tonconnect-manifest.json` and `src/main.jsx` manife
 2. Connect wallet on the selected network.
 3. Deposit a small amount.
 4. Confirm `transactions`, `investments`, and `users.total_deposit` update.
-5. Check invited referrer receives a `referral` transaction every deposit.
-6. Activate an investment and wait for `tick-profits`.
-7. Submit withdraw and confirm database webhook moves it from `pending` to `processing/completed`.
+5. Check referral link uses `https://t.me/<BOT_USERNAME>?startapp=<USER_ID>`, invited users get `referred_by`, and referrer `referral_friends` increases when they join.
+6. Check invited referrer receives a `referral` transaction every deposit.
+7. Activate an investment and wait for `tick-profits`.
+8. Submit withdraw and confirm database webhook moves it from `pending` to `processing/completed`.

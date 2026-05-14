@@ -1,11 +1,10 @@
 /**
  * supabase.js — Data layer using Supabase instead of localStorage/CloudStorage
  * ─────────────────────────────────────────────────────────────────────────────
- * All functions are async and return the same interface as the old cloudStorage.js
- * so useApp.js does not need to change its business logic.
+ * All functions are async and return the app data contract used by useApp.js.
  *
  * SETUP:
- *   1. Run supabase_schema.sql in Supabase Dashboard → SQL Editor
+ *   1. Run supabase_unified.sql in Supabase Dashboard → SQL Editor
  *   2. Fill in SUPABASE_URL and SUPABASE_ANON_KEY in src/utils/config.js
  *   3. npm install @supabase/supabase-js
  */
@@ -106,21 +105,38 @@ export async function saveUserBundle(telegramId, bundle) {
  * For NEW users: inserts with referral_code + referred_by in one go.
  * For EXISTING users: only sets referred_by if it wasn't already set.
  */
-export async function registerUser(telegramId, referredByCode = '') {
+export async function registerUser(telegramId, referredByCode = '', profile = {}) {
   const id = Number(telegramId)
   if (!id) return
 
   const referral_code = String(id)
+  const cleanRef = String(referredByCode || '').replace(/^(ref_|ref-)/i, '')
+
+  const rpcPayload = {
+    p_user_id: id,
+    p_username: profile.username || '',
+    p_first_name: profile.first_name || profile.firstName || '',
+    p_referred_by_code: /^\d{5,15}$/.test(cleanRef) ? cleanRef : '',
+  }
+
+  const { error: rpcError } = await supabase.rpc('register_referral_user', rpcPayload)
+  if (!rpcError) return
 
   // Step 1: Try insert (new user). ignoreDuplicates avoids error for existing users.
   await supabase.from('users').upsert(
-    { id, referral_code },
+    {
+      id,
+      referral_code,
+      username: profile.username || '',
+      first_name: profile.first_name || profile.firstName || '',
+      updated_at: new Date().toISOString(),
+    },
     { onConflict: 'id', ignoreDuplicates: true }
   )
 
   // Step 2: If referral code provided, set referred_by ONLY if not already set.
   // This handles the case where user existed but opened app again via a referral link.
-  if (referredByCode && String(referredByCode) !== String(id)) {
+  if (/^\d{5,15}$/.test(cleanRef) && String(cleanRef) !== String(id)) {
     const { data: existing } = await supabase
       .from('users')
       .select('referred_by')
@@ -130,9 +146,22 @@ export async function registerUser(telegramId, referredByCode = '') {
     // Only set if not already referred (prevent referral hijacking)
     if (existing && (!existing.referred_by || existing.referred_by === '')) {
       await supabase.from('users').update({
-        referred_by: referredByCode,
+        referred_by: cleanRef,
         updated_at:  new Date().toISOString(),
       }).eq('id', id)
+
+      const { data: referrer } = await supabase
+        .from('users')
+        .select('id, referrals, referral_friends')
+        .eq('referral_code', cleanRef)
+        .maybeSingle()
+      if (referrer && Number(referrer.id) !== id) {
+        await supabase.from('users').update({
+          referrals: (Number(referrer.referrals) || 0) + 1,
+          referral_friends: (Number(referrer.referral_friends) || 0) + 1,
+          updated_at: new Date().toISOString(),
+        }).eq('id', referrer.id)
+      }
     }
   }
 }
@@ -487,6 +516,7 @@ function dbTxToApp(t) {
     date:      t.created_at ? new Date(t.created_at).toLocaleString() : 'Unknown',
     invoiceId: t.invoice_id  || '',
     toWallet:  t.to_wallet   || '',
+    failReason:t.fail_reason || '',
     planId:    t.plan_id,
     createdAt: t.created_at,
     userId:    t.user_id,

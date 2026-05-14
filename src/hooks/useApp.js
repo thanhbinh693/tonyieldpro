@@ -65,6 +65,26 @@ function checkIsAdmin(id, cfgAdminIds) {
   if (Array.isArray(cfgAdminIds)) return cfgAdminIds.map(Number).includes(n)
   return false
 }
+function getStartParam() {
+  const unsafe = window.Telegram?.WebApp?.initDataUnsafe || {}
+  const candidates = [
+    unsafe.start_param,
+    unsafe.startapp,
+    unsafe.start_param?.replace(/^(ref_|ref-)/i, ''),
+  ]
+  try {
+    const url = new URL(window.location.href)
+    candidates.push(
+      url.searchParams.get('tgWebAppStartParam'),
+      url.searchParams.get('startapp'),
+      url.searchParams.get('start'),
+      url.searchParams.get('ref'),
+    )
+  } catch {}
+  return candidates
+    .map(v => String(v || '').trim().replace(/^(ref_|ref-)/i, ''))
+    .find(v => /^\d{5,15}$/.test(v)) || ''
+}
 function mkDefaultUser(tgUser) {
   return {
     id: tgUser.id,
@@ -170,9 +190,8 @@ export function useApp() {
         if (cfg)        setConfig(p => ({ ...DEFAULT_CONFIG, ...cfg }))
         if (savedPlans) setPlans(savedPlans)
 
-        const sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param || ''
-        const referredByCode = /^\d{5,15}$/.test(sp) ? sp : ''
-        registerUser(tid, referredByCode).catch(e => console.warn('[registerUser]', e))
+        const referredByCode = getStartParam()
+        registerUser(tid, referredByCode, tgUser).catch(e => console.warn('[registerUser]', e))
 
         if (tgUser.id) {
           supabase.from('users').update({
@@ -273,7 +292,8 @@ export function useApp() {
   // ─── Referral display link ─────────────────────────────────────────────────
   useEffect(() => {
     const bot = config.botUsername?.trim()
-    const link = bot ? `https://t.me/${bot}?start=${tid}` : String(tid)
+    const cleanBot = bot.replace(/^@/, '')
+    const link = cleanBot ? `https://t.me/${cleanBot}?startapp=${tid}` : String(tid)
     setReferralLink(link)
   }, [config.botUsername, tid])
 
@@ -585,13 +605,18 @@ export function useApp() {
       await supabase.from('transactions').insert({
         id:'collect-'+now, user_id:Number(tid), type:'profit',
         label:'Profit collected · '+(inv.plan||'Plan'),
-        amount:uncollected, status:'completed', created_at:now,
+        amount:uncollected, status:'completed',
+        invoice_id:inv.invoiceId || '',
+        plan_id:inv.planId,
+        created_at:now,
       })
       setUser(p => ({ ...p, balance:newBal }))
       setTransactions(p => [{
         id:'collect-'+now, type:'profit',
         label:'Profit collected · '+(inv.plan||'Plan'),
-        date:'Just now', amount:uncollected, status:'completed', createdAt:now,
+        date:'Just now', amount:uncollected, status:'completed',
+        invoiceId:inv.invoiceId || '', planId:inv.planId,
+        createdAt:now,
       }, ...p])
       setInvestments(p => p.map(i => i.id===invId ? { ...i, status:'completed', earned:0 } : i))
       showToast(`+${uncollected.toFixed(2)} TON collected!`,'ok')

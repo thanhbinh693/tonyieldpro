@@ -70,6 +70,8 @@ create table if not exists admin_config (
   admin_wallet text default '',
   admin_wallet_testnet text default '',
   admin_wallet_mainnet text default '',
+  withdrawal_webhook_url text default '',
+  withdrawal_webhook_secret text default '',
   admin_ids bigint[] default '{}',
   bot_username text default '',
   ton_network text not null default 'testnet' check (ton_network in ('mainnet', 'testnet')),
@@ -100,6 +102,8 @@ alter table users add column if not exists referral_deposit_volume numeric(18,6)
 alter table users add column if not exists referred_by text default '';
 alter table admin_config add column if not exists admin_wallet_testnet text default '';
 alter table admin_config add column if not exists admin_wallet_mainnet text default '';
+alter table admin_config add column if not exists withdrawal_webhook_url text default '';
+alter table admin_config add column if not exists withdrawal_webhook_secret text default '';
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';
 alter table transactions add column if not exists updated_at timestamptz default now();
@@ -240,6 +244,8 @@ set search_path = public
 as $$
 declare
   current_balance numeric;
+  v_balance numeric;
+  v_total_deposit numeric;
 begin
   insert into users (id, username, first_name, referral_code, join_date, updated_at)
   values (p_user_id, coalesce(p_username, ''), coalesce(p_first_name, ''), p_user_id::text, current_date::text, now())
@@ -251,7 +257,7 @@ begin
 
   select users.balance into current_balance
   from users
-  where id = p_user_id
+  where users.id = p_user_id
   for update;
 
   if p_from_balance and current_balance < p_amount then
@@ -259,12 +265,15 @@ begin
   end if;
 
   update users
-  set balance = case when p_from_balance then balance - p_amount else balance end,
-      total_deposit = total_deposit + p_amount,
+  set balance = case when p_from_balance then users.balance - p_amount else users.balance end,
+      total_deposit = users.total_deposit + p_amount,
       updated_at = now()
-  where id = p_user_id
+  where users.id = p_user_id
   returning users.balance, users.total_deposit
-  into balance, total_deposit;
+  into v_balance, v_total_deposit;
+
+  balance := v_balance;
+  total_deposit := v_total_deposit;
 
   insert into transactions (id, user_id, type, label, amount, status, invoice_id, plan_id, created_at, updated_at)
   values (
@@ -304,6 +313,64 @@ grant execute on function record_deposit(
   numeric, int, bigint, numeric, numeric, int[], bigint, bigint, bigint
 ) to anon, authenticated;
 
+create or replace function register_referral_user(
+  p_user_id bigint,
+  p_username text,
+  p_first_name text,
+  p_referred_by_code text
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  referrer_id bigint;
+  attached_count int := 0;
+begin
+  insert into users (id, username, first_name, referral_code, join_date, updated_at)
+  values (p_user_id, coalesce(p_username, ''), coalesce(p_first_name, ''), p_user_id::text, current_date::text, now())
+  on conflict (id) do update set
+    username = coalesce(nullif(excluded.username, ''), users.username),
+    first_name = coalesce(nullif(excluded.first_name, ''), users.first_name),
+    referral_code = coalesce(nullif(users.referral_code, ''), excluded.referral_code),
+    updated_at = now();
+
+  if coalesce(p_referred_by_code, '') = '' or p_referred_by_code = p_user_id::text then
+    return false;
+  end if;
+
+  select id into referrer_id
+  from users
+  where referral_code = p_referred_by_code
+    and id <> p_user_id
+  limit 1;
+
+  if referrer_id is null then
+    return false;
+  end if;
+
+  update users
+  set referred_by = p_referred_by_code,
+      updated_at = now()
+  where id = p_user_id
+    and coalesce(referred_by, '') = '';
+
+  get diagnostics attached_count = row_count;
+
+  if attached_count > 0 then
+    update users
+    set referral_friends = referral_friends + 1,
+        referrals = referrals + 1,
+        updated_at = now()
+    where id = referrer_id;
+  end if;
+
+  return attached_count > 0;
+end;
+$$;
+
+grant execute on function register_referral_user(bigint, text, text, text) to anon, authenticated;
+
 create or replace function retry_stuck_withdrawals()
 returns void
 language plpgsql
@@ -337,6 +404,64 @@ create policy "allow_all_investments" on investments for all using (true) with c
 create policy "allow_all_transactions" on transactions for all using (true) with check (true);
 create policy "allow_all_config" on admin_config for all using (true) with check (true);
 create policy "allow_all_plans" on plans for all using (true) with check (true);
+
+create extension if not exists pg_net with schema extensions;
+
+create or replace function trigger_withdrawal_webhook()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  cfg record;
+begin
+  if new.type <> 'withdraw' or new.status <> 'pending' then
+    return new;
+  end if;
+
+  select withdrawal_webhook_url, withdrawal_webhook_secret
+  into cfg
+  from admin_config
+  where id = 1;
+
+  if coalesce(cfg.withdrawal_webhook_url, '') = '' then
+    return new;
+  end if;
+
+  perform net.http_post(
+    url := cfg.withdrawal_webhook_url,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-webhook-secret', coalesce(cfg.withdrawal_webhook_secret, '')
+    ),
+    body := jsonb_build_object(
+      'type', tg_op,
+      'table', tg_table_name,
+      'schema', tg_table_schema,
+      'record', to_jsonb(new)
+    ),
+    timeout_milliseconds := 5000
+  );
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_withdrawal_webhook_insert on transactions;
+drop trigger if exists trg_withdrawal_webhook_update on transactions;
+
+create trigger trg_withdrawal_webhook_insert
+after insert on transactions
+for each row
+when (new.type = 'withdraw' and new.status = 'pending')
+execute function trigger_withdrawal_webhook();
+
+create trigger trg_withdrawal_webhook_update
+after update of status, updated_at on transactions
+for each row
+when (new.type = 'withdraw' and new.status = 'pending')
+execute function trigger_withdrawal_webhook();
 
 do $$
 begin
@@ -390,8 +515,20 @@ union all
 select 'admin_config.admin_wallet_mainnet',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='admin_wallet_mainnet')
 union all
+select 'admin_config.withdrawal_webhook_url',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='withdrawal_webhook_url')
+union all
+select 'function.trigger_withdrawal_webhook',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='trigger_withdrawal_webhook')
+union all
+select 'trigger.trg_withdrawal_webhook_insert',
+       exists(select 1 from pg_trigger where tgname='trg_withdrawal_webhook_insert')
+union all
 select 'function.record_deposit',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='record_deposit')
+union all
+select 'function.register_referral_user',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='register_referral_user')
 union all
 select 'realtime.users',
        exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='users')

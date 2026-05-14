@@ -91,7 +91,7 @@ async function saveReferral(userId: number, referredByCode: string): Promise<boo
   // Kiểm tra referrer có tồn tại không
   const { data: referrer } = await supabase
     .from('users')
-    .select('id')
+    .select('id, referrals, referral_friends')
     .eq('referral_code', referredByCode)
     .maybeSingle()
   if (!referrer) return false
@@ -121,6 +121,15 @@ async function saveReferral(userId: number, referredByCode: string): Promise<boo
     console.error('[saveReferral] update error', error)
     return false
   }
+
+  await supabase
+    .from('users')
+    .update({
+      referral_friends: (Number(referrer.referral_friends) || 0) + 1,
+      referrals: (Number(referrer.referrals) || 0) + 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', referrer.id)
 
   console.log(`[referral] saved: user ${userId} referred by code ${referredByCode}`)
   return true
