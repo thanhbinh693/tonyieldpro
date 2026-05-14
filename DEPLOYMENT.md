@@ -94,6 +94,13 @@ Then set admin settings inside the app Admin Panel:
 - Minimum withdraw
 - TON network
 
+For Vercel, set these Environment Variables so production does not depend on hard-coded local values:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Use Supabase Dashboard -> Project Settings -> API -> Project URL and anon/publishable key. If the URL cannot resolve in DNS, the app will show `Supabase connection failed` before any database query can run.
+
 For mainnet, also update Supabase secret:
 
 ```bash
