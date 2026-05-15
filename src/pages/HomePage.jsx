@@ -188,6 +188,9 @@ function PlanRing({ inv, onActivate, onCollect }) {
 
 const txIcon  = { profit:'◎', deposit:'↓', withdraw:'↑', referral:'⊕' }
 const txClass = { profit:'p',  deposit:'d', withdraw:'w', referral:'r'  }
+const txDisplayAmount = (tx) => tx.type === 'withdraw'
+  ? -Math.abs(Number(tx.amount) || 0)
+  : Number(tx.amount) || 0
 
 const statusBadge = (s) => {
   const map = { completed:'badge-ok', approved:'badge-ok', done:'badge-ok', rejected:'badge-err', failed:'badge-err' }
@@ -548,6 +551,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                     )
                   }
                   const tx = item.tx
+                  const shownAmount = txDisplayAmount(tx)
                   return (
                     <div key={tx.id} className="tx-row">
                       <div className={`tx-ico ${txClass[tx.type]}`}>{txIcon[tx.type]}</div>
@@ -556,7 +560,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                         {tx.invoiceId && <div className="tx-id">ID {tx.invoiceId}</div>}
                       </div>
                       <div className="tx-right">
-                        <div className={`tx-a ${tx.amount > 0 ? 'pos' : 'neg'}`}>{tx.amount > 0 ? '+' : tx.amount < 0 ? '-' : ''}{Math.abs(tx.amount).toFixed(2)}</div>
+                        <div className={`tx-a ${shownAmount >= 0 ? 'pos' : 'neg'}`}>{shownAmount > 0 ? '+' : shownAmount < 0 ? '-' : ''}{Math.abs(shownAmount).toFixed(2)}</div>
                         {statusBadge(tx.status)}
                       </div>
                     </div>
