@@ -316,7 +316,7 @@ export function useApp() {
   const disconnectWallet = useCallback(() => {
     tonUI.disconnect()
     setUser(p => ({ ...p, walletAddr:'' }))
-    showToast('Wallet disconnected')
+    showToast('Wallet disconnected.')
   }, [tonUI, showToast])
 
   // Investments active với computed display fields
@@ -398,11 +398,11 @@ export function useApp() {
       ? (config.adminWalletMainnet || config.adminWallet || '')
       : (config.adminWalletTestnet || config.adminWallet || ADMIN_WALLET)
     if (!aw) {
-      showToast(`Admin ${activeNetwork} wallet is not configured.`, 'err')
+      showToast('Admin wallet not configured.', 'err')
       return false
     }
     if (!isNetworkWallet(aw, activeNetwork)) {
-      showToast(`Admin wallet does not match ${activeNetwork}. Check Admin Settings.`, 'err')
+      showToast(`Invalid ${activeNetwork} admin wallet.`, 'err')
       return false
     }
 
@@ -432,7 +432,7 @@ export function useApp() {
 
     if (paymentMethod === 'balance') {
       const amt = parseFloat(amount)
-      if (amt > user.balance) { showToast('Insufficient balance','err'); return false }
+      if (amt > user.balance) { showToast('Insufficient balance.','err'); return false }
       const txId = 'tx-'+now
       try {
         const saved = await recordDeposit({ amt, txId, newInv, dbInv, plan, fromBalance:true })
@@ -448,11 +448,11 @@ export function useApp() {
           invoiceId:iid, createdAt:now, planId, userId:tid,
         }, ...p])
         setInvestments(p => [...p, newInv])
-        showToast('Reinvest successful! ✓','ok')
+        showToast('Position opened successfully.','ok')
         return true
       } catch(e) {
         console.error('[reinvest]',e)
-        showToast(isFetchFailure(e) ? 'Supabase connection failed. Check URL/key/CORS.' : `Reinvest failed: ${e?.message || 'try again'}`,'err')
+        showToast(isFetchFailure(e) ? 'Network error - please retry.' : `Transaction failed: ${e?.message || 'please retry'}.`,'err')
         return false
       }
     }
@@ -489,14 +489,14 @@ export function useApp() {
         invoiceId:iid, createdAt:now, planId, userId:tid,
       }, ...p])
       setInvestments(p => [...p, newInv])
-      showToast('Deposit successful! ✓','ok')
+      showToast('Position opened successfully.','ok')
       return true
     } catch(e) {
       const m = e?.message||''
-      if (/User rejects|CANCELLED|user rejected|Transaction was not sent|not sent/i.test(m)) showToast('Transaction cancelled','err')
-      else if (/invalid address/i.test(m)) showToast(`Invalid ${activeNetwork} admin wallet. Check Admin Settings.`, 'err')
-      else if (isFetchFailure(e)) showToast('Deposit failed: Supabase connection failed. Check URL/key/CORS.', 'err')
-      else { console.error('[deposit]',e); showToast(`Deposit failed: ${m || 'try again'}`,'err') }
+      if (/User rejects|CANCELLED|user rejected|Transaction was not sent|not sent/i.test(m)) showToast('Transaction rejected by user.','err')
+      else if (/invalid address/i.test(m)) showToast('Admin wallet not configured.', 'err')
+      else if (isFetchFailure(e)) showToast('Network error - please retry.', 'err')
+      else { console.error('[deposit]',e); showToast(`Transaction failed: ${m || 'please retry'}.`,'err') }
       return false
     }
   }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, recordDeposit, applyReferralCommission])
@@ -504,13 +504,13 @@ export function useApp() {
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
     const minWd = Number(config.minWithdraw) || MIN_WITHDRAW
-    if (amount < minWd)        { showToast(`Min: ${minWd} TON`, 'err'); return false }
-    if (amount > user.balance) { showToast('Insufficient balance', 'err'); return false }
+    if (amount < minWd)        { showToast(`Amount below minimum (${Number(minWd).toFixed(3)} TON).`, 'err'); return false }
+    if (amount > user.balance) { showToast('Amount exceeds available balance.', 'err'); return false }
 
     const destWallet = (walletAddress || '').trim()
-    if (!destWallet) { showToast('Connect your TON wallet first', 'err'); return false }
+    if (!destWallet) { showToast('No wallet connected.', 'err'); return false }
     if (!/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(destWallet)) {
-      showToast('Invalid wallet address. Please reconnect your wallet.', 'err')
+      showToast('Invalid destination address.', 'err')
       return false
     }
 
@@ -521,7 +521,7 @@ export function useApp() {
 
       const { data: dbUser } = await supabase
         .from('users').select('status, balance').eq('id', Number(tid)).maybeSingle()
-      if (dbUser?.status === 'banned') { showToast('Your account is suspended.', 'err'); return false }
+      if (dbUser?.status === 'banned') { showToast('Account restricted.', 'err'); return false }
       if (Number(dbUser?.balance) < amount) { showToast('Insufficient balance.', 'err'); return false }
 
       const { error: balErr } = await supabase.from('users').upsert({
@@ -550,13 +550,13 @@ export function useApp() {
         date:'Just now', amount, status:'pending',
         toWallet:destWallet, createdAt:now, userId:tid,
       }, ...p])
-      showToast('Withdrawal submitted! Processing... ⏳', 'ok')
+      showToast('Withdrawal request submitted.', 'ok')
       return true
     } catch (e) {
       const msg = e?.message || ''
-      if (/banned/i.test(msg))            showToast('Your account is suspended.', 'err')
+      if (/banned/i.test(msg))            showToast('Account restricted.', 'err')
       else if (/Insufficient/i.test(msg)) showToast('Insufficient balance.', 'err')
-      else                                showToast('Withdrawal failed. Please try again.', 'err')
+      else                                showToast('Network error - please retry.', 'err')
       console.error('[withdraw]', e)
       return false
     }
@@ -579,7 +579,7 @@ export function useApp() {
     setInvestments(p => p.map(i =>
       i.id === invId ? { ...i, activated:true, nextProfitTime } : i
     ))
-    showToast('Investment activated! ▶','ok')
+    showToast('Investment activated.','ok')
 
     // DB write
     try {
@@ -596,14 +596,14 @@ export function useApp() {
       setInvestments(p => p.map(i =>
         i.id === invId ? { ...i, activated:false, nextProfitTime:inv.nextProfitTime } : i
       ))
-      showToast('Activation failed. Try again.', 'err')
+      showToast('Network error - please retry.', 'err')
     }
   }, [investments, showToast])
 
   const collectProfit = useCallback(async (invId) => {
     const inv = investments.find(i => i.id === invId)
     if (!inv) return
-    showToast('Profit is credited automatically every tick', 'ok')
+    showToast('Profit transferred to balance.', 'ok')
   }, [showToast, investments])
 
   // ─── ADMIN helpers ─────────────────────────────────────────────────────────
@@ -653,7 +653,7 @@ export function useApp() {
       totalUsers: userList.length,
       activeUsers: userList.filter(u=>u.status!=='banned').length,
       bannedUsers: userList.filter(u=>u.status==='banned').length,
-      totalDeposited, totalWithdrawn, activeInvestments: activeInv,
+      totalDeposited, totalWithdrawn, netInCustody: totalDeposited - totalWithdrawn, activeInvestments: activeInv,
       todayProfit: todayPft, pendingWithdraws,
     }
   }, [])
@@ -665,9 +665,9 @@ export function useApp() {
     const newStatus = entry.bundle.user?.status==='banned' ? 'active' : 'banned'
     try {
       await supabase.from('users').update({ status:newStatus, updated_at:new Date().toISOString() }).eq('id', Number(userId))
-    } catch(e) { console.error('[adminToggleBan]',e); showToast('Failed to update user','err'); return }
+    } catch(e) { console.error('[adminToggleBan]',e); showToast('Network error - please retry.','err'); return }
     if (Number(userId)===Number(tid)) setUser(p => ({ ...p, status:newStatus }))
-    showToast(newStatus==='banned' ? 'User banned' : 'User unbanned','ok')
+    showToast(newStatus==='banned' ? 'User banned.' : 'User unbanned.','ok')
   }, [tid, showToast])
 
   const adminUpdateUser = useCallback(async (userId, updates) => {
@@ -697,16 +697,16 @@ export function useApp() {
         }
       }
       if (id===Number(tid)) setUser(p => ({ ...p, ...updates }))
-      showToast('User updated!','ok')
+      showToast('User updated.','ok')
     } catch(e) {
       console.error('[adminUpdateUser]',e)
-      showToast(isFetchFailure(e) ? 'Failed to update user: Supabase connection failed' : `Failed to update user: ${e?.message || 'try again'}`,'err')
+      showToast(isFetchFailure(e) ? 'Network error - please retry.' : `Failed to update user: ${e?.message || 'please retry'}.`,'err')
     }
   }, [tid, showToast])
 
   const adminUpdatePlan = useCallback((planId, updates) => {
     setPlans(prev => { const next = prev.map(p => p.id===planId ? { ...p, ...updates } : p); saveAdminPlans(next); return next })
-    showToast('Plan updated!','ok')
+    showToast('Plan updated.','ok')
   }, [showToast])
 
   const adminToggleMaintenance = useCallback(() => {
@@ -715,19 +715,19 @@ export function useApp() {
 
   const adminSaveSettings = useCallback((updates) => {
     setConfig(prev => { const next = { ...prev, ...updates }; saveAdminConfig(next); return next })
-    showToast('Settings saved!','ok')
+    showToast('Settings updated.','ok')
   }, [showToast])
 
   const adminSendNotification = useCallback(async ({ title, body, audience = 'all', userId = null }) => {
     try {
-      if (!String(title || '').trim()) { showToast('Notification title is required','err'); return false }
-      if (!String(body || '').trim()) { showToast('Notification message is required','err'); return false }
+      if (!String(title || '').trim()) { showToast('Notification title is required.','err'); return false }
+      if (!String(body || '').trim()) { showToast('Notification message is required.','err'); return false }
       await createNotification({ title, body, audience, userId, createdBy: tid })
-      showToast('Notification sent!','ok')
+      showToast('Notification sent.','ok')
       return true
     } catch(e) {
       console.error('[adminSendNotification]', e)
-      showToast(`Failed to send notification: ${e?.message || 'try again'}`,'err')
+      showToast(`Failed to send notification: ${e?.message || 'please retry'}.`,'err')
       return false
     }
   }, [tid, showToast])
@@ -737,7 +737,7 @@ export function useApp() {
       return await getAllNotifications()
     } catch(e) {
       console.error('[adminGetNotifications]', e)
-      showToast(`Failed to load notifications: ${e?.message || 'try again'}`,'err')
+      showToast(`Failed to load notifications: ${e?.message || 'please retry'}.`,'err')
       return []
     }
   }, [showToast])
@@ -745,11 +745,11 @@ export function useApp() {
   const adminDeleteNotification = useCallback(async (notificationId) => {
     try {
       await deleteNotification(notificationId)
-      showToast('Notification deleted','ok')
+      showToast('Notification deleted.','ok')
       return true
     } catch(e) {
       console.error('[adminDeleteNotification]', e)
-      showToast(`Failed to delete notification: ${e?.message || 'try again'}`,'err')
+      showToast(`Failed to delete notification: ${e?.message || 'please retry'}.`,'err')
       return false
     }
   }, [showToast])

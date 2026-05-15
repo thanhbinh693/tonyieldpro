@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from 'react'
+import {
+  ArrowDownCircle, ArrowUpCircle, Ban, BarChart2, Bell, Bot, CheckCircle2,
+  Clock, Cloud, Coins, Database, Download, Globe2, IdCard, Link2, Lock,
+  RefreshCw, Save, Search, Send, Settings as SettingsIcon, Shield, User,
+  Users, Wallet, X, XCircle, Zap
+} from 'lucide-react'
 import { DAY_NAMES, DAY_NAMES_FULL } from '../utils/config'
 import { supabase } from '../utils/supabase'
 import './AdminPage.css'
@@ -14,6 +20,22 @@ const fmtDateShort = (dateStr) => {
 }
 const shortWallet = (addr) => addr ? addr.slice(0,8)+'...'+addr.slice(-6) : '—'
 const TODAY_DOW = new Date().getDay()
+const formatTon = (value) => `${(Number(value) || 0).toFixed(3)} TON`
+const adminIconColor = {
+  blue: '#0098EA',
+  green: '#FFD600',
+  red: '#EF4444',
+  gold: '#FFD600',
+  purple: '#00C2FF',
+  muted: '#94A3B8',
+}
+const txIconMap = { deposit: ArrowDownCircle, withdraw: ArrowUpCircle, profit: Coins, referral: Users }
+const txIconColor = { deposit: '#0098EA', withdraw: '#EF4444', profit: '#FFD600', referral: '#0098EA' }
+
+function AdminTxIcon({ type, size = 16 }) {
+  const Icon = txIconMap[type] || BarChart2
+  return <Icon size={size} color={txIconColor[type] || '#94A3B8'} />
+}
 
 export default function AdminPage({
   user,
@@ -83,49 +105,50 @@ export default function AdminPage({
   })
 
   const stats = adminStats ? [
-    { label:'Total Users',        val: adminStats.totalUsers,                color:'blue',   icon:'◉' },
-    { label:'Active Users',       val: adminStats.activeUsers,               color:'green',  icon:'●' },
-    { label:'Banned',             val: adminStats.bannedUsers,               color:'red',    icon:'⊘' },
-    { label:'Deposited (TON)',    val: adminStats.totalDeposited.toFixed(2), color:'gold',   icon:'↓' },
-    { label:'Withdrawn (TON)',    val: adminStats.totalWithdrawn.toFixed(2), color:'purple', icon:'↑' },
-    { label:'Active Investments', val: adminStats.activeInvestments,         color:'blue',   icon:'▶' },
-    { label:'Today Profit',       val: adminStats.todayProfit.toFixed(2),    color:'green',  icon:'◎' },
-    { label:'Pending Withdraws',  val: adminStats.pendingWithdraws,          color: adminStats.pendingWithdraws > 0 ? 'red' : 'muted', icon:'⏳' },
+    { label:'Registered Users',   val: adminStats.totalUsers,                color:'blue',   Icon: Users },
+    { label:'Active Users',       val: adminStats.activeUsers,               color:'green',  Icon: CheckCircle2 },
+    { label:'Restricted Users',   val: adminStats.bannedUsers,               color:'red',    Icon: Ban },
+    { label:'Total Deposited',    val: formatTon(adminStats.totalDeposited), color:'gold',   Icon: ArrowDownCircle },
+    { label:'Total Withdrawn',    val: formatTon(adminStats.totalWithdrawn), color:'purple', Icon: ArrowUpCircle },
+    { label:'Net in Custody',     val: formatTon(adminStats.netInCustody),   color:'blue',   Icon: Database },
+    { label:'Active Positions',   val: adminStats.activeInvestments,         color:'blue',   Icon: Zap },
+    { label:'Pending Withdrawals',val: adminStats.pendingWithdraws,          color: adminStats.pendingWithdraws > 0 ? 'red' : 'muted', Icon: Clock },
+    { label:"Today's Yield",     val: formatTon(adminStats.todayProfit),    color:'green',  Icon: Coins },
   ] : []
 
   const sections = [
     { id:'overview',  label:'Overview'   },
     { id:'users',     label:'Users', badge: allUsers.length },
     { id:'deposits',  label:'Deposits',  badge: allTx.filter(t=>t.type==='deposit').length },
-    { id:'withdraws', label:'Withdraws', badge: adminStats?.pendingWithdraws || 0, badgeColor: 'red' },
+    { id:'withdraws', label:'Withdrawals', badge: adminStats?.pendingWithdraws || 0, badgeColor: 'red' },
     { id:'history',   label:'History'    },
-    { id:'notifications', label:'Notify' },
-    { id:'plans',     label:'Plans'      },
-    { id:'settings',  label:'⚙ Settings' },
+    { id:'notifications', label:'Notifications' },
+    { id:'plans',     label:'Markets'      },
+    { id:'settings',  label:'Configuration' },
   ]
 
   return (
-    <div className="page admin-page">
+    <div className="page admin-page page-enter">
       <div className="admin-header">
         <div className="admin-title">
-          <span className="admin-shield">🛡</span>
+          <span className="admin-shield"><Shield size={20} color="#0098EA" /></span>
           <div className="admin-title-info">
-            <span>Admin Panel</span>
+            <span>ADMIN PANEL</span>
             <span className="admin-id-badge">ID: {user?.id}</span>
           </div>
         </div>
         <div className="admin-header-right">
           <button className={`maint-btn ${config.maintenanceMode ? 'on' : ''}`} onClick={adminToggleMaintenance}>
-            {config.maintenanceMode ? '⚠ Maint ON' : '⚙ Maint'}
+            {config.maintenanceMode ? <><XCircle size={16} color="#EF4444" /> MAINTENANCE</> : <><SettingsIcon size={16} color="#0098EA" /> OPERATIONAL</>}
           </button>
-          <button className="adm-refresh-btn" onClick={loadAdminData} title="Refresh">⟳</button>
-          <button className="exit-admin-btn" onClick={() => setIsAdmin(false)} title="Exit Admin">✕ Exit</button>
+          <button className="adm-refresh-btn" onClick={loadAdminData} title="Refresh"><RefreshCw size={16} color="#0098EA" /></button>
+          <button className="exit-admin-btn" onClick={() => setIsAdmin(false)} title="Exit Admin"><X size={16} color="#FFFFFF" /> Exit</button>
         </div>
       </div>
 
       <div className="cloud-sync-badge">
-        <span className="csb-icon">☁</span>
-        <span>Supabase {dataLoading ? '…' : '✓'}</span>
+        <span className="csb-icon"><Cloud size={16} color="#0098EA" /></span>
+        <span>Supabase {dataLoading ? 'syncing...' : 'ready'}</span>
       </div>
 
       <div className="admin-tabs">
@@ -143,7 +166,7 @@ export default function AdminPage({
           <div className="stat-grid">
             {stats.map((s,i) => (
               <div key={i} className={`stat-box ${s.color}`}>
-                <div className="sb-icon">{s.icon}</div>
+                <div className="sb-icon"><s.Icon size={18} color={adminIconColor[s.color] || '#94A3B8'} /></div>
                 <div className="sb-val">{s.val}</div>
                 <div className="sb-label">{s.label}</div>
               </div>
@@ -169,7 +192,7 @@ export default function AdminPage({
               <div className="adm-sec-title" style={{marginBottom:8}}>Recent Activity</div>
               {allTxSorted.slice(0,5).map(tx => (
                 <div key={tx.id} className="adm-tx-row">
-                  <div className={`atr-ico ${tx.type}`}>{tx.type==='deposit'?'↓':tx.type==='withdraw'?'↑':tx.type==='profit'?'◎':'⊕'}</div>
+                  <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} /></div>
                   <div className="atr-left">
                     <div className="atr-label">User#{tx.userId} · {tx.label}</div>
                     <div className="atr-date">{fmtDate(tx.createdAt)}</div>
@@ -188,10 +211,10 @@ export default function AdminPage({
       {/* ─── USERS ─────────────────────────────────────────────────────────── */}
       {section === 'users' && (
         <div className="adm-section">
-          <div className="adm-sec-title">All Users ({filteredUsers.length})</div>
+          <div className="adm-sec-title">USER DIRECTORY ({filteredUsers.length})</div>
           {/* Search */}
           <div className="user-search-wrap">
-            <span className="user-search-icon">🔍</span>
+            <span className="user-search-icon"><Search size={16} color="#94A3B8" /></span>
             <input
               className="user-search-input"
               type="text"
@@ -199,7 +222,7 @@ export default function AdminPage({
               value={userSearch}
               onChange={e => setUserSearch(e.target.value)}
             />
-            {userSearch && <button className="user-search-clear" onClick={() => setUserSearch('')}>✕</button>}
+            {userSearch && <button className="user-search-clear" onClick={() => setUserSearch('')}><X size={16} color="#94A3B8" /></button>}
           </div>
 
           {filteredUsers.length === 0 && <div className="adm-empty">No users found</div>}
@@ -242,7 +265,7 @@ export default function AdminPage({
                   {/* Wallet */}
                   {u.walletAddr && (
                     <div className="uc-wallet-row">
-                      <span className="uc-wallet-icon">💎</span>
+                      <span className="uc-wallet-icon"><Wallet size={16} color="#0098EA" /></span>
                       <span className="uc-wallet-addr" title={u.walletAddr}>{shortWallet(u.walletAddr)}</span>
                     </div>
                   )}
@@ -260,22 +283,22 @@ export default function AdminPage({
                   {/* Pending withdraw warning */}
                   {u.pendingWithdraw > 0 && (
                     <div className="uc-pending-warn">
-                      ⏳ Pending withdrawal: <strong>{u.pendingWithdraw.toFixed(2)} TON</strong>
+                      <Clock size={16} color="#FFD600" /> Pending withdrawal: <strong>{u.pendingWithdraw.toFixed(2)} TON</strong>
                     </div>
                   )}
 
                   {/* Referral commission */}
                   {(u.referralCommission||0) > 0 && (
                     <div className="uc-ref-row">
-                      <span>💸 Referral earned: <strong>{(+u.referralCommission).toFixed(2)} TON</strong> · ref deposits <strong>{(+u.referralDepositVolume||0).toFixed(2)} TON</strong></span>
+                      <span><Coins size={16} color="#FFD600" /> Referral earned: <strong>{(+u.referralCommission).toFixed(2)} TON</strong> · ref deposits <strong>{(+u.referralDepositVolume||0).toFixed(2)} TON</strong></span>
                     </div>
                   )}
 
                   <div className="uc-actions">
-                    <button className="uc-detail-btn" onClick={() => setSelectedUser(u.id)}>📋 Details</button>
-                    <button className="uc-edit-btn"   onClick={() => setEditUser(u.id)}>✏ Edit</button>
+                    <button className="uc-detail-btn" onClick={() => setSelectedUser(u.id)}><User size={16} color="#0098EA" /> Details</button>
+                    <button className="uc-edit-btn"   onClick={() => setEditUser(u.id)}><SettingsIcon size={16} color="#0098EA" /> Edit</button>
                     <button className={`ban-btn ${u.status==='banned'?'unban':'ban'}`} onClick={() => { adminToggleBan(u.id); setTimeout(loadAdminData, 800) }}>
-                      {u.status==='banned' ? '↩ Unban' : '⊗ Ban'}
+                      {u.status==='banned' ? <><CheckCircle2 size={16} color="#FFD600" /> Unban</> : <><Ban size={16} color="#EF4444" /> Ban</>}
                     </button>
                   </div>
                 </>
@@ -288,11 +311,11 @@ export default function AdminPage({
       {/* ─── DEPOSITS ──────────────────────────────────────────────────────── */}
       {section === 'deposits' && (
         <div className="adm-section">
-          <div className="adm-sec-title">All Deposits ({allTx.filter(t=>t.type==='deposit').length})</div>
-          {allTx.filter(t=>t.type==='deposit').length === 0 && <div className="adm-empty">No deposits yet</div>}
+          <div className="adm-sec-title">DEPOSITS ({allTx.filter(t=>t.type==='deposit').length})</div>
+          {allTx.filter(t=>t.type==='deposit').length === 0 && <div className="adm-empty">No deposits.</div>}
           {allTxSorted.filter(t=>t.type==='deposit').map(tx => (
             <div key={tx.id} className="adm-tx-row">
-              <div className="atr-ico deposit">↓</div>
+              <div className="atr-ico deposit"><AdminTxIcon type="deposit" /></div>
               <div className="atr-left">
                 <div className="atr-label">
                   {(() => {
@@ -312,7 +335,7 @@ export default function AdminPage({
       {/* ─── WITHDRAWALS ───────────────────────────────────────────────────── */}
       {section === 'withdraws' && (
         <div className="adm-section">
-          <div className="adm-sec-title">Withdrawals ({allTx.filter(t=>t.type==='withdraw').length})</div>
+          <div className="adm-sec-title">WITHDRAWALS ({allTx.filter(t=>t.type==='withdraw').length})</div>
           {/* Status summary */}
           {allTx.filter(t=>t.type==='withdraw').length > 0 && (
             <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
@@ -328,10 +351,10 @@ export default function AdminPage({
               })}
             </div>
           )}
-          {allTx.filter(t=>t.type==='withdraw').length === 0 && <div className="adm-empty">No withdrawals yet</div>}
+          {allTx.filter(t=>t.type==='withdraw').length === 0 && <div className="adm-empty">No withdrawals.</div>}
           {allTxSorted.filter(t=>t.type==='withdraw').map(tx => (
             <div key={tx.id} className="adm-tx-row">
-              <div className="atr-ico withdraw">↑</div>
+              <div className="atr-ico withdraw"><AdminTxIcon type="withdraw" /></div>
               <div className="atr-left">
                 <div className="atr-label">
                   {(() => {
@@ -342,7 +365,7 @@ export default function AdminPage({
                 </div>
                 {tx.toWallet && (
                   <div className="atr-date" style={{ fontSize:11, marginTop:2, color:'var(--blue)', fontFamily:'monospace' }}>
-                    → {shortWallet(tx.toWallet)}
+                    <Send size={16} color="#0098EA" /> {shortWallet(tx.toWallet)}
                   </div>
                 )}
                 <div className="atr-date">{fmtDate(tx.createdAt)}</div>
@@ -374,7 +397,7 @@ export default function AdminPage({
           {filteredTx.length === 0 && <div className="adm-empty">No transactions</div>}
           {filteredTx.map(tx => (
             <div key={tx.id} className="adm-tx-row">
-              <div className={`atr-ico ${tx.type}`}>{tx.type==='deposit'?'↓':tx.type==='withdraw'?'↑':tx.type==='profit'?'◎':'⊕'}</div>
+              <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} /></div>
               <div className="atr-left">
                 <div className="atr-label">
                   {(() => {
@@ -407,7 +430,7 @@ export default function AdminPage({
       {/* ─── PLANS ─────────────────────────────────────────────────────────── */}
       {section === 'plans' && (
         <div className="adm-section">
-          <div className="adm-sec-title">Investment Plans</div>
+          <div className="adm-sec-title">YIELD MARKETS</div>
           {plans.map(p => (
             <div key={p.id} className={`plan-edit-card ${p.color}`}>
               <div className="pec-header">
@@ -423,11 +446,11 @@ export default function AdminPage({
                     <div className="pec-field"><span>Rate</span><span className={`pec-rate ${p.color}`}>{p.rate}% / interval</span></div>
                     <div className="pec-field"><span>Min</span><span>{p.min} TON</span></div>
                     <div className="pec-field"><span>Max</span><span>{p.max ? p.max+' TON' : '∞'}</span></div>
-                    <div className="pec-field"><span>Duration</span><span>{p.duration} {p.durationUnit==='hours'?'hr ⚡':'day'}</span></div>
+                    <div className="pec-field"><span>Duration</span><span>{p.duration} {p.durationUnit==='hours'?'hr':'day'}</span></div>
                     <div className="pec-field"><span>Profit every</span><span className="pec-interval">{
                       (() => {
                         const mins = p.profitIntervalMinutes || (p.profitIntervalMs ? p.profitIntervalMs/60000 : null) || (p.profitIntervalHours||24)*60
-                        if (mins < 60) return `${mins} min ⚡`
+                        if (mins < 60) return `${mins} min`
                         const h = mins/60; return h >= 24 ? `${h/24} day` : `${h}hr`
                       })()
                     }</span></div>
@@ -442,7 +465,7 @@ export default function AdminPage({
                       })}
                     </div>
                   </div>
-                  <button className="pec-edit-btn" onClick={() => setEditPlan(p.id)}>✏ Edit Plan</button>
+                  <button className="pec-edit-btn" onClick={() => setEditPlan(p.id)}><SettingsIcon size={16} color="#0098EA" /> Edit Plan</button>
                 </>
               )}
             </div>
@@ -509,12 +532,12 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 
       {(u.referralCommission||0) > 0 && (
         <div className="ud-ref-earned">
-          💸 Referral commission earned: <strong>{(+u.referralCommission).toFixed(2)} TON</strong> · referred deposits: <strong>{(+u.referralDepositVolume||0).toFixed(2)} TON</strong>
+          <Coins size={16} color="#FFD600" /> Referral commission earned: <strong>{(+u.referralCommission).toFixed(2)} TON</strong> · referred deposits: <strong>{(+u.referralDepositVolume||0).toFixed(2)} TON</strong>
         </div>
       )}
       {u.pendingWithdraw > 0 && (
         <div className="ud-pending-warn">
-          ⏳ Pending withdrawal: <strong>{u.pendingWithdraw.toFixed(2)} TON</strong>
+          <Clock size={16} color="#FFD600" /> Pending withdrawal: <strong>{u.pendingWithdraw.toFixed(2)} TON</strong>
         </div>
       )}
 
@@ -524,7 +547,7 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
           <div className="ud-tx-title">Recent Transactions ({allTx.length})</div>
           {recentTx.map(tx => (
             <div key={tx.id} className="adm-tx-row" style={{padding:'6px 0'}}>
-              <div className={`atr-ico ${tx.type}`} style={{fontSize:14}}>{tx.type==='deposit'?'↓':tx.type==='withdraw'?'↑':tx.type==='profit'?'◎':'⊕'}</div>
+              <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} size={16} /></div>
               <div className="atr-left">
                 <div className="atr-label" style={{fontSize:12}}>{tx.label}</div>
                 <div className="atr-date">{fmtDateLocal(tx.createdAt)}</div>
@@ -539,11 +562,11 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
       )}
 
       <div className="ud-actions">
-        <button className="uc-edit-btn" onClick={onEdit}>✏ Edit User</button>
+        <button className="uc-edit-btn" onClick={onEdit}><SettingsIcon size={16} color="#0098EA" /> Edit User</button>
         <button className={`ban-btn ${u.status==='banned'?'unban':'ban'}`} onClick={onBan}>
-          {u.status==='banned' ? '↩ Unban' : '⊗ Ban'}
+          {u.status==='banned' ? <><CheckCircle2 size={16} color="#FFD600" /> Unban</> : <><Ban size={16} color="#EF4444" /> Ban</>}
         </button>
-        <button className="ud-close-btn" onClick={onClose}>✕ Close</button>
+        <button className="ud-close-btn" onClick={onClose}><X size={16} color="#FFFFFF" /> Close</button>
       </div>
     </div>
   )
@@ -594,7 +617,7 @@ function NotificationPanel({ allUsers, onSend, onLoad, onDelete, showToast }) {
 
   return (
     <div className="adm-section notify-panel">
-      <div className="adm-sec-title">Send Notification</div>
+      <div className="adm-sec-title">SEND NOTIFICATION</div>
       <div className="settings-info">Users receive this instantly through Supabase Realtime.</div>
 
       <div className="notify-toggle">
@@ -631,13 +654,13 @@ function NotificationPanel({ allUsers, onSend, onLoad, onDelete, showToast }) {
       </div>
 
       <button className="sg-save-btn" onClick={handleSend} disabled={sending}>
-        {sending ? 'Sending...' : 'Send Notification'}
+        {sending ? 'SENDING...' : <><Send size={16} color="#FFFFFF" /> SEND NOTIFICATION</>}
       </button>
 
       <div className="notify-history">
         <div className="notify-history-head">
-          <div className="adm-sec-title">Old Notifications</div>
-          <button className="adm-refresh-btn" onClick={loadNotifications} title="Refresh">⟳</button>
+          <div className="adm-sec-title">OLD NOTIFICATIONS</div>
+          <button className="adm-refresh-btn" onClick={loadNotifications} title="Refresh"><RefreshCw size={16} color="#0098EA" /></button>
         </div>
         {loading && <div className="adm-empty">Loading notifications...</div>}
         {!loading && notifications.length === 0 && <div className="adm-empty">No notifications yet</div>}
@@ -650,7 +673,7 @@ function NotificationPanel({ allUsers, onSend, onLoad, onDelete, showToast }) {
                 {n.audience === 'all' ? 'All users' : `User #${n.userId}`} · {new Date(n.createdAt).toLocaleString()}
               </div>
             </div>
-            <button className="notify-delete-btn" onClick={() => handleDelete(n.id)}>Delete</button>
+            <button className="notify-delete-btn" onClick={() => handleDelete(n.id)}><X size={16} color="#EF4444" /> Delete</button>
           </div>
         ))}
       </div>
@@ -698,30 +721,30 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
 
   return (
     <div className="adm-section settings-panel">
-      <div className="adm-sec-title">⚙ Bot Settings</div>
-      <div className="settings-info">Settings synced to Supabase — all admin devices share the same config.</div>
+      <div className="adm-sec-title"><SettingsIcon size={18} color="#0098EA" /> SYSTEM CONFIGURATION</div>
+      <div className="settings-info">Settings sync through Supabase Realtime across admin devices.</div>
 
       <div className="setting-group">
-        <div className="sg-label"><span className="sg-icon">💎</span>Admin Wallet Testnet</div>
+        <div className="sg-label"><Wallet size={16} color="#0098EA" />Admin Wallet Testnet</div>
         <div className="sg-desc">Receives testnet deposits. Usually starts with kQ or 0Q.</div>
         <input className="sg-input" type="text" value={adminWalletTestnet} onChange={e=>setAdminWalletTestnet(e.target.value)} placeholder="0Q..." spellCheck={false}/>
       </div>
 
       <div className="setting-group">
-        <div className="sg-label"><span className="sg-icon">💎</span>Admin Wallet Mainnet</div>
+        <div className="sg-label"><Wallet size={16} color="#0098EA" />Admin Wallet Mainnet</div>
         <div className="sg-desc">Receives real TON deposits. Usually starts with UQ or EQ.</div>
         <input className="sg-input" type="text" value={adminWalletMainnet} onChange={e=>setAdminWalletMainnet(e.target.value)} placeholder="UQ..." spellCheck={false}/>
       </div>
 
       <div className="setting-group">
-        <div className="sg-label"><span className="sg-icon">🆔</span>Admin Telegram IDs</div>
+        <div className="sg-label"><IdCard size={16} color="#0098EA" />Admin Telegram IDs</div>
         <div className="sg-desc">Comma-separated Telegram user IDs. Get yours from <strong>@userinfobot</strong>.</div>
         <input className="sg-input" type="text" value={adminIds} onChange={e=>setAdminIds(e.target.value)} placeholder="123456789, 987654321"/>
         <div className="sg-hint">Current session ID: <strong>{currentUserId}</strong></div>
       </div>
 
       <div className="setting-group">
-        <div className="sg-label"><span className="sg-icon">🤖</span>Bot Username</div>
+        <div className="sg-label"><Bot size={16} color="#0098EA" />Bot Username</div>
         <div className="sg-desc">Your bot's @username — used to generate referral links.</div>
         <div className="sg-input-prefix-wrap">
           <span className="sg-prefix">@</span>
@@ -734,7 +757,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       </div>
 
       <div className="setting-group">
-        <div className="sg-label"><span className="sg-icon">💸</span>Referral Commission (%)</div>
+        <div className="sg-label"><Coins size={16} color="#FFD600" />Referral Commission (%)</div>
         <div className="sg-slider-wrap">
           <input type="range" min="1" max="30" step="0.5" value={referralRate} onChange={e=>setReferralRate(+e.target.value)} className="sg-slider"/>
           <div className="sg-slider-val">
@@ -745,15 +768,15 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       </div>
 
       <div className="setting-group network-group">
-        <div className="sg-label"><span className="sg-icon">🌐</span>TON Network</div>
+        <div className="sg-label"><Globe2 size={16} color="#0098EA" />TON Network</div>
         <div className="network-toggle-wrap">
-          <button className={`net-btn ${tonNetwork==='testnet'?'net-active testnet':'net-inactive'}`} onClick={() => handleNetworkSwitch('testnet')}><span className="net-dot"/>🧪 Testnet</button>
-          <button className={`net-btn ${tonNetwork==='mainnet'?'net-active mainnet':'net-inactive'}`} onClick={() => handleNetworkSwitch('mainnet')}><span className="net-dot"/>🚀 Mainnet</button>
+          <button className={`net-btn ${tonNetwork==='testnet'?'net-active testnet':'net-inactive'}`} onClick={() => handleNetworkSwitch('testnet')}><span className="net-dot"/>Testnet</button>
+          <button className={`net-btn ${tonNetwork==='mainnet'?'net-active mainnet':'net-inactive'}`} onClick={() => handleNetworkSwitch('mainnet')}><span className="net-dot"/>Mainnet</button>
         </div>
-        <div className={`network-badge ${tonNetwork}`}>{tonNetwork==='testnet'?'🧪 Currently on TESTNET':'🚀 Currently on MAINNET'}</div>
+        <div className={`network-badge ${tonNetwork}`}>{tonNetwork==='testnet'?'Currently on TESTNET':'Currently on MAINNET'}</div>
         {showNetConfirm && (
           <div className="net-confirm-box">
-            <div className="net-confirm-title">⚠️ Switch to {pendingNetwork}?</div>
+            <div className="net-confirm-title"><XCircle size={16} color="#FFD600" /> Switch to {pendingNetwork}?</div>
             <div className="net-confirm-desc">{pendingNetwork==='mainnet'?'Mainnet uses real TON. Real funds.':'Testnet uses test TON only.'}</div>
             <div className="net-confirm-btns">
               <button className="net-confirm-yes" onClick={() => { setTonNetwork(pendingNetwork); setShowNetConfirm(false); setPendingNetwork(null) }}>Yes, Switch</button>
@@ -764,14 +787,14 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       </div>
 
       <div className="setting-group">
-        <div className="sg-label"><span className="sg-icon">⬇</span>Minimum Withdrawal (TON)</div>
+        <div className="sg-label"><Download size={16} color="#0098EA" />Minimum Withdrawal (TON)</div>
         <div className="sg-row">
           <input className="sg-input sg-input-sm" type="number" min="1" step="0.5" value={minWithdraw} onChange={e=>setMinWithdraw(+e.target.value)}/>
           <span className="sg-unit">TON</span>
         </div>
       </div>
 
-      <button className="sg-save-btn" onClick={handleSave}>💾 Save Settings</button>
+      <button className="sg-save-btn" onClick={handleSave}><Save size={16} color="#FFFFFF" /> SAVE CONFIGURATION</button>
     </div>
   )
 }
@@ -789,10 +812,10 @@ function UserEditor({ user, onSave, onCancel }) {
   return (
     <div className="plan-editor">
       <div className="adm-sec-title" style={{marginBottom:12}}>
-        Edit: {user.firstName && <span>{user.firstName} </span>}<span style={{color:'var(--muted)'}}>@{user.username}</span>
+        EDIT USER · {user.firstName && <span>{user.firstName} </span>}<span style={{color:'var(--muted)'}}>@{user.username}</span>
         <span style={{color:'var(--muted)',fontSize:12,marginLeft:8}}>#{user.id}</span>
       </div>
-      <div className="pe-row"><label>Balance (TON)</label><input type="number" value={balance} onChange={e=>setBalance(+e.target.value)} step="0.01"/></div>
+      <div className="pe-row"><label>Balance</label><input type="number" value={balance} onChange={e=>setBalance(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Total Deposited</label><input type="number" value={totalDeposit} onChange={e=>setTotalDeposit(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Total Withdrawn</label><input type="number" value={totalWithdraw} onChange={e=>setTotalWithdraw(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Today's Profit</label><input type="number" value={todayProfit} onChange={e=>setTodayProfit(+e.target.value)} step="0.01"/></div>
@@ -801,8 +824,8 @@ function UserEditor({ user, onSave, onCancel }) {
       <div className="pe-row"><label>Referral Earned</label><input type="number" value={referralCommission} onChange={e=>setReferralCommission(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Ref Deposit Volume</label><input type="number" value={referralDepositVolume} onChange={e=>setReferralDepositVolume(+e.target.value)} step="0.01"/></div>
       <div className="pe-btns">
-        <button className="pe-save" onClick={() => onSave({ balance, totalDeposit, totalWithdraw, todayProfit, referrals, referralFriends, referralCommission, referralDepositVolume })}>💾 Save Changes</button>
-        <button className="pe-cancel" onClick={onCancel}>Cancel</button>
+        <button className="pe-save" onClick={() => onSave({ balance, totalDeposit, totalWithdraw, todayProfit, referrals, referralFriends, referralCommission, referralDepositVolume })}><Save size={16} color="#FFFFFF" /> SAVE CHANGES</button>
+        <button className="pe-cancel" onClick={onCancel}>CANCEL</button>
       </div>
     </div>
   )
@@ -824,8 +847,8 @@ function PlanEditor({ plan, onSave, onCancel }) {
   const [profitIntervalMinutes, setProfitIntervalMinutes] = useState(resolveCurrentMinutes)
   const [activeDays, setActiveDays] = useState(plan.activeDays||[1,2,3,4,5])
   const intervalOptions = [
-    {value:5,label:'⚡ 5 min (test)'},{value:15,label:'⚡ 15 min (test)'},{value:30,label:'⚡ 30 min (test)'},
-    {value:60,label:'⚡ 1 hr (test)'},{value:120,label:'⚡ 2 hr (test)'},{value:180,label:'3 hr'},
+    {value:5,label:'5 min (test)'},{value:15,label:'15 min (test)'},{value:30,label:'30 min (test)'},
+    {value:60,label:'1 hr (test)'},{value:120,label:'2 hr (test)'},{value:180,label:'3 hr'},
     {value:360,label:'6 hr'},{value:720,label:'12 hr'},{value:1440,label:'24 hr (1 day)'},{value:2880,label:'48 hr (2 days)'},
   ]
   const toggleDay = (dow) => setActiveDays(prev => prev.includes(dow) ? prev.filter(d=>d!==dow) : [...prev,dow].sort())
@@ -840,7 +863,7 @@ function PlanEditor({ plan, onSave, onCancel }) {
           <input type="number" value={duration} onChange={e=>setDuration(+e.target.value)} style={{flex:1}}/>
           <select value={durationUnit} onChange={e=>setDurationUnit(e.target.value)} className="pe-select" style={{flex:'none',width:'auto'}}>
             <option value="days">days</option>
-            <option value="hours">hr ⚡</option>
+            <option value="hours">hr</option>
           </select>
         </div>
       </div>
@@ -859,7 +882,7 @@ function PlanEditor({ plan, onSave, onCancel }) {
             </button>
           ))}
         </div>
-        {activeDays.length===0 && <span className="pe-warn">⚠ Select at least 1 day</span>}
+        {activeDays.length===0 && <span className="pe-warn"><XCircle size={16} color="#EF4444" /> Select at least 1 day</span>}
       </div>
       <div className="pe-row"><label>HOT badge</label><input type="checkbox" checked={hot} onChange={e=>setHot(e.target.checked)} style={{width:'auto',height:'auto',cursor:'pointer'}}/></div>
       <div className="pe-btns">
@@ -867,8 +890,8 @@ function PlanEditor({ plan, onSave, onCancel }) {
           if (activeDays.length===0) return
           const durMs = durationUnit==='hours' ? duration*3_600_000 : duration*86_400_000
           onSave({ rate, min, max:max?+max:null, duration, durationUnit, durationMs:durMs, profitIntervalMinutes, profitIntervalMs:profitIntervalMinutes*60_000, activeDays, hot })
-        }}>💾 Save Changes</button>
-        <button className="pe-cancel" onClick={onCancel}>Cancel</button>
+        }}><Save size={16} color="#FFFFFF" /> SAVE CHANGES</button>
+        <button className="pe-cancel" onClick={onCancel}>CANCEL</button>
       </div>
     </div>
   )

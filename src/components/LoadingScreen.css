@@ -1,0 +1,115 @@
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #030304;
+}
+
+.loading-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .7;
+  background:
+    linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, #000 0%, transparent 72%);
+}
+
+.loading-orb {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,152,234,.10), transparent 68%);
+  filter: blur(10px);
+  animation: orb-breathe 2.2s ease-in-out infinite;
+}
+
+.loading-core {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: loading-enter .3s ease-out both;
+}
+
+.loading-logo-node {
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,152,234,.15);
+  border: 1px solid rgba(0,152,234,.4);
+  box-shadow: 0 0 20px rgba(0,152,234,.3);
+  backdrop-filter: blur(16px);
+  animation: pulse-glow 1.6s ease-in-out infinite;
+}
+
+.maintenance .loading-logo-node {
+  width: 104px;
+  height: 104px;
+  border-radius: 28px;
+}
+
+.loading-word,
+.loading-title {
+  min-height: 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  color: #FFFFFF;
+}
+
+.loading-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  letter-spacing: .08em;
+}
+
+.loading-subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: #94A3B8;
+  text-transform: uppercase;
+}
+
+.dot-loader::after {
+  content: '.';
+  display: inline-block;
+  width: 28px;
+  text-align: left;
+  color: #00C2FF;
+  animation: dot-pulse 1.1s steps(1, end) infinite;
+}
+
+@keyframes loading-enter {
+  from { opacity: 0; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,152,234,.3); }
+  50% { box-shadow: 0 0 50px rgba(0,152,234,.8); }
+}
+
+@keyframes dot-pulse {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+@keyframes orb-breathe {
+  0%, 100% { opacity: .7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.18); }
+}

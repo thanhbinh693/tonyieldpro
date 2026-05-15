@@ -639,3 +639,70 @@
   font-weight:800;
   cursor:pointer;
 }
+
+/* TON DeFi aesthetic */
+.admin-header { background:linear-gradient(180deg, rgba(3,3,4,.96) 68%, transparent);backdrop-filter:blur(14px); }
+.admin-title { font-weight:800;background:var(--text-gradient);-webkit-background-clip:text;background-clip:text;color:transparent; }
+.maint-btn,
+.exit-admin-btn,
+.adm-refresh-btn { min-height:44px;border-radius:14px;background:rgba(15,17,21,.72);border:1px solid rgba(255,255,255,.12);color:var(--muted); }
+.maint-btn.on { background:rgba(255,77,109,.14);border-color:rgba(255,77,109,.38); }
+.adm-tab { min-height:38px;background:rgba(15,17,21,.62);border-color:rgba(255,255,255,.10); }
+.adm-tab.on { background:rgba(0,152,234,.18);border-color:rgba(0,194,255,.45);color:var(--blue2);box-shadow:0 0 18px rgba(0,152,234,.20); }
+.stat-box,
+.adm-card,
+.user-card,
+.plan-edit-card,
+.adm-empty,
+.day-status-bar,
+.setting-group,
+.settings-info,
+.notify-panel { background:var(--glass);border:var(--glass-border);backdrop-filter:blur(18px);box-shadow:0 0 22px rgba(0,152,234,.12); }
+.stat-box,
+.user-card,
+.plan-edit-card,
+.setting-group { border-radius:18px; }
+.sb-val,
+.adc-amount,
+.ucs-val,
+.pec-rate,
+.atr-right .pos,
+.atr-right .neg,
+.ud-stat-val { font-family:var(--font-mono); }
+.stat-box.blue .sb-val,
+.stat-box.purple .sb-val { color:var(--blue2);text-shadow:var(--ton-glow); }
+.stat-box.gold .sb-val,
+.stat-box.green .sb-val { color:var(--gold);text-shadow:var(--gold-glow); }
+.uc-avatar { background:linear-gradient(135deg,var(--blue),var(--blue2));box-shadow:var(--ton-glow); }
+.ucs,
+.adc-meta,
+.pe-row input,
+.pe-select,
+.sg-input,
+.notify-toggle button { background:rgba(15,17,21,.72);border:1px solid rgba(255,255,255,.10); }
+.uc-edit-btn,
+.pec-edit-btn { min-height:44px;border-radius:999px;background:rgba(0,152,234,.16);border-color:rgba(0,194,255,.35);color:var(--blue2); }
+.ban-btn,
+.pe-save,
+.pe-cancel,
+.sg-save-btn,
+.notify-delete-btn { min-height:44px;border-radius:999px; }
+.pe-save,
+.sg-save-btn { background:var(--btn-ton);color:#fff;box-shadow:var(--ton-glow); }
+.pe-cancel { background:rgba(15,17,21,.72);border:1px solid rgba(255,255,255,.12); }
+.plan-edit-card.gold,
+.plan-edit-card.blue,
+.plan-edit-card.purple { border-left:1px solid rgba(0,194,255,.45); }
+.pec-badge.gold,
+.pec-badge.blue,
+.pec-badge.purple,
+.pec-day-chip.on.gold,
+.pec-day-chip.on.blue,
+.pec-day-chip.on.purple { background:rgba(0,152,234,.16);color:var(--blue2);border-color:rgba(0,194,255,.35); }
+.atr-ico.deposit,
+.atr-ico.profit,
+.atr-ico.referral { background:rgba(0,152,234,.16);color:var(--blue2); }
+.notify-toggle button.on { background:var(--btn-ton);border-color:transparent;box-shadow:var(--ton-glow); }
+.notify-admin-row,
+.adm-tx-row,
+.pec-field { border-color:rgba(255,255,255,.08); }

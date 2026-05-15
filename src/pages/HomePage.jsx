@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { ArrowDownCircle, ArrowUpCircle, Bell, ChevronRight, Minus, Pause, Play, Plus, Shield, Target, TrendingUp, Users } from 'lucide-react'
 import { DAY_NAMES_FULL } from '../utils/config'
 import './HomePage.css'
 
@@ -60,7 +61,7 @@ function PlanRing({ inv, onActivate, onCollect }) {
     return `${filled.toFixed(2)} ${c.toFixed(2)}`
   }
 
-  const colorMap = { gold: '#f5a623', blue: '#3d9be9', purple: '#9b6dff' }
+  const colorMap = { gold: '#FFD600', blue: '#0098EA', purple: '#00C2FF' }
   const ringColor = '#00d4ff'  // cosmic blue override for all plans
   const ringColorDim = '#00d4ff30'
   const ringColorMid = '#00aaff'
@@ -97,7 +98,7 @@ function PlanRing({ inv, onActivate, onCollect }) {
             transform="rotate(-90 50 50)"/>
         </svg>
         <button className="activate-btn" onClick={() => onActivate(inv.id)}>
-          <span className="activate-icon">▶</span>
+          <span className="activate-icon"><Play size={16} color="#FFFFFF" /></span>
           <span>Activate</span>
         </button>
       </div>
@@ -186,16 +187,43 @@ function PlanRing({ inv, onActivate, onCollect }) {
   )
 }
 
-const txIcon  = { profit:'◎', deposit:'↓', withdraw:'↑', referral:'⊕' }
+const txIcon  = { profit: TrendingUp, deposit: ArrowDownCircle, withdraw: ArrowUpCircle, referral: Users }
 const txClass = { profit:'p',  deposit:'d', withdraw:'w', referral:'r'  }
+const txColor = { profit:'#FFD600', deposit:'#0098EA', withdraw:'#EF4444', referral:'#0098EA' }
 const txDisplayAmount = (tx) => tx.type === 'withdraw'
   ? -Math.abs(Number(tx.amount) || 0)
   : Number(tx.amount) || 0
 
+function TxIconNode({ type, size = 16 }) {
+  const Icon = txIcon[type] || TrendingUp
+  return <Icon size={size} color={txColor[type] || '#94A3B8'} />
+}
+
+const formatTon = (value, signed = false) => {
+  const n = Number(value) || 0
+  const sign = signed && n > 0 ? '+' : ''
+  return `${sign}${n.toFixed(3)} TON`
+}
+const formatPct = (value) => `${(Number(value) || 0).toFixed(1)}%`
+const formatDateLong = (date = new Date()) =>
+  date.toLocaleDateString('en-GB', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
+const getGreeting = () => {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+const formatCountdown = (ms) => {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}m ${String(s).padStart(2, '0')}s`
+}
+
 const statusBadge = (s) => {
   const map = { completed:'badge-ok', approved:'badge-ok', done:'badge-ok', rejected:'badge-err', failed:'badge-err' }
-  const lbl = { completed:'Done', approved:'Done', done:'Done', rejected:'Failed', failed:'Failed' }
-  return <span className={`tx-badge ${map[s]||''}`}>{lbl[s]||s}</span>
+  const lbl = { completed:'COMPLETED', approved:'COMPLETED', done:'COMPLETED', pending:'PENDING', processing:'PENDING', rejected:'FAILED', failed:'FAILED' }
+  return <span className={`tx-badge ${map[s]||''}`}>{lbl[s] || String(s || '').toUpperCase()}</span>
 }
 
 function getDayLabel(ts) {
@@ -272,6 +300,9 @@ export default function HomePage({ user, investments, transactions, plans, confi
   const inactivePlans = (plans || []).filter(p => !(p.activeDays || [1,2,3,4,5]).includes(TODAY_DOW))
   const hasInactiveToday = inactivePlans.length > 0
   const todayLabel = DAY_NAMES_FULL[TODAY_DOW]
+  const todayProfit = Number(user?.todayProfit) || 0
+  const portfolioValue = Number(user?.balance) || 0
+  const todayPct = portfolioValue > 0 ? (todayProfit / portfolioValue) * 100 : 0
 
   // long-press logo → toggle admin view
   const handlePressStart = () => {
@@ -280,7 +311,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
   const handlePressEnd = () => clearTimeout(pressRef.current)
 
   return (
-    <div className="page">
+    <div className="page page-enter">
       {/* Header */}
       <div className="hp-header">
         <div className="brand">
@@ -293,14 +324,14 @@ export default function HomePage({ user, investments, transactions, plans, confi
                 {/* Outer glow */}
                 <defs>
                   <radialGradient id="fireGlow" cx="50%" cy="65%" r="50%">
-                    <stop offset="0%" stopColor="#ff6a00" stopOpacity="0.9"/>
-                    <stop offset="40%" stopColor="#ff3d00" stopOpacity="0.5"/>
+                    <stop offset="0%" stopColor="#00C2FF" stopOpacity="0.9"/>
+                    <stop offset="40%" stopColor="#0098EA" stopOpacity="0.5"/>
                     <stop offset="100%" stopColor="#ff0000" stopOpacity="0"/>
                   </radialGradient>
                   <radialGradient id="coreGlow" cx="50%" cy="60%" r="40%">
                     <stop offset="0%" stopColor="#fff5a0" stopOpacity="1"/>
                     <stop offset="50%" stopColor="#ffb300" stopOpacity="0.8"/>
-                    <stop offset="100%" stopColor="#ff4500" stopOpacity="0"/>
+                    <stop offset="100%" stopColor="#0098EA" stopOpacity="0"/>
                   </radialGradient>
                   <filter id="blur1" x="-50%" y="-50%" width="200%" height="200%">
                     <feGaussianBlur stdDeviation="2.5"/>
@@ -316,7 +347,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                 </ellipse>
                 {/* Main flame body left */}
                 <path d="M22 58 Q16 45 20 35 Q14 42 12 52 Q8 38 18 28 Q15 34 19 40 Q20 25 28 18 Q24 30 26 38 Q30 22 30 10 Q34 22 34 38 Q36 30 32 18 Q40 25 41 40 Q45 34 42 28 Q52 38 48 52 Q46 42 40 35 Q44 45 38 58 Z" 
-                  fill="#ff4500" opacity="0.7">
+                  fill="#0098EA" opacity="0.7">
                   <animate attributeName="d" 
                     values="M22 58 Q16 45 20 35 Q14 42 12 52 Q8 38 18 28 Q15 34 19 40 Q20 25 28 18 Q24 30 26 38 Q30 22 30 10 Q34 22 34 38 Q36 30 32 18 Q40 25 41 40 Q45 34 42 28 Q52 38 48 52 Q46 42 40 35 Q44 45 38 58 Z;M24 58 Q17 46 21 34 Q13 43 11 53 Q7 37 19 27 Q16 33 20 41 Q21 24 29 16 Q25 29 27 37 Q31 21 30 9 Q35 23 33 39 Q37 29 31 17 Q41 24 42 41 Q47 33 43 27 Q53 37 49 53 Q47 43 41 34 Q45 46 36 58 Z;M22 58 Q16 45 20 35 Q14 42 12 52 Q8 38 18 28 Q15 34 19 40 Q20 25 28 18 Q24 30 26 38 Q30 22 30 10 Q34 22 34 38 Q36 30 32 18 Q40 25 41 40 Q45 34 42 28 Q52 38 48 52 Q46 42 40 35 Q44 45 38 58 Z"
                     dur="0.8s" repeatCount="indefinite"/>
@@ -337,21 +368,26 @@ export default function HomePage({ user, investments, transactions, plans, confi
               <span className="brand-logo-T">T</span>
             </div>
           </div>
-          <div className="brand-name">TON<em>Yield</em></div>
+          <div>
+            <div className="brand-name">{getGreeting()}, {user?.firstName || user?.username || 'Investor'}</div>
+            <div className="notif-sub">{formatDateLong()}</div>
+          </div>
         </div>
         <div className="header-right">
           {isAdmin && !isAdminView && (
             <div className="admin-badge enter-admin" onClick={() => setIsAdmin(true)} title="Enter Admin Panel">
-              🛡 ADMIN
+              <Shield size={16} color="#0098EA" />
+              <span>ADMIN</span>
             </div>
           )}
           {isAdminView && (
             <div className="admin-badge active-admin" onClick={() => setTab('admin')}>
-              ▶ Panel
+              <Play size={16} color="#0098EA" />
+              <span>Panel</span>
             </div>
           )}
           <button className="notif-btn" onClick={() => { setShowNotifications(true); markNotificationsSeen?.() }} title="Notifications">
-            🔔
+            <Bell size={20} color={notificationUnread > 0 ? '#0098EA' : '#94A3B8'} />
             {notificationUnread > 0 && <span className="notif-dot">{notificationUnread > 9 ? '9+' : notificationUnread}</span>}
           </button>
         </div>
@@ -362,13 +398,13 @@ export default function HomePage({ user, investments, transactions, plans, confi
           <div className="notif-panel" onClick={e => e.stopPropagation()}>
             <div className="notif-head">
               <div>
-                <div className="notif-title">Notifications</div>
-                <div className="notif-sub">Admin announcements</div>
+                <div className="notif-title">NOTIFICATIONS</div>
+                <div className="notif-sub">System announcements</div>
               </div>
               <button className="notif-close" onClick={() => setShowNotifications(false)}>×</button>
             </div>
             <div className="notif-list">
-              {notifications.length === 0 && <div className="notif-empty">No notifications yet</div>}
+              {notifications.length === 0 && <div className="notif-empty">No notifications.</div>}
               {notifications.map(n => (
                 <div key={n.id} className="notif-item">
                   <div className="notif-item-title">{n.title}</div>
@@ -383,18 +419,18 @@ export default function HomePage({ user, investments, transactions, plans, confi
 
       {/* Balance Hero */}
       <div className="bal-hero">
-        <div className="bal-tag">Total Portfolio</div>
-        <div className="bal-num">{user?.balance?.toFixed(2)} <span>TON</span></div>
+        <div className="bal-tag">PORTFOLIO VALUE</div>
+        <div className="bal-num">{formatTon(user?.balance).replace(' TON','')} <span>TON</span></div>
         <div className="bal-profit">
-          <span className="green-dot" /><span className="green">+{user?.todayProfit?.toFixed(2)} TON today</span>
+          <span className="green-dot" /><span className="green">{formatTon(todayProfit, true)} today ({formatPct(todayPct)})</span>
         </div>
         <div className="bal-btns">
           <button className="bb dep" onClick={onDeposit}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-            Deposit
+            <ArrowDownCircle size={16} color="#FFFFFF" />
+            Open Position
           </button>
           <button className="bb wit" onClick={onWithdraw}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            <ArrowUpCircle size={16} color="#0098EA" />
             Withdraw
           </button>
         </div>
@@ -405,14 +441,28 @@ export default function HomePage({ user, investments, transactions, plans, confi
         <div className="status-pill">
           {hasInactiveToday
             ? <><div className="sp-dot orange"/><div><div className="sp-label">Today: {todayLabel}</div><div className="sp-val" style={{color:'var(--gold)'}}>Some plans paused</div></div></>
-            : <><div className="sp-dot green"/><div><div className="sp-label">Today profit</div><div className="sp-val" style={{color:'var(--green)'}}>+{user?.todayProfit?.toFixed(2)} TON</div></div></>
+            : <><div className="sp-dot green"/><div><div className="sp-label">Referral income</div><div className="sp-val" style={{color:'var(--green)'}}>{formatTon(referral?.commission || 0)}</div></div></>
           }
         </div>
         <div className="status-pill">
           <div className="sp-dot blue"/>
           <div>
-            <div className="sp-label">Active plans</div>
-            <div className="sp-val">{investments.length} running</div>
+            <div className="sp-label">Active positions</div>
+            <div className="sp-val">{investments.length}</div>
+          </div>
+        </div>
+        <div className="status-pill">
+          <div className="sp-dot blue"/>
+          <div>
+            <div className="sp-label">Total deposited</div>
+            <div className="sp-val">{formatTon(user?.totalDeposit || 0)}</div>
+          </div>
+        </div>
+        <div className="status-pill">
+          <div className="sp-dot orange"/>
+          <div>
+            <div className="sp-label">Total withdrawn</div>
+            <div className="sp-val">{formatTon(user?.totalWithdraw || 0)}</div>
           </div>
         </div>
       </div>
@@ -420,11 +470,11 @@ export default function HomePage({ user, investments, transactions, plans, confi
       {/* Inactive day banner */}
       {hasInactiveToday && (
         <div className="inactive-day-banner">
-          <span className="idb-icon">⏸</span>
+          <span className="idb-icon"><Pause size={18} color="#FFD600" /></span>
           <div className="idb-text">
-            <div className="idb-title">{todayLabel} — Some plans paused</div>
+            <div className="idb-title">{todayLabel} - Some positions paused</div>
             <div className="idb-sub">
-              {inactivePlans.map(p => p.name).join(', ')} paused today · Collect only
+              {inactivePlans.map(p => p.name).join(', ')} paused today. Distributions resume on the next active day.
             </div>
           </div>
         </div>
@@ -433,14 +483,15 @@ export default function HomePage({ user, investments, transactions, plans, confi
       {/* Investments with plan rings */}
       <div className="sec">
         <div className="sec-hdr">
-          <div className="sec-title">My Investments</div>
-          <div className="sec-link" onClick={() => setTab('plans')}>+ Invest more</div>
+          <div className="sec-title">ACTIVE POSITIONS <span>{investments.length}</span></div>
+          <div className="sec-link" onClick={() => setTab('plans')}>VIEW MARKETS</div>
         </div>
         {investments.length === 0 && (
           <div className="empty-state">
-            <div className="es-icon">◎</div>
-            <div className="es-text">No active investments</div>
-            <button className="es-btn" onClick={() => setTab('plans')}>Start investing</button>
+            <div className="es-icon"><Target size={32} color="#0098EA" /></div>
+            <div className="es-text">NO ACTIVE POSITIONS</div>
+            <div className="notif-sub">Your portfolio is empty. Explore available yield strategies to get started.</div>
+            <button className="es-btn" onClick={() => setTab('plans')}>VIEW MARKETS</button>
           </div>
         )}
         {investments.map(inv => {
@@ -448,12 +499,13 @@ export default function HomePage({ user, investments, transactions, plans, confi
           return (
             <div key={inv.id} className={`inv-card ${inv.planColor} ${!activeToday ? 'inv-paused' : ''}`}>
               {!activeToday && (
-                <div className="inv-pause-ribbon">⏸ Paused today · {getNextActiveDay(inv)}</div>
+                <div className="inv-pause-ribbon"><Pause size={16} color="#FFD600" /> Paused today. Resumes {getNextActiveDay(inv)}</div>
               )}
               <div className="inv-main">
                 <div className="inv-left">
                   <div className="inv-badge-row">
-                    <span className={`inv-badge ${inv.planColor}`}>{inv.plan}</span>
+                    <span className={`inv-badge ${inv.planColor}`}>{String(inv.plan || '').toUpperCase()} YIELD</span>
+                    <span className="tx-badge badge-ok">{activeToday ? 'ACTIVE' : 'PAUSED'}</span>
                   </div>
                   {inv.invoiceId && (
                     <div className="inv-id-row">
@@ -461,7 +513,8 @@ export default function HomePage({ user, investments, transactions, plans, confi
                       <span className="inv-id-val">{inv.invoiceId}</span>
                     </div>
                   )}
-                  <div className="inv-amount">{inv.amount} <span>TON</span></div>
+                  <div className="inv-amount">{formatTon(inv.amount).replace(' TON','')} <span>TON</span></div>
+                  <div className="inv-rate">Principal</div>
                   <div className="inv-rate">
                     {(() => {
                       const ms = inv.intervalMs
@@ -469,24 +522,24 @@ export default function HomePage({ user, investments, transactions, plans, confi
                         || (inv.profitIntervalMinutes ? inv.profitIntervalMinutes * 60_000 : 0)
                         || (inv.profitIntervalHours   ? inv.profitIntervalHours   * 3_600_000 : 0)
                         || 86_400_000
-                      if (ms < 3_600_000)  return `${inv.rate}% / ${Math.round(ms/60_000)}min`
-                      if (ms < 86_400_000) return `${inv.rate}% / ${Math.round(ms/3_600_000)}hr`
-                      return `${inv.rate}% / day`
+                      if (ms < 3_600_000)  return `${formatPct(inv.rate)} / ${Math.round(ms/60_000)} min cycle`
+                      if (ms < 86_400_000) return `${formatPct(inv.rate)} / ${Math.round(ms/3_600_000)} hour cycle`
+                      return `${formatPct(inv.rate)} / day`
                     })()}
                   </div>
                   <div className="inv-earned-row">
-                    <span className="inv-earned-lbl">Profit ID {inv.invoiceId || '—'}</span>
-                    <span className="inv-earned">+{(inv.earned||0).toFixed(2)} TON</span>
+                    <span className="inv-earned-lbl">Earned</span>
+                    <span className="inv-earned">{formatTon(inv.earned || 0, true)}</span>
                   </div>
                   <div className="pbar-wrap">
                     <div className="pbar"><div className={`pbar-fill ${inv.planColor}`} style={{width:`${inv.progress}%`}}/></div>
-                    <div className="pbar-meta">{inv.progress}% · {inv.timeLeftLabel}</div>
+                    <div className="pbar-meta">Progress {inv.progress}%</div>
                   </div>
                 </div>
                 <div className="inv-right">
                   <PlanRing inv={inv} onActivate={activateInvestment} onCollect={collectProfit} />
                   <div className="inv-countdown-label">
-                    {!activeToday ? 'Paused today' : 'Next profit'}
+                    {!activeToday ? 'Paused today' : `Next distribution ${formatCountdown(Math.max(0, inv.nextProfitTime - Date.now()))}`}
                   </div>
                 </div>
               </div>
@@ -499,23 +552,23 @@ export default function HomePage({ user, investments, transactions, plans, confi
       <div className="sec">
         <div className="ref-mini" onClick={() => setTab('profile')}>
           <div className="rm-left">
-            <div className="rm-icon">⊕</div>
+            <div className="rm-icon"><Users size={18} color="#0098EA" /></div>
             <div>
-              <div className="rm-label">Invite friends · Earn {config?.referralRate ?? 5}%</div>
-              <div className="rm-sub">{referral?.friends ?? 0} friends joined · {(referral?.commission ?? 0).toFixed(2)} TON earned</div>
+              <div className="rm-label">REFERRAL PROGRAM</div>
+              <div className="rm-sub">{referral?.friends ?? 0} referred users. {formatTon(referral?.commission ?? 0)} referral income.</div>
             </div>
           </div>
-          <div className="rm-arrow">›</div>
+          <div className="rm-arrow"><ChevronRight size={18} color="#94A3B8" /></div>
         </div>
       </div>
 
       {/* Transactions */}
       <div className="sec">
         <div className="sec-hdr">
-          <div className="sec-title">Transaction History</div>
+          <div className="sec-title">TRANSACTION HISTORY</div>
         </div>
         {transactions.length === 0 && (
-          <div className="tx-empty">No transactions yet</div>
+          <div className="tx-empty">NO TRANSACTIONS<br/>Your transaction history will appear here once you make your first deposit.</div>
         )}
         {transactions.length > 0 && (() => {
           const groups = groupTxByDay(transactions)
@@ -548,27 +601,29 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           className="tx-row tx-profit-head"
                           onClick={() => setExpandedProfitIds(p => ({ ...p, [item.key]: !p[item.key] }))}
                         >
-                          <div className={`tx-ico ${txClass.profit}`}>{opened ? '−' : '+'}</div>
+                          <div className={`tx-ico ${txClass.profit}`}>
+                            {opened ? <Minus size={16} color="#FFD600" /> : <Plus size={16} color="#FFD600" />}
+                          </div>
                           <div className="tx-inf">
-                            <div className="tx-n">ID {item.key} · {planName}</div>
-                            <div className="tx-id">{item.items.length} profit · returned</div>
+                            <div className="tx-n">Profit - {planName} Yield</div>
+                            <div className="tx-id">ID {item.key}. {item.items.length} distributions.</div>
                           </div>
                           <div className="tx-right">
-                            <div className="tx-a pos">+{total.toFixed(2)}</div>
-                            <span className="tx-badge badge-ok">Returned</span>
+                            <div className="tx-a pos">{formatTon(total, true)}</div>
+                            <span className="tx-badge badge-ok">COMPLETED</span>
                           </div>
                         </button>
                         {opened && (
                           <div className="tx-profit-items">
                             {item.items.map(tx => (
                               <div key={tx.id} className="tx-row tx-profit-child">
-                                <div className={`tx-ico ${txClass.profit}`}>{txIcon.profit}</div>
+                                <div className={`tx-ico ${txClass.profit}`}><TxIconNode type="profit" /></div>
                                 <div className="tx-inf">
                                   <div className="tx-n">{tx.label}</div>
-                                  <div className="tx-id">{new Date(tx.createdAt || Date.now()).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</div>
+                                  <div className="tx-id">{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
                                 </div>
                                 <div className="tx-right">
-                                  <div className="tx-a pos">+{Math.abs(Number(tx.amount) || 0).toFixed(2)}</div>
+                                  <div className="tx-a pos">{formatTon(Math.abs(Number(tx.amount) || 0), true)}</div>
                                   {statusBadge(tx.status)}
                                 </div>
                               </div>
@@ -582,13 +637,13 @@ export default function HomePage({ user, investments, transactions, plans, confi
                   const shownAmount = txDisplayAmount(tx)
                   return (
                     <div key={tx.id} className="tx-row">
-                      <div className={`tx-ico ${txClass[tx.type]}`}>{txIcon[tx.type]}</div>
+                      <div className={`tx-ico ${txClass[tx.type]}`}><TxIconNode type={tx.type} /></div>
                       <div className="tx-inf">
                         <div className="tx-n">{tx.label}</div>
                         {tx.invoiceId && <div className="tx-id">ID {tx.invoiceId}</div>}
                       </div>
                       <div className="tx-right">
-                        <div className={`tx-a ${shownAmount >= 0 ? 'pos' : 'neg'}`}>{shownAmount > 0 ? '+' : shownAmount < 0 ? '-' : ''}{Math.abs(shownAmount).toFixed(2)}</div>
+                        <div className={`tx-a ${shownAmount >= 0 ? 'pos' : 'neg'}`}>{formatTon(shownAmount, true)}</div>
                         {statusBadge(tx.status)}
                       </div>
                     </div>

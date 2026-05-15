@@ -1,5 +1,16 @@
 import React, { useState } from 'react'
+import { ChevronRight, Copy, LogOut, Shield, Wallet } from 'lucide-react'
 import './ProfilePage.css'
+
+const formatTon = (value, signed = false) => {
+  const n = Number(value) || 0
+  const sign = signed && n > 0 ? '+' : ''
+  return `${sign}${n.toFixed(3)} TON`
+}
+const memberSince = (joinDate) => {
+  const d = joinDate ? new Date(joinDate) : new Date()
+  return d.toLocaleDateString('en-GB', { month:'long', year:'numeric' })
+}
 
 // ─── Disconnect Wallet Modal ──────────────────────────────────────────────────
 function DisconnectModal({ walletAddr, onClose, onConfirm }) {
@@ -17,27 +28,27 @@ function DisconnectModal({ walletAddr, onClose, onConfirm }) {
     <div className="overlay" onClick={e => e.target.classList.contains('overlay') && onClose()}>
       <div className="sheet">
         <div className="handle"/>
-        <h2 className="sheet-title">Disconnect Wallet</h2>
+        <h2 className="sheet-title">DISCONNECT WALLET</h2>
         <div style={{textAlign:'center',marginBottom:24}}>
-          <div style={{fontSize:48,marginBottom:12}}>💎</div>
+          <div style={{marginBottom:12}}><Wallet size={32} color="#0098EA" /></div>
           <div style={{color:'var(--muted)',fontSize:13,lineHeight:1.6}}>
             You are about to disconnect your TON wallet from TONYield.<br/>
-            You can reconnect anytime to make deposits.
+            You can reconnect anytime to open new positions.
           </div>
         </div>
         <div style={{
           background:'var(--card2)',borderRadius:12,padding:'12px 16px',
           marginBottom:20,border:'1px solid var(--border)'
         }}>
-          <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>Connected wallet</div>
+          <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>CONNECTED WALLET</div>
           <div style={{fontSize:14,color:'var(--blue)',fontFamily:'monospace'}}>{short}</div>
         </div>
         <div className="warning-bar" style={{marginBottom:20}}>
-          ⚠ Active investments will remain running. Only deposits will require reconnection.
+          Active positions remain open. New wallet deposits will require reconnection.
         </div>
         <button className="sheet-btn main" style={{background:'var(--red)',color:'#fff'}}
           onClick={handle} disabled={loading}>
-          {loading ? 'Disconnecting...' : '⊗ Disconnect Wallet'}
+          {loading ? 'DISCONNECTING...' : <><LogOut size={16} color="#FFFFFF" /> DISCONNECT WALLET</>}
         </button>
         <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
       </div>
@@ -50,6 +61,9 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
   const [showDisconnect, setShowDisconnect] = useState(false)
 
   const refRate = config?.referralRate ?? 5
+  const referralIncome = Number(referral?.commission) || 0
+  const totalProfit = Number(user?.todayProfit) || 0
+  const netPnl = totalProfit + referralIncome
 
   const copyRef = () => {
     // referral.code is already a full https://t.me/... link when botUsername is configured
@@ -58,22 +72,22 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
       ? referral.code
       : referral.code  // just the Telegram ID — user can share manually
     navigator.clipboard?.writeText(link).catch(() => {})
-    showToast('Referral link copied!')
+    showToast('Copied to clipboard.')
   }
 
   const handleDisconnect = () => {
     if (disconnectWallet) disconnectWallet()
-    showToast('Wallet disconnected')
+    showToast('Wallet disconnected.')
   }
 
   const menu = [
     walletConnected
-      ? { icon: '⊗', color: 'red',   label: 'Disconnect Wallet', sub: 'Unlink TON Connect', danger: true, action: () => setShowDisconnect(true) }
-      : { icon: '◎', color: 'blue',  label: 'Connect Wallet',    sub: 'Link your TON wallet', action: () => connectWallet && connectWallet() },
+      ? { Icon: LogOut, iconColor: '#EF4444', color: 'red', label: 'DISCONNECT WALLET', sub: 'Unlink TON Connect', danger: true, action: () => setShowDisconnect(true) }
+      : { Icon: Wallet, iconColor: '#0098EA', color: 'blue', label: 'CONNECT WALLET', sub: 'Link your TON wallet', action: () => connectWallet && connectWallet() },
   ]
 
   return (
-    <div className="page">
+    <div className="page page-enter">
       <div style={{height:18}}/>
 
       <div className="prof-hero card">
@@ -133,54 +147,71 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
             </text>
           </svg>
         </div>
-        <div className="prof-name">@{user?.username || 'username'}</div>
-        <div className="prof-id">ID #{user?.id} · Member since Apr 2025</div>
+        <div className="prof-name">ACCOUNT</div>
+        <div className="prof-id">@{user?.username || 'username'} · ID {user?.id}</div>
+        <div className="prof-id">Member since {memberSince(user?.joinDate)}</div>
         <div className="prof-stats">
           <div className="ps-item">
-            <div className="ps-val">{user?.balance?.toFixed(1)}</div>
-            <div className="ps-label">Balance</div>
+            <div className="ps-val">{formatTon(user?.balance).replace(' TON','')}</div>
+            <div className="ps-label">Portfolio Value</div>
           </div>
           <div className="ps-item">
-            <div className="ps-val" style={{color:'var(--green)'}}>{user?.todayProfit?.toFixed(2)}</div>
-            <div className="ps-label">Today</div>
+            <div className="ps-val" style={{color:'var(--green)'}}>{formatTon(totalProfit).replace(' TON','')}</div>
+            <div className="ps-label">Profit Earned</div>
           </div>
           <div className="ps-item">
             <div className="ps-val" style={{color:'var(--blue)'}}>{referral?.friends}</div>
-            <div className="ps-label">Referrals</div>
+            <div className="ps-label">Referred Users</div>
           </div>
         </div>
       </div>
 
       {isAdmin && (
         <div className="admin-hint" onClick={() => setIsAdmin(true)}>
-          🛡 Admin Panel · Tap to enter
+          <Shield size={16} color="#0098EA" /> Admin Panel · Tap to enter
         </div>
       )}
 
       <div className="ref-full card">
         <div className="rf-header">
           <div>
-            <div className="rf-title">Referral Program</div>
-            <div className="rf-sub">Earn {refRate}% of every deposit your friends make</div>
+            <div className="rf-title">PERFORMANCE OVERVIEW</div>
+            <div className="rf-sub">Net P&L is calculated from profit and referral income.</div>
+          </div>
+        </div>
+        <div className="rf-stats">
+          <div className="rfs-item"><div className="rfs-val">{formatTon(user?.totalDeposit)}</div><div className="rfs-label">Total Deposited</div></div>
+          <div className="rfs-item"><div className="rfs-val">{formatTon(user?.totalWithdraw)}</div><div className="rfs-label">Total Withdrawn</div></div>
+          <div className="rfs-item"><div className="rfs-val">{formatTon(totalProfit)}</div><div className="rfs-label">Total Profit Earned</div></div>
+          <div className="rfs-item"><div className="rfs-val">{formatTon(referralIncome)}</div><div className="rfs-label">Referral Income</div></div>
+          <div className="rfs-item"><div className="rfs-val" style={{color:'var(--gold)'}}>{formatTon(netPnl, true)}</div><div className="rfs-label">Net P&L</div></div>
+        </div>
+      </div>
+
+      <div className="ref-full card">
+        <div className="rf-header">
+          <div>
+            <div className="rf-title">REFERRAL PROGRAM</div>
+            <div className="rf-sub">Earn {refRate}% commission on every deposit made by your referrals.</div>
           </div>
           <div className="rf-badge">{refRate}%</div>
         </div>
         <div className="rf-code-box">
           <span className="rf-code">{referral?.code}</span>
-          <button className="copy-btn" onClick={copyRef}>Copy link</button>
+          <button className="copy-btn" onClick={copyRef}><Copy size={16} color="#FFFFFF" /> Copy</button>
         </div>
         <div className="rf-stats">
           <div className="rfs-item">
             <div className="rfs-val">{referral?.friends}</div>
-            <div className="rfs-label">Friends joined</div>
+            <div className="rfs-label">Referred Users</div>
           </div>
           <div className="rfs-item">
-            <div className="rfs-val">{referral?.commission} TON</div>
-            <div className="rfs-label">Commission earned</div>
+            <div className="rfs-val">{formatTon(referral?.commission)}</div>
+            <div className="rfs-label">Referral Income</div>
           </div>
           <div className="rfs-item">
-            <div className="rfs-val">{(referral?.depositVolume || 0).toFixed(2)} TON</div>
-            <div className="rfs-label">Friends deposited</div>
+            <div className="rfs-val">{formatTon(referral?.depositVolume || 0)}</div>
+            <div className="rfs-label">Referred Volume</div>
           </div>
         </div>
       </div>
@@ -188,12 +219,12 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
       <div className="menu-list card">
         {menu.map((item, i) => (
           <div key={i} className="menu-item" onClick={item.action}>
-            <div className={`mi-icon ${item.color}`}>{item.icon}</div>
+            <div className={`mi-icon ${item.color}`}><item.Icon size={18} color={item.iconColor} /></div>
             <div className="mi-info">
               <div className="mi-label" style={item.danger ? {color:'var(--red)'} : {}}>{item.label}</div>
               <div className="mi-sub">{item.sub}</div>
             </div>
-            <div className="mi-right">›</div>
+            <div className="mi-right"><ChevronRight size={18} color="#94A3B8" /></div>
           </div>
         ))}
       </div>

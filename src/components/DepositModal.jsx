@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react'
+import { CheckCircle2, Coins, Send, Wallet } from 'lucide-react'
 import './Modal.css'
 
-const colorMap = { gold: '#f0b429', blue: '#3b9eff', purple: '#8b5cf6' }
+const colorMap = { gold: '#FFD600', blue: '#0098EA', purple: '#00C2FF' }
+const formatTon = (value) => `${(Number(value) || 0).toFixed(3)} TON`
+const formatPct = (value) => `${(Number(value) || 0).toFixed(1)}%`
+const formatDuration = (plan) => {
+  const n = Number(plan?.duration) || 0
+  const unit = plan?.durationUnit === 'hours' ? 'hour' : 'day'
+  return `${n} ${unit}${n === 1 ? '' : 's'}`
+}
+const formatDistribution = (minutes) => `Every ${Number(minutes) || 0} min`
 
 function detectPlan(plans, amount) {
   const amt = parseFloat(amount) || 0
@@ -40,7 +49,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
       await onConnectWallet()
       // step will update via useEffect once walletConnected flips
     } catch (e) {
-      showToast('Connection failed. Try again.', 'err')
+      showToast('Network error - please retry.', 'err')
     }
     setLoading(false)
   }
@@ -48,13 +57,13 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
   const handleConfirm = async () => {
     if (paymentMethod === 'wallet' && !walletConnected) { setStep('connect'); return }
     if (!amountValid) {
-      showToast(autoPlan ? `Amount out of range for ${autoPlan.name}` : `Min ${plans[0]?.min || 10} TON required`, 'err')
+      showToast(autoPlan ? 'Amount exceeds strategy range.' : `Amount below minimum (${formatTon(plans[0]?.min || 10)}).`, 'err')
       return
     }
     if (paymentMethod === 'balance') {
       const bal = parseFloat(userBalance) || 0
       if (amt > bal) {
-        showToast(`Insufficient balance. Available: ${bal.toFixed(2)} TON`, 'err')
+        showToast('Insufficient balance.', 'err')
         return
       }
     }
@@ -78,19 +87,19 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
         {/* ── Step: Connect Wallet ── */}
         {step === 'connect' && (
           <div className="wallet-connect-wrap">
-            <div className="wc-icon">💎</div>
-            <h2 className="sheet-title" style={{marginTop:8}}>Connect TON Wallet</h2>
+            <div className="wc-icon"><Wallet size={32} color="#0098EA" /></div>
+            <h2 className="sheet-title" style={{marginTop:8}}>NEW POSITION</h2>
             <p className="wc-desc">
-              Connect your TON wallet to deposit and invest. This is required to send funds securely.
+              Connect your TON wallet to open a position from an external wallet.
             </p>
             <div className="wc-features">
-              <div className="wc-feat"><span className="wc-check">✓</span> One-time setup only</div>
-              <div className="wc-feat"><span className="wc-check">✓</span> Secured by TON Connect</div>
-              <div className="wc-feat"><span className="wc-check">✓</span> No private keys stored</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> Secured by TON Connect.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> No private keys are stored.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> You confirm the transaction in your wallet.</div>
             </div>
-            <button className="sheet-btn main" style={{background:'#3b9eff',color:'#fff',marginTop:24}}
+            <button className={`sheet-btn main ${loading ? 'btn-loading' : ''}`} style={{background:'linear-gradient(135deg,#0098EA,#00C2FF)',color:'#fff',marginTop:24}}
               onClick={handleConnectWallet} disabled={loading}>
-              {loading ? 'Connecting...' : '🔗 Connect TON Wallet'}
+              {loading ? <><span className="spinner" /><span className="btn-loading-text">CONNECTING...</span></> : <><Wallet size={16} color="#FFFFFF" /> CONNECT WALLET</>}
             </button>
             <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
           </div>
@@ -99,7 +108,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
         {/* ── Step: Deposit ── */}
         {step === 'deposit' && (
           <>
-            <h2 className="sheet-title">Deposit & Invest</h2>
+            <h2 className="sheet-title">NEW POSITION</h2>
 
             {/* Payment Method Toggle */}
             <div style={{display:'flex',gap:8,marginBottom:14}}>
@@ -108,22 +117,22 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
                 style={{
                   flex:1, padding:'9px 12px', borderRadius:10, border:'none', cursor:'pointer',
                   fontSize:13, fontWeight:600,
-                  background: paymentMethod==='wallet' ? '#3b9eff' : 'var(--s2)',
+                  background: paymentMethod==='wallet' ? 'linear-gradient(135deg,#0098EA,#00C2FF)' : 'var(--s2)',
                   color: paymentMethod==='wallet' ? '#fff' : 'var(--muted)',
                   transition:'all 0.15s'
                 }}>
-                💎 Wallet
+                <Wallet size={16} color={paymentMethod === 'wallet' ? '#FFFFFF' : '#94A3B8'} /> TON Wallet
               </button>
               <button
                 onClick={() => setPaymentMethod('balance')}
                 style={{
                   flex:1, padding:'9px 12px', borderRadius:10, border:'none', cursor:'pointer',
                   fontSize:13, fontWeight:600,
-                  background: paymentMethod==='balance' ? '#9b6dff' : 'var(--s2)',
+                  background: paymentMethod==='balance' ? 'linear-gradient(135deg,#0098EA,#00C2FF)' : 'var(--s2)',
                   color: paymentMethod==='balance' ? '#fff' : 'var(--muted)',
                   transition:'all 0.15s'
                 }}>
-                ◎ Balance ({(parseFloat(userBalance)||0).toFixed(2)} TON)
+                <Coins size={16} color={paymentMethod === 'balance' ? '#FFFFFF' : '#94A3B8'} /> Account Balance
               </button>
             </div>
 
@@ -135,7 +144,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
               borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 12
             }}>
               <div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)',flexShrink:0}}/>
-              <span style={{color:'var(--muted)'}}>Wallet connected — transaction will open your wallet app</span>
+              <span style={{color:'var(--muted)'}}>Send from connected wallet.</span>
             </div>
             )}
             {paymentMethod === 'balance' && (
@@ -144,8 +153,8 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
               background: 'var(--s2)', border: '1px solid var(--border2)',
               borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 12
             }}>
-              <div style={{width:7,height:7,borderRadius:'50%',background:'#9b6dff',flexShrink:0}}/>
-              <span style={{color:'var(--muted)'}}>Reinvest from balance — no wallet transaction needed</span>
+              <div style={{width:7,height:7,borderRadius:'50%',background:'#00C2FF',flexShrink:0}}/>
+              <span style={{color:'var(--muted)'}}>Deduct from available balance. {formatTon(userBalance)} available.</span>
             </div>
             )}
 
@@ -153,8 +162,8 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
             <div className="auto-plan-row">
               {autoPlan && (
                 <div className="auto-plan-badge" style={{background: planColor, color: planTextColor}}>
-                  <span className="apb-dot">◎</span>
-                  <span>{autoPlan.name} — {autoPlan.rate}%/{autoPlan.profitIntervalMinutes ? `${autoPlan.profitIntervalMinutes}min` : 'interval'} · {autoPlan.duration}{autoPlan.durationUnit === 'hours' ? 'hr' : 'd'}</span>
+                  <Coins size={16} color={planTextColor} />
+                  <span>{autoPlan.tier || autoPlan.name} Yield - {formatPct(autoPlan.rate)} / cycle - {formatDuration(autoPlan)}</span>
                   <span className="apb-tag">AUTO</span>
                 </div>
               )}
@@ -165,16 +174,16 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
               {plans.map(p => (
                 <div key={p.id} className={`prg-item ${autoPlan?.id === p.id ? 'active ' + p.color : ''}`}>
                   <div className="prg-tier">{p.tier}</div>
-                  <div className="prg-range">{p.min}–{p.max || '∞'} TON</div>
-                  <div className="prg-rate">{p.rate}%</div>
+                  <div className="prg-range">{formatTon(p.min)} - {p.max ? formatTon(p.max) : 'No limit'}</div>
+                  <div className="prg-rate">{formatPct(p.rate)}</div>
                 </div>
               ))}
             </div>
 
             <div className="sheet-field">
-              <label className="sf-label">Amount (TON)</label>
+              <label className="sf-label">INVESTMENT AMOUNT</label>
               <div className="sf-input-wrap">
-                <input className="sheet-input" type="number" placeholder={`Min ${plans[0]?.min || 10} TON`}
+                <input className="sheet-input" type="number" placeholder={`Min ${formatTon(plans[0]?.min || 10)}`}
                   value={amount} onChange={e => setAmount(e.target.value)} autoFocus/>
                 <span className="sf-unit">TON</span>
               </div>
@@ -188,38 +197,38 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
             {/* Estimated returns */}
             {amt > 0 && autoPlan && (
               <div className="est-box">
-                <div className="est-title">Estimated Returns</div>
+                <div className="est-title">POSITION SUMMARY</div>
                 <div className="er-grid">
                   <div className="er-item">
-                    <div className="er-val" style={{color: planColor}}>{perInterval ? '+'+perInterval : '—'}</div>
-                    <div className="er-lbl">Per interval</div>
+                    <div className="er-val" style={{color: planColor}}>{perInterval ? `+${Number(perInterval).toFixed(3)} TON` : '---'}</div>
+                    <div className="er-lbl">Per cycle</div>
                   </div>
                   <div className="er-item">
-                    <div className="er-val" style={{color: planColor}}>{hourly ? '+'+hourly : '—'}</div>
-                    <div className="er-lbl">Per hour</div>
+                    <div className="er-val" style={{color: planColor}}>{autoPlan ? formatPct(autoPlan.rate) : '---'}</div>
+                    <div className="er-lbl">Rate</div>
                   </div>
                   <div className="er-item">
-                    <div className="er-val" style={{color: planColor}}>{totalReturn ? '+'+totalReturn : '—'}</div>
-                    <div className="er-lbl">Total term</div>
+                    <div className="er-val" style={{color: planColor}}>{totalReturn ? `+${Number(totalReturn).toFixed(3)} TON` : '---'}</div>
+                    <div className="er-lbl">Est. return</div>
                   </div>
                 </div>
-                <div className="er-note">{autoPlan?.profitIntervalMinutes || 5}min interval · {autoPlan?.duration || 1}{autoPlan?.durationUnit === 'hours' ? 'hr' : 'd'} term · principal returned on completion</div>
+                <div className="er-note">{autoPlan ? `${formatDistribution(autoPlan.profitIntervalMinutes || 5)}. Duration ${formatDuration(autoPlan)}. This action cannot be undone.` : ''}</div>
               </div>
             )}
 
             <button
-              className="sheet-btn main"
+              className={`sheet-btn main ${loading ? 'btn-loading' : ''}`}
               style={amountValid ? {background: planColor, color: planTextColor} : {}}
               onClick={handleConfirm}
               disabled={loading || !amt}
             >
               {loading
-                ? (paymentMethod === 'balance' ? 'Processing...' : 'Opening wallet...')
+                ? <><span className="spinner" /><span className="btn-loading-text">BROADCASTING TX...</span></>
                 : amt
                   ? paymentMethod === 'balance'
-                    ? `Reinvest ${amt} TON from Balance →`
-                    : `Send ${amt} TON via Wallet →`
-                  : 'Enter amount to continue'}
+                    ? `CONFIRM & DEPOSIT ${formatTon(amt)}`
+                    : <><Send size={16} color={planTextColor} /> CONFIRM & DEPOSIT</>
+                  : 'ENTER AMOUNT'}
             </button>
             <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
           </>

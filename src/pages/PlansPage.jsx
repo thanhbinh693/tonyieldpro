@@ -1,7 +1,22 @@
 import React, { useState } from 'react'
+import { Coins, Pause, Send, Zap } from 'lucide-react'
 import { DAY_NAMES } from '../utils/config'
 const TODAY_DOW = new Date().getDay()
 import './PlansPage.css'
+
+const formatTon = (value) => `${(Number(value) || 0).toFixed(2)} TON`
+const formatPct = (value) => `${(Number(value) || 0).toFixed(1)}%`
+const formatDuration = (plan) => {
+  const n = Number(plan?.duration) || 0
+  const unit = plan?.durationUnit === 'hours' ? 'hour' : 'day'
+  return `${n} ${unit}${n === 1 ? '' : 's'}`
+}
+const formatDistribution = (minutes) => {
+  const n = Number(minutes) || 0
+  if (n < 60) return `${n} min`
+  const h = n / 60
+  return `${h} hour${h === 1 ? '' : 's'}`
+}
 
 function detectPlan(plans, amount) {
   const amt = parseFloat(amount) || 0
@@ -42,26 +57,26 @@ export default function PlansPage({ plans, onDeposit, config }) {
   const planColor = colorMap[activePlan?.color] || 'var(--gold)'
 
   return (
-    <div className="page">
+    <div className="page page-enter">
       <div style={{height:18}}/>
       {plans.some(p => !(p.activeDays||[1,2,3,4,5]).includes(TODAY_DOW)) && (
         <div className="weekend-bar">
-          <span>⏸</span>
-          <span>Some plans are paused today · Deposits still accepted, plan will activate on next active day</span>
+          <Pause size={18} color="#FFD600" />
+          <span>Some strategies are paused today. New positions activate on the next active day.</span>
         </div>
       )}
 
       <div className="pp-hero">
-        <div className="pph-label">Investment Platform</div>
-        <div className="pph-title">Grow Your<br/><em>TON</em> Yield</div>
-        <div className="pph-sub">{activeDaysLabel} automatic returns · Weekend pause · {`${activePlan?.duration||30} ${activePlan?.durationUnit === 'hours' ? 'hr' : 'day'} term`}</div>
+        <div className="pph-label">YIELD MARKETS</div>
+        <div className="pph-title">TON Yield<br/><em>Strategies</em></div>
+        <div className="pph-sub">Select a strategy that matches your risk profile.</div>
       </div>
 
       {/* Calculator */}
       <div className="calc-box">
         <div className="calc-header">
-          <span className="calc-icon">⚡</span>
-          <span className="calc-title">Profit Calculator</span>
+          <span className="calc-icon"><Zap size={18} color="#0098EA" /></span>
+          <span className="calc-title">RETURN CALCULATOR</span>
         </div>
 
         {/* Auto-plan badge */}
@@ -71,8 +86,8 @@ export default function PlansPage({ plans, onDeposit, config }) {
               background: planColor,
               color: autoPlan.color === 'gold' ? '#080b12' : '#fff'
             }}>
-              <span className="apb-dot">◎</span>
-              <span>{autoPlan.name} — {autoPlan.rate}%/{autoPlan.profitIntervalMinutes ? `${autoPlan.profitIntervalMinutes}min` : 'interval'} · {`${autoPlan.duration} ${autoPlan.durationUnit === 'hours' ? 'hr' : 'day'}`}</span>
+              <Coins size={16} color={autoPlan.color === 'gold' ? '#080b12' : '#fff'} />
+              <span>{autoPlan.tier} Yield - {formatPct(autoPlan.rate)} per cycle - {formatDuration(autoPlan)}</span>
               <span className="apb-tag">AUTO</span>
             </div>
           )}
@@ -83,8 +98,8 @@ export default function PlansPage({ plans, onDeposit, config }) {
           {plans.map(p => (
             <div key={p.id} className={`prg-item ${autoPlan?.id === p.id ? 'active ' + p.color : ''}`}>
               <div className="prg-tier">{p.tier}</div>
-              <div className="prg-range">{p.min}–{p.max || '∞'}</div>
-              <div className="prg-rate">{p.rate}%</div>
+              <div className="prg-range">{formatTon(p.min)}-{p.max ? formatTon(p.max) : 'No limit'}</div>
+              <div className="prg-rate">{formatPct(p.rate)}</div>
             </div>
           ))}
         </div>
@@ -102,34 +117,34 @@ export default function PlansPage({ plans, onDeposit, config }) {
 
         <div className="calc-results">
           <div className="cr-item">
-            <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? '+'+profitPerInterval.toFixed(4) : '—'}</div>
-            <div className="cr-label">/ {intervalMin}min</div>
+            <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${profitPerInterval.toFixed(3)} TON` : '---'}</div>
+            <div className="cr-label">per cycle</div>
           </div>
           <div className="cr-divider"/>
           <div className="cr-item">
-            <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? '+'+hourlyProfit.toFixed(4) : '—'}</div>
+            <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${hourlyProfit.toFixed(3)} TON` : '---'}</div>
             <div className="cr-label">/ hour</div>
           </div>
           <div className="cr-divider"/>
           <div className="cr-item">
-            <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? '+'+totalProfit.toFixed(4) : '—'}</div>
-            <div className="cr-label">total ({duration}{activePlan?.durationUnit === 'hours' ? 'hr' : 'd'})</div>
+            <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${totalProfit.toFixed(3)} TON` : '---'}</div>
+            <div className="cr-label">est. total return</div>
           </div>
         </div>
       </div>
 
       {plans.map(plan => (
         <div key={plan.id} className={`plan-card ${plan.color}`}>
-          {plan.hot && <div className="pc-hot-ribbon">HOT</div>}
+          {plan.hot && <div className="pc-hot-ribbon">★ TOP</div>}
           <div className="pc-top">
             <div>
-              <span className={`pc-badge ${plan.color}`}>{plan.tier}</span>
-              <div className="pc-name">{plan.name}</div>
-              <div className="pc-range">{plan.min}–{plan.max ? plan.max : '∞'} TON · {`${plan.duration} ${plan.durationUnit === 'hours' ? 'hr' : 'day'}`}</div>
+              <span className={`pc-badge ${plan.color}`}>{String(plan.tier || plan.name).toUpperCase()}</span>
+              <div className="pc-name">{String(plan.tier || plan.name).toUpperCase()} YIELD</div>
+              <div className="pc-range">Min. deposit {formatTon(plan.min)} · Max. deposit {plan.max ? formatTon(plan.max) : 'No limit'}</div>
             </div>
             <div className="pc-rate-wrap">
-              <div className={`pc-rate ${plan.color}`}>{plan.rate}%</div>
-              <div className="pc-per">/{plan.profitIntervalMinutes ? `${plan.profitIntervalMinutes}min` : 'interval'}</div>
+              <div className={`pc-rate ${plan.color}`}>{formatPct(plan.rate)}</div>
+              <div className="pc-per">per cycle</div>
             </div>
           </div>
           {/* Active days chips */}
@@ -142,12 +157,12 @@ export default function PlansPage({ plans, onDeposit, config }) {
           </div>
           <div className="pc-divider"/>
           <div className="pc-features">
-            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{(plan.activeDays||[1,2,3,4,5]).map(d=>DAY_NAMES[d]).join('–')} returns</div>
-            <div className="pc-feat"><div className={`dot ${plan.color}`}/>Instant activation</div>
-            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{referralRate}% referral</div>
-            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{`${plan.duration}-${plan.durationUnit === 'hours' ? 'hr' : 'day'} term`}</div>
+            <div className="pc-feat"><div className={`dot ${plan.color}`}/>Duration {formatDuration(plan)}</div>
+            <div className="pc-feat"><div className={`dot ${plan.color}`}/>Distribution every {formatDistribution(plan.profitIntervalMinutes)}</div>
+            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{formatPct(referralRate)} referral income</div>
+            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{(plan.activeDays||[1,2,3,4,5]).map(d=>DAY_NAMES[d]).join('-')} distributions</div>
           </div>
-          <button className={`pc-btn ${plan.color}`} onClick={() => onDeposit(plan)}>Invest Now →</button>
+          <button className={`pc-btn ${plan.color}`} onClick={() => onDeposit(plan)}><Send size={16} color="#FFFFFF" /> Open Position</button>
         </div>
       ))}
       <div style={{height:8}}/>

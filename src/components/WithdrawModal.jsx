@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useTonWallet, toUserFriendlyAddress } from '@tonconnect/ui-react'
+import { CheckCircle2, Info, Send, ShieldCheck, Wallet, XCircle } from 'lucide-react'
 
 import './Modal.css'
 
+const formatTon = (value) => `${(Number(value) || 0).toFixed(3)} TON`
 
 /**
  * Convert any TON address format to friendly format.
@@ -62,23 +64,23 @@ export default function WithdrawModal({
   const handleConnect = async () => {
     setLoading(true)
     try { await onConnectWallet() }
-    catch { showToast('Connection failed. Try again.', 'err') }
+    catch { showToast('Network error - please retry.', 'err') }
     setLoading(false)
   }
 
   const handleSubmit = async () => {
     if (!validAmt) {
-      showToast(amt < minW ? `Min: ${minW} TON` : 'Insufficient balance', 'err')
+      showToast(amt < minW ? `Amount below minimum (${formatTon(minW)}).` : 'Amount exceeds available balance.', 'err')
       return
     }
     // Check live wallet from TonConnect — do not use cached address
     if (!walletAddr) {
-      showToast('Wallet not connected. Please connect your TON wallet first.', 'err')
+      showToast('No wallet connected.', 'err')
       setStep('connect')
       return
     }
     if (!isValidTonAddress(walletAddr)) {
-      showToast('Invalid wallet address detected. Please reconnect your wallet.', 'err')
+      showToast('Invalid destination address.', 'err')
       return
     }
     setLoading(true)
@@ -97,18 +99,18 @@ export default function WithdrawModal({
       <div className="overlay" onClick={e => e.target.classList.contains('overlay') && onClose()}>
         <div className="sheet" style={{ padding: '56px 24px 40px', textAlign: 'center' }}>
           <div className="handle" />
-          <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
-          <h2 className="sheet-title" style={{ marginBottom: 8 }}>Request Submitted!</h2>
+          <div style={{ marginBottom: 16 }}><CheckCircle2 size={32} color="#FFD600" /></div>
+          <h2 className="sheet-title" style={{ marginBottom: 8 }}>REQUEST SUBMITTED</h2>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.6 }}>
-            Your withdrawal of <b>{amt} TON</b> is being processed.<br />
-            Funds will arrive to your wallet in a few minutes.
+            Withdrawal request submitted for <b>{formatTon(amt)}</b>.<br />
+            Processing time: up to 24 hours.
           </p>
           <div style={{
             background: 'var(--card)', borderRadius: 12, padding: '12px 16px',
             margin: '20px 0', fontSize: 12, color: 'var(--muted)',
             wordBreak: 'break-all', textAlign: 'left',
           }}>
-            <div style={{ marginBottom: 4, fontWeight: 600, color: 'var(--text)' }}>Sending to:</div>
+            <div style={{ marginBottom: 4, fontWeight: 600, color: 'var(--text)' }}>DESTINATION WALLET</div>
             {walletAddr}
           </div>
           <button className="sheet-btn ghost" onClick={onClose}>Close</button>
@@ -125,24 +127,23 @@ export default function WithdrawModal({
         {/* ── Step 1: Connect wallet ────────────────────────────────────── */}
         {step === 'connect' && (
           <div className="wallet-connect-wrap">
-            <div className="wc-icon">💎</div>
-            <h2 className="sheet-title" style={{ marginTop: 8 }}>Connect TON Wallet</h2>
+            <div className="wc-icon"><Wallet size={32} color="#0098EA" /></div>
+            <h2 className="sheet-title" style={{ marginTop: 8 }}>WITHDRAWAL REQUEST</h2>
             <p className="wc-desc">
-              Connect your TON wallet so we know where to send your funds.<br />
-              <b>You won't need to sign or send any transaction.</b>
+              Connect your TON wallet to set the destination address.
             </p>
             <div className="wc-features">
-              <div className="wc-feat"><span className="wc-check">✓</span> One-time setup only</div>
-              <div className="wc-feat"><span className="wc-check">✓</span> No transaction signing needed</div>
-              <div className="wc-feat"><span className="wc-check">✓</span> Platform sends TON to you automatically</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> Destination is read from TON Connect.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> No private keys are stored.</div>
+              <div className="wc-feat"><ShieldCheck size={16} color="#FFD600" /> Payout is handled by the withdrawal system.</div>
             </div>
             <button
-              className="sheet-btn main"
-              style={{ background: '#3b9eff', color: '#fff', marginTop: 24 }}
+              className={`sheet-btn main ${loading ? 'btn-loading' : ''}`}
+              style={{ background: 'linear-gradient(135deg,#0098EA,#00C2FF)', color: '#fff', marginTop: 24 }}
               onClick={handleConnect}
               disabled={loading}
             >
-              {loading ? 'Connecting...' : '🔗 Connect TON Wallet'}
+              {loading ? <><span className="spinner" /><span className="btn-loading-text">CONNECTING...</span></> : <><Wallet size={16} color="#FFFFFF" /> CONNECT WALLET</>}
             </button>
             <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
           </div>
@@ -151,12 +152,12 @@ export default function WithdrawModal({
         {/* ── Step 2: Enter amount ──────────────────────────────────────── */}
         {step === 'amount' && (
           <>
-            <h2 className="sheet-title">Withdraw TON</h2>
+            <h2 className="sheet-title">WITHDRAWAL REQUEST</h2>
 
             {/* Balance */}
             <div className="bal-display">
-              <div className="bd-label">Available Balance</div>
-              <div className="bd-val">{balance?.toFixed(2)} <span>TON</span></div>
+              <div className="bd-label">AVAILABLE</div>
+              <div className="bd-val">{formatTon(balance).replace(' TON','')} <span>TON</span></div>
             </div>
 
             {/* Destination wallet — LIVE from TonConnect, NOT cached */}
@@ -165,7 +166,7 @@ export default function WithdrawModal({
               marginBottom: 14, border: '1px solid var(--border)',
             }}>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>
-                💎 Connected wallet (funds will be sent here)
+                <Wallet size={16} color="#94A3B8" /> DESTINATION WALLET
               </div>
               {walletAddr ? (
                 <>
@@ -174,30 +175,30 @@ export default function WithdrawModal({
                   </div>
                   {/* Warning if current wallet differs from previously saved address */}
                   {user?.walletAddr && user.walletAddr !== walletAddr && (
-                    <div style={{ fontSize: 11, color: '#f5a623', marginTop: 5 }}>
-                      ⚠ This wallet differs from your previously saved address
+                    <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 5 }}>
+                      <XCircle size={16} color="#FFD600" /> This address differs from the saved wallet.
                     </div>
                   )}
                 </>
               ) : (
                 <div style={{ fontSize: 13, color: 'var(--red)' }}>
-                  ⚠ Wallet not connected — please go back and connect
+                  <XCircle size={16} color="#EF4444" /> No wallet connected.
                 </div>
               )}
             </div>
 
             <div className="info-bar" style={{ marginBottom: 14 }}>
-              ℹ Min: <b>{minW} TON</b>. Sent automatically — no confirmation needed.
+              <Info size={16} color="#0098EA" /> Minimum: <b>{formatTon(minW)}</b>. Processing time: up to 24 hours.
             </div>
 
             {/* Amount input */}
             <div className="sheet-field">
-              <label className="sf-label">Amount (TON)</label>
+              <label className="sf-label">WITHDRAWAL AMOUNT</label>
               <div className="sf-input-wrap">
                 <input
                   className="sheet-input"
                   type="number"
-                  placeholder={`Min ${minW} TON`}
+                  placeholder={`Min ${formatTon(minW)}`}
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
                 />
@@ -215,28 +216,28 @@ export default function WithdrawModal({
             {amt > 0 && (
               <div className="step-summary">
                 <div className="ss-row">
-                  <span>You receive</span>
-                  <span className="green">{amt.toFixed(2)} TON</span>
+                  <span>Withdrawal amount</span>
+                  <span className="green">{formatTon(amt)}</span>
                 </div>
                 <div className="ss-row">
-                  <span>Network fee</span>
-                  <span style={{ color: 'var(--muted)' }}>Covered by platform</span>
+                  <span>Available</span>
+                  <span style={{ color: 'var(--muted)' }}>{formatTon(balance)}</span>
                 </div>
                 <div className="ss-row">
-                  <span>Processing time</span>
-                  <span style={{ color: 'var(--muted)' }}>~1–2 minutes</span>
+                  <span>Minimum</span>
+                  <span style={{ color: 'var(--muted)' }}>{formatTon(minW)}</span>
                 </div>
               </div>
             )}
 
             <button
-              className="sheet-btn main"
+              className={`sheet-btn main ${loading ? 'btn-loading' : ''}`}
               style={{ background: validAmt ? 'var(--blue)' : 'var(--card)',
                        color: validAmt ? '#fff' : 'var(--muted)' }}
               onClick={handleSubmit}
               disabled={!amt || loading}
             >
-              {loading ? 'Submitting...' : 'Withdraw →'}
+              {loading ? <><span className="spinner" /><span className="btn-loading-text">SUBMITTING...</span></> : <><Send size={16} color="#FFFFFF" /> SUBMIT WITHDRAWAL</>}
             </button>
             <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
           </>

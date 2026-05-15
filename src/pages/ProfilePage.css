@@ -41,3 +41,27 @@
 .mi-right { color:var(--muted);font-size:18px; }
 
 .app-version { text-align:center;font-size:11px;color:var(--muted2);margin-top:4px;margin-bottom:8px; }
+
+/* TON DeFi aesthetic */
+.prof-hero,
+.ref-full,
+.menu-list { background:var(--glass);border:var(--glass-border);backdrop-filter:blur(18px);box-shadow:0 0 24px rgba(0,152,234,.13);border-radius:22px; }
+.prof-hero-glow { background:radial-gradient(ellipse,rgba(0,152,234,.24),transparent 66%); }
+.prof-name { font-size:22px;font-weight:700;background:var(--text-gradient);-webkit-background-clip:text;background-clip:text;color:transparent; }
+.prof-stats { background:rgba(255,255,255,.08); }
+.ps-item,
+.rfs-item,
+.rf-code-box { background:rgba(15,17,21,.72);backdrop-filter:blur(14px); }
+.ps-val,
+.rfs-val { font-family:var(--font-mono); }
+.ps-val { color:var(--blue2);text-shadow:var(--ton-glow); }
+.rf-badge { background:rgba(255,214,0,.12);border-color:rgba(255,214,0,.30);box-shadow:var(--gold-glow); }
+.rf-code { color:var(--blue2);font-family:var(--font-mono); }
+.copy-btn { min-height:44px;border-radius:999px;background:var(--btn-ton);color:#fff;box-shadow:var(--ton-glow); }
+.menu-item { min-height:60px;border-color:rgba(255,255,255,.08); }
+.menu-item:active { background:rgba(0,152,234,.10); }
+.mi-icon.blue,
+.mi-icon.purple,
+.mi-icon.gold { background:rgba(0,152,234,.16);color:var(--blue2);box-shadow:0 0 16px rgba(0,152,234,.18); }
+.mi-icon.red { background:rgba(255,77,109,.14); }
+.admin-hint { background:rgba(0,152,234,.14);border-color:rgba(0,194,255,.32);color:var(--blue2);box-shadow:var(--ton-glow); }

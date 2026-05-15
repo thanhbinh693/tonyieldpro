@@ -75,6 +75,24 @@
 .sheet-btn:disabled { opacity:.5;cursor:not-allowed; }
 .sheet-btn.main { color:#fff; }
 .sheet-btn.ghost { background:var(--s2);color:var(--muted);border:1px solid var(--border2); }
+.sheet-btn,
+.sheet-btn > span { display:flex;align-items:center;justify-content:center;gap:8px; }
+.btn-loading {
+  opacity:.7;
+  cursor:not-allowed;
+  pointer-events:none;
+}
+.btn-loading-text { color:rgba(255,255,255,.72); }
+.spinner {
+  width:16px;
+  height:16px;
+  border:2px solid rgba(255,255,255,.2);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .6s linear infinite;
+  display:inline-block;
+  flex:0 0 16px;
+}
 
 /* ── Wallet Connect ── */
 .wallet-connect-wrap { display:flex; flex-direction:column; align-items:center; padding:12px 0 8px; }
@@ -111,3 +129,45 @@
 .sent-spinner { margin-bottom:12px; }
 .sent-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px; }
 .sent-sub { font-size:13px; color:var(--text-muted); }
+
+/* TON DeFi aesthetic */
+.overlay { background:rgba(0,0,0,.68);backdrop-filter:blur(10px); }
+.sheet { background:linear-gradient(160deg, rgba(15,17,21,.92), rgba(3,3,4,.96));border:1px solid rgba(255,255,255,.12);border-bottom:none;box-shadow:0 0 42px rgba(0,152,234,.28);backdrop-filter:blur(22px); }
+.handle { background:linear-gradient(90deg,var(--blue),var(--blue2));box-shadow:var(--ton-glow); }
+.sheet-title { font-size:22px;font-weight:700;background:var(--text-gradient);-webkit-background-clip:text;background-clip:text;color:transparent; }
+.pt,
+.sheet-input,
+.qr-btn,
+.est-box,
+.confirm-card,
+.step-summary,
+.bal-display,
+.auto-plan-badge,
+.prg-item { background:rgba(15,17,21,.72);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(16px); }
+.pt { min-height:58px;border-radius:16px; }
+.pt.gold.on,
+.pt.blue.on,
+.pt.purple.on,
+.prg-item.active.gold,
+.prg-item.active.blue,
+.prg-item.active.purple { border-color:rgba(0,194,255,.55);background:rgba(0,152,234,.16);box-shadow:0 0 18px rgba(0,152,234,.18); }
+.pt.gold.on .pt-rate,
+.pt.blue.on .pt-rate,
+.pt.purple.on .pt-rate { color:var(--blue2); }
+.sheet-input { min-height:52px;font-family:var(--font-mono);border-radius:16px; }
+.sheet-input:focus { border-color:var(--blue2);box-shadow:var(--ton-glow);background:rgba(15,17,21,.9); }
+.qr-btn { min-height:40px;border-radius:999px;color:var(--text); }
+.er-val,
+.cc-amount,
+.cc-amount2,
+.bd-val { font-family:var(--font-mono); }
+.er-val,
+.cc-amount2 { color:var(--gold);text-shadow:var(--gold-glow); }
+.cc-wallet { background:rgba(0,152,234,.10);border:1px solid rgba(0,194,255,.20);color:var(--blue2);font-family:var(--font-mono); }
+.info-bar { background:rgba(0,152,234,.12);border-color:rgba(0,194,255,.25); }
+.warning-bar { background:rgba(255,77,109,.12);border-color:rgba(255,77,109,.25); }
+.sheet-btn { min-height:52px;border-radius:999px; }
+.sheet-btn.main { background:var(--btn-ton)!important;color:#fff;box-shadow:var(--ton-glow); }
+.sheet-btn.ghost,
+.cc-copy { background:rgba(15,17,21,.72);border:1px solid rgba(255,255,255,.12);color:var(--text); }
+.wc-icon { filter:drop-shadow(0 0 18px rgba(0,194,255,.6)); }

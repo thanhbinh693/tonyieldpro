@@ -72,3 +72,48 @@
 .pc-day-chip.on.blue { background:#3d9be925;color:var(--blue);border-color:#3d9be950; }
 .pc-day-chip.on.purple { background:#9b6dff25;color:var(--purple);border-color:#9b6dff50; }
 .pc-day-chip.today { outline:2px solid currentColor;outline-offset:1px; }
+
+/* TON DeFi aesthetic */
+.weekend-bar,
+.calc-box,
+.plan-card { background:var(--glass);border:var(--glass-border);backdrop-filter:blur(18px);box-shadow:0 0 24px rgba(0,152,234,.13); }
+.weekend-bar { color:var(--gold);border-color:rgba(255,214,0,.22); }
+.pp-hero { border-bottom-color:rgba(255,255,255,.08); }
+.pph-title { font-size:28px;font-weight:700;background:var(--text-gradient);-webkit-background-clip:text;background-clip:text;color:transparent; }
+.pph-title em { color:transparent;background:linear-gradient(135deg,var(--blue2),var(--gold));-webkit-background-clip:text;background-clip:text; }
+.calc-box,
+.plan-card { border-radius:22px; }
+.calc-input,
+.calc-plan-tab { min-height:48px;background:rgba(15,17,21,.78);border-color:rgba(255,255,255,.10);backdrop-filter:blur(14px); }
+.calc-input { font-family:var(--font-mono);font-size:22px; }
+.calc-input:focus { border-color:var(--blue2);box-shadow:var(--ton-glow); }
+.cr-val,
+.pc-rate,
+.cpt-rate { font-family:var(--font-mono); }
+.cr-val { color:var(--gold);text-shadow:var(--gold-glow); }
+.plan-card { overflow:hidden; }
+.plan-card::before { content:'';position:absolute;inset:0;background:radial-gradient(circle at 85% 0%, rgba(0,194,255,.18), transparent 42%);pointer-events:none; }
+.plan-card.gold,
+.plan-card.blue,
+.plan-card.purple { border-top:1px solid rgba(0,194,255,.38); }
+.pc-badge.gold,
+.pc-badge.blue,
+.pc-badge.purple,
+.calc-plan-tab.gold.active,
+.calc-plan-tab.blue.active,
+.calc-plan-tab.purple.active { background:rgba(0,152,234,.16);border-color:rgba(0,194,255,.35);color:var(--blue2); }
+.pc-name { font-size:20px;font-weight:700; }
+.pc-rate.gold,
+.pc-rate.blue,
+.pc-rate.purple { color:var(--blue2);text-shadow:var(--ton-glow); }
+.pc-divider { background:rgba(255,255,255,.08); }
+.dot.blue,
+.dot.purple { background:var(--blue2); }
+.pc-btn { min-height:48px;border-radius:999px; }
+.pc-btn.gold,
+.pc-btn.blue,
+.pc-btn.purple { background:var(--btn-ton);color:#fff;box-shadow:var(--ton-glow); }
+.pc-hot-ribbon { background:linear-gradient(135deg,var(--gold),var(--gold2));color:#030304; }
+.pc-day-chip.on.gold,
+.pc-day-chip.on.blue,
+.pc-day-chip.on.purple { background:rgba(0,152,234,.16);color:var(--blue2);border-color:rgba(0,194,255,.35); }
