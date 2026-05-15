@@ -507,11 +507,13 @@ function appInvToDb(userId, i) {
 }
 
 function dbTxToApp(t) {
+  const rawAmount = Number(t.amount) || 0
+  const isReinvest = t.type === 'deposit' && /^reinvest\b/i.test(String(t.label || '').trim())
   return {
     id:        t.id,
     type:      t.type,
     label:     t.label,
-    amount:    Number(t.amount),
+    amount:    isReinvest ? -Math.abs(rawAmount) : rawAmount,
     status:    t.status,
     date:      t.created_at ? new Date(t.created_at).toLocaleString() : 'Unknown',
     invoiceId: t.invoice_id  || '',
