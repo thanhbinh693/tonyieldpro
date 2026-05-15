@@ -369,7 +369,7 @@ export function useApp() {
     }, { onConflict:'id' })
     await supabase.from('transactions').insert({
       id:txId, user_id:Number(tid), type:'deposit',
-      label:`${fromBalance ? 'Reinvest' : 'Deposit'} · ${plan.name}`, amount:amt,
+      label:`${fromBalance ? 'Reinvest' : 'Deposit'} · ${plan.name}`, amount:fromBalance ? -amt : amt,
       status:'completed', invoice_id:newInv.invoiceId, plan_id:plan.id, created_at:dbInv.start_time,
     })
     await supabase.from('investments').insert(dbInv)
@@ -433,7 +433,7 @@ export function useApp() {
         }))
         setTransactions(p => [{
           id:txId, type:'deposit', label:`Reinvest · ${plan.name}`,
-          date:'Just now', amount:amt, status:'completed',
+          date:'Just now', amount:-amt, status:'completed',
           invoiceId:iid, createdAt:now, planId, userId:tid,
         }, ...p])
         setInvestments(p => [...p, newInv])

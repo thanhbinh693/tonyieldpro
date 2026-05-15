@@ -432,7 +432,16 @@ export default function HomePage({ user, investments, transactions, plans, confi
                   )}
                   <div className="inv-amount">{inv.amount} <span>TON</span></div>
                   <div className="inv-rate">
-                    {inv.rate}% / day
+                    {(() => {
+                      const ms = inv.intervalMs
+                        || inv.profitIntervalMs
+                        || (inv.profitIntervalMinutes ? inv.profitIntervalMinutes * 60_000 : 0)
+                        || (inv.profitIntervalHours   ? inv.profitIntervalHours   * 3_600_000 : 0)
+                        || 86_400_000
+                      if (ms < 3_600_000)  return `${inv.rate}% / ${Math.round(ms/60_000)}min`
+                      if (ms < 86_400_000) return `${inv.rate}% / ${Math.round(ms/3_600_000)}hr`
+                      return `${inv.rate}% / day`
+                    })()}
                   </div>
                   <div className="inv-earned-row">
                     <span className="inv-earned-lbl">Profit ID {inv.invoiceId || '—'}</span>
@@ -547,7 +556,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                         {tx.invoiceId && <div className="tx-id">ID {tx.invoiceId}</div>}
                       </div>
                       <div className="tx-right">
-                        <div className={`tx-a ${tx.amount > 0 ? 'pos' : 'neg'}`}>{tx.amount > 0 ? '+' : ''}{Math.abs(tx.amount).toFixed(2)}</div>
+                        <div className={`tx-a ${tx.amount > 0 ? 'pos' : 'neg'}`}>{tx.amount > 0 ? '+' : tx.amount < 0 ? '-' : ''}{Math.abs(tx.amount).toFixed(2)}</div>
                         {statusBadge(tx.status)}
                       </div>
                     </div>

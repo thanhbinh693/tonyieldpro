@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { DAY_NAMES } from '../utils/config'
-import { calculateIntervalProfit } from '../utils/profit'
 const TODAY_DOW = new Date().getDay()
 import './PlansPage.css'
 
@@ -25,8 +24,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
   const intervalMin = activePlan?.profitIntervalMinutes || 5
   const durationMs = activePlan?.durationMs || (duration * (activePlan?.durationUnit === 'hours' ? 3_600_000 : 86_400_000))
 
-  const intervalMs = intervalMin * 60_000
-  const profitPerInterval = calculateIntervalProfit(amt, rate, intervalMs)
+  const profitPerInterval = amt * rate / 100
   const intervalsPerHour = 60 / intervalMin
   const hourlyProfit = profitPerInterval * intervalsPerHour
   const totalIntervals = Math.floor(durationMs / (intervalMin * 60_000))
@@ -68,18 +66,14 @@ export default function PlansPage({ plans, onDeposit, config }) {
 
         {/* Auto-plan badge */}
         <div className="auto-plan-row" style={{marginBottom:12}}>
-          {autoPlan ? (
+          {autoPlan && (
             <div className="auto-plan-badge" style={{
               background: planColor,
               color: autoPlan.color === 'gold' ? '#080b12' : '#fff'
             }}>
               <span className="apb-dot">◎</span>
-              <span>{autoPlan.name} — {autoPlan.rate}%/day · {`${autoPlan.duration} ${autoPlan.durationUnit === 'hours' ? 'hr' : 'day'}`}</span>
+              <span>{autoPlan.name} — {autoPlan.rate}%/{autoPlan.profitIntervalMinutes ? `${autoPlan.profitIntervalMinutes}min` : 'interval'} · {`${autoPlan.duration} ${autoPlan.durationUnit === 'hours' ? 'hr' : 'day'}`}</span>
               <span className="apb-tag">AUTO</span>
-            </div>
-          ) : (
-            <div className="auto-plan-badge empty">
-              <span>Enter amount → plan auto-selected</span>
             </div>
           )}
         </div>
@@ -135,7 +129,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
             </div>
             <div className="pc-rate-wrap">
               <div className={`pc-rate ${plan.color}`}>{plan.rate}%</div>
-              <div className="pc-per">/day</div>
+              <div className="pc-per">/{plan.profitIntervalMinutes ? `${plan.profitIntervalMinutes}min` : 'interval'}</div>
             </div>
           </div>
           {/* Active days chips */}

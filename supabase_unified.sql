@@ -281,7 +281,7 @@ begin
     p_user_id,
     'deposit',
     case when p_from_balance then 'Reinvest - ' || p_plan else 'Deposit - ' || p_plan end,
-    p_amount,
+    case when p_from_balance then -p_amount else p_amount end,
     'completed',
     p_invoice_id,
     p_plan_id,

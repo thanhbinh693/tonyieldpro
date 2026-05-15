@@ -18,14 +18,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const DAY_MS = 86_400_000
-
-function calculateIntervalProfit(amount: unknown, dailyRate: unknown, intervalMs: number) {
-  const principal = Number(amount) || 0
-  const rate = Number(dailyRate) || 0
-  return principal * (rate / 100) * (intervalMs / DAY_MS)
-}
-
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -83,7 +75,7 @@ Deno.serve(async (req) => {
         continue
       }
 
-      const ip = +calculateIntervalProfit(inv.amount, inv.rate, intervalMs).toFixed(6)
+      const ip = +(parseFloat(inv.amount) * (inv.rate / 100)).toFixed(6)
       const iid = inv.invoice_id || String(Number(String(inv.id).replace(/\D/g, '').slice(-9)) % 900000 + 100000)
 
       // ── Plan completed ────────────────────────────────────────────────────

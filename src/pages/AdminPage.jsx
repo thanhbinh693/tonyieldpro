@@ -408,7 +408,7 @@ export default function AdminPage({
               ) : (
                 <>
                   <div className="pec-info">
-                    <div className="pec-field"><span>Rate</span><span className={`pec-rate ${p.color}`}>{p.rate}% / day</span></div>
+                    <div className="pec-field"><span>Rate</span><span className={`pec-rate ${p.color}`}>{p.rate}% / interval</span></div>
                     <div className="pec-field"><span>Min</span><span>{p.min} TON</span></div>
                     <div className="pec-field"><span>Max</span><span>{p.max ? p.max+' TON' : '∞'}</span></div>
                     <div className="pec-field"><span>Duration</span><span>{p.duration} {p.durationUnit==='hours'?'hr ⚡':'day'}</span></div>
@@ -711,7 +711,7 @@ function PlanEditor({ plan, onSave, onCancel }) {
   const toggleDay = (dow) => setActiveDays(prev => prev.includes(dow) ? prev.filter(d=>d!==dow) : [...prev,dow].sort())
   return (
     <div className="plan-editor">
-      <div className="pe-row"><label>Rate (%/day)</label><input type="number" value={rate} onChange={e=>setRate(+e.target.value)} step="0.1"/></div>
+      <div className="pe-row"><label>Rate (%/interval)</label><input type="number" value={rate} onChange={e=>setRate(+e.target.value)} step="0.1"/></div>
       <div className="pe-row"><label>Min (TON)</label><input type="number" value={min} onChange={e=>setMin(+e.target.value)}/></div>
       <div className="pe-row"><label>Max (TON)</label><input type="number" value={max} onChange={e=>setMax(e.target.value)} placeholder="∞"/></div>
       <div className="pe-row">

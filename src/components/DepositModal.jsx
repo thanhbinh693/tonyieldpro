@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { calculateIntervalProfit } from '../utils/profit'
 import './Modal.css'
 
 const colorMap = { gold: '#f0b429', blue: '#3b9eff', purple: '#8b5cf6' }
@@ -25,8 +24,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
     ? autoPlan.durationMs || (autoPlan.duration * (autoPlan.durationUnit === 'hours' ? 3_600_000 : 86_400_000))
     : 0
   const totalIntervals = autoPlan ? Math.floor(durationMs / (intervalMin * 60_000)) : 0
-  const intervalMs = intervalMin * 60_000
-  const perInterval = autoPlan && amt ? calculateIntervalProfit(amt, autoPlan.rate, intervalMs).toFixed(4) : null
+  const perInterval = autoPlan && amt ? (amt * autoPlan.rate / 100).toFixed(4) : null
   const hourly = perInterval ? (parseFloat(perInterval) * (60 / intervalMin)).toFixed(4) : null
   const totalReturn = perInterval ? (parseFloat(perInterval) * totalIntervals).toFixed(4) : null
   const amountValid = autoPlan && amt >= autoPlan.min && (!autoPlan.max || amt <= autoPlan.max)
@@ -153,15 +151,11 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
 
             {/* Auto plan badge */}
             <div className="auto-plan-row">
-              {autoPlan ? (
+              {autoPlan && (
                 <div className="auto-plan-badge" style={{background: planColor, color: planTextColor}}>
                   <span className="apb-dot">◎</span>
-                  <span>{autoPlan.name} — {autoPlan.rate}%/day · {autoPlan.duration}{autoPlan.durationUnit === 'hours' ? 'hr' : 'd'}</span>
+                  <span>{autoPlan.name} — {autoPlan.rate}%/{autoPlan.profitIntervalMinutes ? `${autoPlan.profitIntervalMinutes}min` : 'interval'} · {autoPlan.duration}{autoPlan.durationUnit === 'hours' ? 'hr' : 'd'}</span>
                   <span className="apb-tag">AUTO</span>
-                </div>
-              ) : (
-                <div className="auto-plan-badge empty">
-                  <span>Enter amount → plan auto-selected</span>
                 </div>
               )}
             </div>
