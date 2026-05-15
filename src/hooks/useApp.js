@@ -23,6 +23,7 @@ import {
   registerUser,
   getAllUsersData,
   creditReferralViaServer,
+  getNotifications, createNotification,
   getAdminConfig, saveAdminConfig,
   getAdminPlans, saveAdminPlans,
 } from '../utils/supabase'
@@ -150,9 +151,11 @@ export function useApp() {
   const [investments,  setInvestments]  = useState([])
   const [transactions, setTransactions] = useState([])
   const [referral,     setReferral]     = useState(() => mkDefaultRef(tid))
+  const [notifications, setNotifications] = useState([])
   const [plans,        setPlans]        = useState(DEFAULT_PLANS)
   const [config,       setConfig]       = useState({ ...DEFAULT_CONFIG })
   const [referralLink, setReferralLink] = useState(String(tid))
+  const [notificationsSeenAt, setNotificationsSeenAt] = useState(() => Number(localStorage.getItem(`ty_notif_seen_${tid}`) || 0))
 
   const adminMode   = checkIsAdmin(tid, config.adminIds)
   const inited      = useRef(false)
@@ -176,10 +179,11 @@ export function useApp() {
 
     async function load() {
       try {
-        const [bundle, cfg, savedPlans] = await Promise.all([
+        const [bundle, cfg, savedPlans, userNotifications] = await Promise.all([
           withTimeout(getUserBundle(tid).catch(() => null), 4000, null),
           withTimeout(getAdminConfig(null).catch(() => null), 4000, null),
           withTimeout(getAdminPlans(null).catch(() => null), 4000, null),
+          withTimeout(getNotifications(tid).catch(() => []), 4000, []),
         ])
         if (bundle) {
           if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
@@ -189,6 +193,7 @@ export function useApp() {
         }
         if (cfg)        setConfig(p => ({ ...DEFAULT_CONFIG, ...cfg }))
         if (savedPlans) setPlans(savedPlans)
+        setNotifications(userNotifications || [])
 
         const referredByCode = getStartParam()
         registerUser(tid, referredByCode, tgUser).catch(e => console.warn('[registerUser]', e))
@@ -256,6 +261,12 @@ export function useApp() {
         event: '*', schema: 'public', table: 'transactions',
         filter: `user_id=eq.${tid}`,
       }, refreshFromDb)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'notifications',
+      }, async () => {
+        try { setNotifications(await getNotifications(tid)) }
+        catch(e) { console.warn('[notifications]', e) }
+      })
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           // Fallback: nếu WS lỗi, refresh ngay
@@ -707,17 +718,43 @@ export function useApp() {
     showToast('Settings saved!','ok')
   }, [showToast])
 
+  const adminSendNotification = useCallback(async ({ title, body, audience = 'all', userId = null }) => {
+    try {
+      if (!String(title || '').trim()) { showToast('Notification title is required','err'); return false }
+      if (!String(body || '').trim()) { showToast('Notification message is required','err'); return false }
+      await createNotification({ title, body, audience, userId, createdBy: tid })
+      showToast('Notification sent!','ok')
+      return true
+    } catch(e) {
+      console.error('[adminSendNotification]', e)
+      showToast(`Failed to send notification: ${e?.message || 'try again'}`,'err')
+      return false
+    }
+  }, [tid, showToast])
+
+  const markNotificationsSeen = useCallback(() => {
+    const now = Date.now()
+    localStorage.setItem(`ty_notif_seen_${tid}`, String(now))
+    setNotificationsSeenAt(now)
+  }, [tid])
+
+  const notificationUnread = notifications.filter(n => {
+    const ts = new Date(n.createdAt).getTime()
+    return ts > notificationsSeenAt
+  }).length
+
   const referralDisplay = { ...referral, code: referralLink }
 
   return {
     tab, setTab, loading, toast, config,
     user, plans, investments:myInvestments, transactions, referral: referralDisplay,
+    notifications, notificationUnread, markNotificationsSeen,
     isAdmin:adminMode, isAdminView, setIsAdmin:setIsAdminView,
     walletConnected:!!wallet, wallet,
     connectWallet, disconnectWallet, showToast,
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
     computeAdminStats, getAllUsers, getAllTransactions,
-    adminToggleBan, adminUpdateUser, adminUpdatePlan,
+    adminToggleBan, adminUpdateUser, adminUpdatePlan, adminSendNotification,
     adminToggleMaintenance, adminSaveSettings,
   }
 }

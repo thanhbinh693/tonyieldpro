@@ -98,6 +98,16 @@ create table if not exists plans (
   updated_at timestamptz default now()
 );
 
+create table if not exists notifications (
+  id bigserial primary key,
+  title text not null default '',
+  body text not null default '',
+  audience text not null default 'all' check (audience in ('all', 'user')),
+  user_id bigint references users(id) on delete cascade,
+  created_by bigint,
+  created_at timestamptz default now()
+);
+
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';
 alter table admin_config add column if not exists admin_wallet_testnet text default '';
@@ -150,6 +160,8 @@ create index if not exists idx_transactions_type_status on transactions (type, s
 create index if not exists idx_transactions_pending_withdraw
   on transactions (status, type, created_at)
   where status = 'pending' and type = 'withdraw';
+create index if not exists idx_notifications_created_at on notifications (created_at desc);
+create index if not exists idx_notifications_user_id on notifications (user_id, created_at desc);
 
 create or replace view withdrawal_queue as
 select
@@ -392,18 +404,21 @@ alter table investments enable row level security;
 alter table transactions enable row level security;
 alter table admin_config enable row level security;
 alter table plans enable row level security;
+alter table notifications enable row level security;
 
 drop policy if exists "allow_all_users" on users;
 drop policy if exists "allow_all_investments" on investments;
 drop policy if exists "allow_all_transactions" on transactions;
 drop policy if exists "allow_all_config" on admin_config;
 drop policy if exists "allow_all_plans" on plans;
+drop policy if exists "allow_all_notifications" on notifications;
 
 create policy "allow_all_users" on users for all using (true) with check (true);
 create policy "allow_all_investments" on investments for all using (true) with check (true);
 create policy "allow_all_transactions" on transactions for all using (true) with check (true);
 create policy "allow_all_config" on admin_config for all using (true) with check (true);
 create policy "allow_all_plans" on plans for all using (true) with check (true);
+create policy "allow_all_notifications" on notifications for all using (true) with check (true);
 
 create extension if not exists pg_net with schema extensions;
 
@@ -489,12 +504,17 @@ begin
     alter publication supabase_realtime add table admin_config;
   exception when duplicate_object then null;
   end;
+
+  begin
+    alter publication supabase_realtime add table notifications;
+  exception when duplicate_object then null;
+  end;
 end $$;
 
 select schemaname, tablename
 from pg_publication_tables
 where pubname = 'supabase_realtime'
-  and tablename in ('users', 'investments', 'transactions', 'plans', 'admin_config');
+  and tablename in ('users', 'investments', 'transactions', 'plans', 'admin_config', 'notifications');
 
 create or replace view tonyield_healthcheck as
 select 'users.balance' as check_name,
@@ -529,6 +549,12 @@ select 'function.record_deposit',
 union all
 select 'function.register_referral_user',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='register_referral_user')
+union all
+select 'notifications.table',
+       exists(select 1 from information_schema.tables where table_schema='public' and table_name='notifications')
+union all
+select 'realtime.notifications',
+       exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='notifications')
 union all
 select 'realtime.users',
        exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='users')

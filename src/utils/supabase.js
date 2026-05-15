@@ -287,6 +287,43 @@ export async function saveAdminConfig(cfg) {
   check(result, 'saveAdminConfig')
 }
 
+export async function getNotifications(userId) {
+  const id = Number(userId)
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .or(`audience.eq.all,user_id.eq.${id}`)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return (data || []).map(n => ({
+    id: n.id,
+    title: n.title || '',
+    body: n.body || '',
+    audience: n.audience || 'all',
+    userId: n.user_id,
+    createdBy: n.created_by,
+    createdAt: n.created_at,
+  }))
+}
+
+export async function createNotification({ title, body, audience = 'all', userId = null, createdBy = null }) {
+  const payload = {
+    title: String(title || '').trim(),
+    body: String(body || '').trim(),
+    audience,
+    user_id: audience === 'user' && userId ? Number(userId) : null,
+    created_by: createdBy ? Number(createdBy) : null,
+  }
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert(payload)
+    .select('*')
+    .single()
+  if (error) throw error
+  return data
+}
+
 // ─── PLANS ────────────────────────────────────────────────────────────────────
 
 export async function getAdminPlans(fallback = null) {

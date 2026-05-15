@@ -260,12 +260,13 @@ function buildTxDisplayItems(items, investments) {
   return output
 }
 
-export default function HomePage({ user, investments, transactions, plans, config, referral, onDeposit, onWithdraw, setTab, setIsAdmin, isAdmin, isAdminView, activateInvestment, collectProfit }) {
+export default function HomePage({ user, investments, transactions, plans, config, referral, notifications = [], notificationUnread = 0, markNotificationsSeen, onDeposit, onWithdraw, setTab, setIsAdmin, isAdmin, isAdminView, activateInvestment, collectProfit }) {
   const logoRef = useRef(null)
   const pressRef = useRef(null)
   const [showAllTx, setShowAllTx] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
   const [expandedProfitIds, setExpandedProfitIds] = useState({})
+  const [showNotifications, setShowNotifications] = useState(false)
 
   // Determine today's inactive plans
   const inactivePlans = (plans || []).filter(p => !(p.activeDays || [1,2,3,4,5]).includes(TODAY_DOW))
@@ -349,9 +350,36 @@ export default function HomePage({ user, investments, transactions, plans, confi
               ▶ Panel
             </div>
           )}
-          <div className="notif-btn">🔔</div>
+          <button className="notif-btn" onClick={() => { setShowNotifications(true); markNotificationsSeen?.() }} title="Notifications">
+            🔔
+            {notificationUnread > 0 && <span className="notif-dot">{notificationUnread > 9 ? '9+' : notificationUnread}</span>}
+          </button>
         </div>
       </div>
+
+      {showNotifications && (
+        <div className="notif-overlay" onClick={() => setShowNotifications(false)}>
+          <div className="notif-panel" onClick={e => e.stopPropagation()}>
+            <div className="notif-head">
+              <div>
+                <div className="notif-title">Notifications</div>
+                <div className="notif-sub">Admin announcements</div>
+              </div>
+              <button className="notif-close" onClick={() => setShowNotifications(false)}>×</button>
+            </div>
+            <div className="notif-list">
+              {notifications.length === 0 && <div className="notif-empty">No notifications yet</div>}
+              {notifications.map(n => (
+                <div key={n.id} className="notif-item">
+                  <div className="notif-item-title">{n.title}</div>
+                  <div className="notif-item-body">{n.body}</div>
+                  <div className="notif-time">{new Date(n.createdAt).toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Balance Hero */}
       <div className="bal-hero">

@@ -20,7 +20,7 @@ export default function AdminPage({
   computeAdminStats, getAllUsers, getAllTransactions,
   plans,
   adminToggleBan, adminUpdatePlan, adminToggleMaintenance,
-  adminUpdateUser, adminSaveSettings,
+  adminUpdateUser, adminSaveSettings, adminSendNotification,
   config, showToast, setIsAdmin
 }) {
   const [section, setSection] = useState('overview')
@@ -98,6 +98,7 @@ export default function AdminPage({
     { id:'deposits',  label:'Deposits',  badge: allTx.filter(t=>t.type==='deposit').length },
     { id:'withdraws', label:'Withdraws', badge: adminStats?.pendingWithdraws || 0, badgeColor: 'red' },
     { id:'history',   label:'History'    },
+    { id:'notifications', label:'Notify' },
     { id:'plans',     label:'Plans'      },
     { id:'settings',  label:'⚙ Settings' },
   ]
@@ -392,6 +393,10 @@ export default function AdminPage({
         </div>
       )}
 
+      {section === 'notifications' && (
+        <NotificationPanel allUsers={allUsers} onSend={adminSendNotification} showToast={showToast} />
+      )}
+
       {/* ─── PLANS ─────────────────────────────────────────────────────────── */}
       {section === 'plans' && (
         <div className="adm-section">
@@ -538,6 +543,73 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 }
 
 // ─── Settings Panel ───────────────────────────────────────────────────────────
+function NotificationPanel({ allUsers, onSend, showToast }) {
+  const [audience, setAudience] = useState('all')
+  const [userId, setUserId] = useState('')
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const handleSend = async () => {
+    if (audience === 'user' && !userId) {
+      showToast('Select a user or enter Telegram ID','err')
+      return
+    }
+    setSending(true)
+    const ok = await onSend({ title, body, audience, userId })
+    setSending(false)
+    if (ok) {
+      setTitle('')
+      setBody('')
+      setUserId('')
+    }
+  }
+
+  return (
+    <div className="adm-section notify-panel">
+      <div className="adm-sec-title">Send Notification</div>
+      <div className="settings-info">Users receive this instantly through Supabase Realtime.</div>
+
+      <div className="notify-toggle">
+        <button className={audience==='all'?'on':''} onClick={() => setAudience('all')}>All users</button>
+        <button className={audience==='user'?'on':''} onClick={() => setAudience('user')}>One user</button>
+      </div>
+
+      {audience === 'user' && (
+        <div className="setting-group">
+          <div className="sg-label">Target user</div>
+          <input
+            className="sg-input"
+            list="notify-users"
+            value={userId}
+            onChange={e=>setUserId(e.target.value.replace(/\D/g,''))}
+            placeholder="Telegram user ID"
+          />
+          <datalist id="notify-users">
+            {allUsers.map(u => (
+              <option key={u.id} value={u.id}>{u.username || u.firstName || `User ${u.id}`}</option>
+            ))}
+          </datalist>
+        </div>
+      )}
+
+      <div className="setting-group">
+        <div className="sg-label">Title</div>
+        <input className="sg-input" value={title} onChange={e=>setTitle(e.target.value)} maxLength={80} placeholder="System update" />
+      </div>
+
+      <div className="setting-group">
+        <div className="sg-label">Message</div>
+        <textarea className="sg-input notify-textarea" value={body} onChange={e=>setBody(e.target.value)} maxLength={500} placeholder="Write the notification content..." />
+      </div>
+
+      <button className="sg-save-btn" onClick={handleSend} disabled={sending}>
+        {sending ? 'Sending...' : 'Send Notification'}
+      </button>
+    </div>
+  )
+}
+
 function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [adminWalletTestnet, setAdminWalletTestnet] = useState(config.adminWalletTestnet || config.adminWallet || '')
   const [adminWalletMainnet, setAdminWalletMainnet] = useState(config.adminWalletMainnet || '')
