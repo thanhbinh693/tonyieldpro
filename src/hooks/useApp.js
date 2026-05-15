@@ -23,7 +23,7 @@ import {
   registerUser,
   getAllUsersData,
   creditReferralViaServer,
-  getNotifications, createNotification,
+  getNotifications, getAllNotifications, createNotification, deleteNotification,
   getAdminConfig, saveAdminConfig,
   getAdminPlans, saveAdminPlans,
 } from '../utils/supabase'
@@ -262,7 +262,7 @@ export function useApp() {
         filter: `user_id=eq.${tid}`,
       }, refreshFromDb)
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'notifications',
+        event: '*', schema: 'public', table: 'notifications',
       }, async () => {
         try { setNotifications(await getNotifications(tid)) }
         catch(e) { console.warn('[notifications]', e) }
@@ -732,6 +732,28 @@ export function useApp() {
     }
   }, [tid, showToast])
 
+  const adminGetNotifications = useCallback(async () => {
+    try {
+      return await getAllNotifications()
+    } catch(e) {
+      console.error('[adminGetNotifications]', e)
+      showToast(`Failed to load notifications: ${e?.message || 'try again'}`,'err')
+      return []
+    }
+  }, [showToast])
+
+  const adminDeleteNotification = useCallback(async (notificationId) => {
+    try {
+      await deleteNotification(notificationId)
+      showToast('Notification deleted','ok')
+      return true
+    } catch(e) {
+      console.error('[adminDeleteNotification]', e)
+      showToast(`Failed to delete notification: ${e?.message || 'try again'}`,'err')
+      return false
+    }
+  }, [showToast])
+
   const markNotificationsSeen = useCallback(() => {
     const now = Date.now()
     localStorage.setItem(`ty_notif_seen_${tid}`, String(now))
@@ -755,6 +777,7 @@ export function useApp() {
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
     computeAdminStats, getAllUsers, getAllTransactions,
     adminToggleBan, adminUpdateUser, adminUpdatePlan, adminSendNotification,
+    adminGetNotifications, adminDeleteNotification,
     adminToggleMaintenance, adminSaveSettings,
   }
 }

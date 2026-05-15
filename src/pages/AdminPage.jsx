@@ -21,6 +21,7 @@ export default function AdminPage({
   plans,
   adminToggleBan, adminUpdatePlan, adminToggleMaintenance,
   adminUpdateUser, adminSaveSettings, adminSendNotification,
+  adminGetNotifications, adminDeleteNotification,
   config, showToast, setIsAdmin
 }) {
   const [section, setSection] = useState('overview')
@@ -394,7 +395,13 @@ export default function AdminPage({
       )}
 
       {section === 'notifications' && (
-        <NotificationPanel allUsers={allUsers} onSend={adminSendNotification} showToast={showToast} />
+        <NotificationPanel
+          allUsers={allUsers}
+          onSend={adminSendNotification}
+          onLoad={adminGetNotifications}
+          onDelete={adminDeleteNotification}
+          showToast={showToast}
+        />
       )}
 
       {/* ─── PLANS ─────────────────────────────────────────────────────────── */}
@@ -543,12 +550,25 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 }
 
 // ─── Settings Panel ───────────────────────────────────────────────────────────
-function NotificationPanel({ allUsers, onSend, showToast }) {
+function NotificationPanel({ allUsers, onSend, onLoad, onDelete, showToast }) {
   const [audience, setAudience] = useState('all')
   const [userId, setUserId] = useState('')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const loadNotifications = async () => {
+    setLoading(true)
+    const rows = await onLoad()
+    setNotifications(rows)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadNotifications()
+  }, []) // eslint-disable-line
 
   const handleSend = async () => {
     if (audience === 'user' && !userId) {
@@ -562,7 +582,14 @@ function NotificationPanel({ allUsers, onSend, showToast }) {
       setTitle('')
       setBody('')
       setUserId('')
+      loadNotifications()
     }
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this notification?')) return
+    const ok = await onDelete(id)
+    if (ok) setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
   return (
@@ -606,6 +633,27 @@ function NotificationPanel({ allUsers, onSend, showToast }) {
       <button className="sg-save-btn" onClick={handleSend} disabled={sending}>
         {sending ? 'Sending...' : 'Send Notification'}
       </button>
+
+      <div className="notify-history">
+        <div className="notify-history-head">
+          <div className="adm-sec-title">Old Notifications</div>
+          <button className="adm-refresh-btn" onClick={loadNotifications} title="Refresh">⟳</button>
+        </div>
+        {loading && <div className="adm-empty">Loading notifications...</div>}
+        {!loading && notifications.length === 0 && <div className="adm-empty">No notifications yet</div>}
+        {!loading && notifications.map(n => (
+          <div key={n.id} className="notify-admin-row">
+            <div className="notify-admin-main">
+              <div className="notify-admin-title">{n.title}</div>
+              <div className="notify-admin-body">{n.body}</div>
+              <div className="notify-admin-meta">
+                {n.audience === 'all' ? 'All users' : `User #${n.userId}`} · {new Date(n.createdAt).toLocaleString()}
+              </div>
+            </div>
+            <button className="notify-delete-btn" onClick={() => handleDelete(n.id)}>Delete</button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

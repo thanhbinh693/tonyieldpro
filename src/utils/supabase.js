@@ -307,6 +307,24 @@ export async function getNotifications(userId) {
   }))
 }
 
+export async function getAllNotifications() {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100)
+  if (error) throw error
+  return (data || []).map(n => ({
+    id: n.id,
+    title: n.title || '',
+    body: n.body || '',
+    audience: n.audience || 'all',
+    userId: n.user_id,
+    createdBy: n.created_by,
+    createdAt: n.created_at,
+  }))
+}
+
 export async function createNotification({ title, body, audience = 'all', userId = null, createdBy = null }) {
   const payload = {
     title: String(title || '').trim(),
@@ -322,6 +340,15 @@ export async function createNotification({ title, body, audience = 'all', userId
     .single()
   if (error) throw error
   return data
+}
+
+export async function deleteNotification(notificationId) {
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId)
+  if (error) throw error
+  return true
 }
 
 // ─── PLANS ────────────────────────────────────────────────────────────────────

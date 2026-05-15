@@ -615,3 +615,27 @@
   resize:vertical;
   line-height:1.45;
 }
+.notify-history { margin-top:18px;border-top:1px solid var(--border);padding-top:14px; }
+.notify-history-head { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
+.notify-admin-row {
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:11px 0;
+  border-bottom:1px solid var(--border);
+}
+.notify-admin-row:last-child { border-bottom:none; }
+.notify-admin-main { flex:1;min-width:0; }
+.notify-admin-title { font-size:13px;font-weight:800;color:var(--text);margin-bottom:3px; }
+.notify-admin-body { font-size:12px;color:var(--muted);line-height:1.4;white-space:pre-wrap; }
+.notify-admin-meta { font-size:10px;color:var(--muted);margin-top:6px; }
+.notify-delete-btn {
+  border:1px solid rgba(255,59,48,.35);
+  background:rgba(255,59,48,.12);
+  color:var(--red);
+  border-radius:8px;
+  padding:7px 10px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
