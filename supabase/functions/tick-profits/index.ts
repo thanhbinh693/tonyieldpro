@@ -80,14 +80,14 @@ Deno.serve(async (req) => {
 
       // ── Plan completed ────────────────────────────────────────────────────
       if (now >= inv.end_time) {
-        const totalProfit = +((Number(inv.earned) || 0) + ip).toFixed(6)
+        const finalProfit = +ip.toFixed(6)
         const principal   = parseFloat(inv.amount)
         const txIdPrf     = `prf-${iid}-${now}`
 
         const { data: ok } = await supabase.rpc('credit_profit', {
           p_user_id:       inv.user_id,
           p_investment_id: inv.id,
-          p_profit:        totalProfit,
+          p_profit:        finalProfit,
           p_new_earned:    0,
           p_next_time:     now,
           p_old_next_time: inv.next_profit_time,
