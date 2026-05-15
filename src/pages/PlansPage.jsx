@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { DAY_NAMES } from '../utils/config'
+import { calculateIntervalProfit } from '../utils/profit'
 const TODAY_DOW = new Date().getDay()
 import './PlansPage.css'
 
@@ -24,8 +25,8 @@ export default function PlansPage({ plans, onDeposit, config }) {
   const intervalMin = activePlan?.profitIntervalMinutes || 5
   const durationMs = activePlan?.durationMs || (duration * (activePlan?.durationUnit === 'hours' ? 3_600_000 : 86_400_000))
 
-  // Rate is per interval (not per day)
-  const profitPerInterval = amt * rate / 100
+  const intervalMs = intervalMin * 60_000
+  const profitPerInterval = calculateIntervalProfit(amt, rate, intervalMs)
   const intervalsPerHour = 60 / intervalMin
   const hourlyProfit = profitPerInterval * intervalsPerHour
   const totalIntervals = Math.floor(durationMs / (intervalMin * 60_000))
@@ -73,7 +74,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
               color: autoPlan.color === 'gold' ? '#080b12' : '#fff'
             }}>
               <span className="apb-dot">◎</span>
-              <span>{autoPlan.name} — {autoPlan.rate}%/{autoPlan.profitIntervalMinutes ? `${autoPlan.profitIntervalMinutes}min` : 'interval'} · {`${autoPlan.duration} ${autoPlan.durationUnit === 'hours' ? 'hr' : 'day'}`}</span>
+              <span>{autoPlan.name} — {autoPlan.rate}%/day · {`${autoPlan.duration} ${autoPlan.durationUnit === 'hours' ? 'hr' : 'day'}`}</span>
               <span className="apb-tag">AUTO</span>
             </div>
           ) : (
@@ -134,7 +135,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
             </div>
             <div className="pc-rate-wrap">
               <div className={`pc-rate ${plan.color}`}>{plan.rate}%</div>
-              <div className="pc-per">/{plan.profitIntervalMinutes ? `${plan.profitIntervalMinutes}min` : 'interval'}</div>
+              <div className="pc-per">/day</div>
             </div>
           </div>
           {/* Active days chips */}

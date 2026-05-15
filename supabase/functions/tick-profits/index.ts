@@ -18,6 +18,14 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const DAY_MS = 86_400_000
+
+function calculateIntervalProfit(amount: unknown, dailyRate: unknown, intervalMs: number) {
+  const principal = Number(amount) || 0
+  const rate = Number(dailyRate) || 0
+  return principal * (rate / 100) * (intervalMs / DAY_MS)
+}
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -75,7 +83,7 @@ Deno.serve(async (req) => {
         continue
       }
 
-      const ip = +(parseFloat(inv.amount) * (inv.rate / 100)).toFixed(6)
+      const ip = +calculateIntervalProfit(inv.amount, inv.rate, intervalMs).toFixed(6)
       const iid = inv.invoice_id || String(Number(String(inv.id).replace(/\D/g, '').slice(-9)) % 900000 + 100000)
 
       // ── Plan completed ────────────────────────────────────────────────────
@@ -87,7 +95,7 @@ Deno.serve(async (req) => {
         const { data: ok } = await supabase.rpc('credit_profit', {
           p_user_id:       inv.user_id,
           p_investment_id: inv.id,
-          p_profit:        +(totalProfit + principal).toFixed(6),
+          p_profit:        totalProfit,
           p_new_earned:    0,
           p_next_time:     now,
           p_old_next_time: inv.next_profit_time,
@@ -101,6 +109,20 @@ Deno.serve(async (req) => {
             supabase.from('investments')
               .update({ status: 'completed', earned: 0, updated_at: new Date().toISOString() })
               .eq('id', inv.id),
+            (async () => {
+              const { data: userRow, error: userErr } = await supabase
+                .from('users')
+                .select('balance')
+                .eq('id', inv.user_id)
+                .single()
+              if (userErr) throw userErr
+              const nextBalance = +((Number(userRow?.balance) || 0) + principal).toFixed(6)
+              const { error: balErr } = await supabase
+                .from('users')
+                .update({ balance: nextBalance, updated_at: new Date().toISOString() })
+                .eq('id', inv.user_id)
+              if (balErr) throw balErr
+            })(),
             supabase.from('transactions')
               .upsert({
                 id: `ret-${iid}-${now}`,

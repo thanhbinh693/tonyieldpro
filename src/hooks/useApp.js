@@ -592,36 +592,8 @@ export function useApp() {
   const collectProfit = useCallback(async (invId) => {
     const inv = investments.find(i => i.id === invId)
     if (!inv) return
-    const uncollected = Number(inv.earned)||0
-    if (uncollected <= 0) { showToast('No profit to collect','err'); return }
-    const now    = Date.now()
-    const newBal = +(user.balance + uncollected).toFixed(2)
-    try {
-      await supabase.from('users').upsert({
-        id:Number(tid), balance:newBal, referral_code:String(tid),
-        updated_at:new Date().toISOString(),
-      }, { onConflict:'id' })
-      await supabase.from('investments').update({ status:'completed', earned:0 }).eq('id', invId)
-      await supabase.from('transactions').insert({
-        id:'collect-'+now, user_id:Number(tid), type:'profit',
-        label:'Profit collected · '+(inv.plan||'Plan'),
-        amount:uncollected, status:'completed',
-        invoice_id:inv.invoiceId || '',
-        plan_id:inv.planId,
-        created_at:now,
-      })
-      setUser(p => ({ ...p, balance:newBal }))
-      setTransactions(p => [{
-        id:'collect-'+now, type:'profit',
-        label:'Profit collected · '+(inv.plan||'Plan'),
-        date:'Just now', amount:uncollected, status:'completed',
-        invoiceId:inv.invoiceId || '', planId:inv.planId,
-        createdAt:now,
-      }, ...p])
-      setInvestments(p => p.map(i => i.id===invId ? { ...i, status:'completed', earned:0 } : i))
-      showToast(`+${uncollected.toFixed(2)} TON collected!`,'ok')
-    } catch(e) { console.error('[collect]',e); showToast('Failed to collect','err') }
-  }, [showToast, investments, user.balance, tid])
+    showToast('Profit is credited automatically every tick', 'ok')
+  }, [showToast, investments])
 
   // ─── ADMIN helpers ─────────────────────────────────────────────────────────
   const getAllUsers = useCallback(async () => {

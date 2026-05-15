@@ -432,16 +432,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                   )}
                   <div className="inv-amount">{inv.amount} <span>TON</span></div>
                   <div className="inv-rate">
-                    {(() => {
-                      const ms = inv.intervalMs
-                        || inv.profitIntervalMs
-                        || (inv.profitIntervalMinutes ? inv.profitIntervalMinutes * 60_000 : 0)
-                        || (inv.profitIntervalHours   ? inv.profitIntervalHours   * 3_600_000 : 0)
-                        || 86_400_000
-                      if (ms < 3_600_000)  return `${inv.rate}% / ${Math.round(ms/60_000)}min`
-                      if (ms < 86_400_000) return `${inv.rate}% / ${Math.round(ms/3_600_000)}hr`
-                      return `${inv.rate}% / day`
-                    })()}
+                    {inv.rate}% / day
                   </div>
                   <div className="inv-earned-row">
                     <span className="inv-earned-lbl">Profit ID {inv.invoiceId || '—'}</span>
