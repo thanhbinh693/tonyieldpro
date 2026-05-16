@@ -211,6 +211,57 @@ export async function getUserReferredBy(telegramId) {
   return data?.referred_by || ''
 }
 
+export async function getReferralDetails(telegramId) {
+  const id = Number(telegramId)
+  if (!id) return []
+
+  const { data: invitees, error: inviteeError } = await supabase
+    .from('users')
+    .select('id, username, first_name, total_deposit, join_date, created_at')
+    .eq('referred_by', String(id))
+    .order('created_at', { ascending: false })
+  if (inviteeError) throw inviteeError
+  if (!invitees?.length) return []
+
+  const inviteeIds = invitees.map(u => Number(u.id))
+  const { data: deposits, error: depositError } = await supabase
+    .from('transactions')
+    .select('id, user_id')
+    .eq('type', 'deposit')
+    .in('user_id', inviteeIds)
+  if (depositError) throw depositError
+
+  const depositOwner = new Map((deposits || []).map(tx => [String(tx.id), Number(tx.user_id)]))
+  const depositIds = [...depositOwner.keys()]
+  const incomeByInvitee = new Map()
+
+  if (depositIds.length > 0) {
+    const { data: referralTxs, error: referralError } = await supabase
+      .from('transactions')
+      .select('amount, invoice_id')
+      .eq('user_id', id)
+      .eq('type', 'referral')
+      .in('invoice_id', depositIds)
+    if (referralError) throw referralError
+
+    ;(referralTxs || []).forEach(tx => {
+      const inviteeId = depositOwner.get(String(tx.invoice_id))
+      if (!inviteeId) return
+      incomeByInvitee.set(inviteeId, (incomeByInvitee.get(inviteeId) || 0) + (Number(tx.amount) || 0))
+    })
+  }
+
+  return invitees.map(u => ({
+    id: Number(u.id),
+    username: u.username || '',
+    firstName: u.first_name || '',
+    name: u.username ? `@${u.username}` : (u.first_name || `ID ${u.id}`),
+    totalDeposit: Number(u.total_deposit) || 0,
+    referralIncome: incomeByInvitee.get(Number(u.id)) || 0,
+    joinDate: u.join_date || u.created_at || '',
+  }))
+}
+
 /**
  * Credit referral commission server-side via Edge Function.
  * Gọi sau khi deposit tx đã được insert vào DB.

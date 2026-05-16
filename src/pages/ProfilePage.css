@@ -25,6 +25,27 @@
 .rfs-val { font-family:var(--font-display);font-size:20px;font-weight:600;color:var(--green); }
 .rfs-label { font-size:11px;color:var(--muted);margin-top:2px; }
 
+.ref-detail { padding:18px;margin-bottom:12px; }
+.rd-header { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px; }
+.rd-title { font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:.08em; }
+.rd-sub { font-size:12px;color:var(--muted);line-height:1.5;margin-top:3px; }
+.rd-count { min-width:36px;height:36px;border-radius:999px;background:var(--color-ton-muted);border:1px solid var(--color-ton-border);color:var(--blue2);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:14px;font-weight:700;box-shadow:var(--ton-glow); }
+.rd-list { display:flex;flex-direction:column;gap:10px; }
+.rd-row { background:rgba(15,17,21,.72);border:1px solid var(--border);border-radius:14px;padding:12px; }
+.rd-user { display:flex;align-items:center;gap:10px;margin-bottom:12px; }
+.rd-avatar { width:36px;height:36px;border-radius:12px;background:var(--color-ton-muted);border:1px solid var(--color-ton-border);display:flex;align-items:center;justify-content:center;color:var(--blue2);font-family:var(--font-display);font-weight:700;box-shadow:0 0 16px rgba(0,152,234,.18); }
+.rd-user-main { min-width:0; }
+.rd-name { font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.rd-id { font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px; }
+.rd-metrics { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.rd-metric { background:rgba(255,255,255,.04);border-radius:10px;padding:10px;min-width:0; }
+.rd-metric span { display:block;font-size:10px;color:var(--muted);margin-bottom:5px; }
+.rd-metric strong { display:block;font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.rd-metric .rd-income { color:var(--green); }
+.rd-empty { display:flex;align-items:flex-start;gap:12px;background:rgba(15,17,21,.72);border:1px solid var(--border);border-radius:14px;padding:14px; }
+.rd-empty-title { font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.10em;color:var(--text); }
+.rd-empty-sub { font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px; }
+
 .menu-list { overflow:hidden;margin-bottom:12px; }
 .menu-item { display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:.18s;border-bottom:1px solid var(--border); }
 .menu-item:last-child { border:none; }
@@ -45,6 +66,7 @@
 /* TON DeFi aesthetic */
 .prof-hero,
 .ref-full,
+.ref-detail,
 .menu-list { background:var(--glass);border:var(--glass-border);backdrop-filter:blur(18px);box-shadow:0 0 24px rgba(0,152,234,.13);border-radius:22px; }
 .prof-hero-glow { background:radial-gradient(ellipse,rgba(0,152,234,.24),transparent 66%); }
 .prof-name { font-size:22px;font-weight:700;background:var(--text-gradient);-webkit-background-clip:text;background-clip:text;color:transparent; }

@@ -21,6 +21,7 @@ import {
   supabase,
   getUserBundle,
   registerUser,
+  getReferralDetails,
   getAllUsersData,
   creditReferralViaServer,
   getNotifications, getAllNotifications, createNotification, deleteNotification,
@@ -153,6 +154,7 @@ export function useApp() {
   const [investments,  setInvestments]  = useState([])
   const [transactions, setTransactions] = useState([])
   const [referral,     setReferral]     = useState(() => mkDefaultRef(tid))
+  const [referralDetails, setReferralDetails] = useState([])
   const [notifications, setNotifications] = useState([])
   const [plans,        setPlans]        = useState(DEFAULT_PLANS)
   const [config,       setConfig]       = useState({ ...DEFAULT_CONFIG })
@@ -181,11 +183,12 @@ export function useApp() {
 
     async function load() {
       try {
-        const [bundle, cfg, savedPlans, userNotifications] = await Promise.all([
+        const [bundle, cfg, savedPlans, userNotifications, refDetails] = await Promise.all([
           withTimeout(getUserBundle(tid).catch(() => null), 4000, null),
           withTimeout(getAdminConfig(null).catch(() => null), 4000, null),
           withTimeout(getAdminPlans(null).catch(() => null), 4000, null),
           withTimeout(getNotifications(tid).catch(() => []), 4000, []),
+          withTimeout(getReferralDetails(tid).catch(() => []), 4000, []),
         ])
         if (bundle) {
           if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
@@ -196,6 +199,7 @@ export function useApp() {
         if (cfg)        setConfig(p => ({ ...DEFAULT_CONFIG, ...cfg }))
         if (savedPlans) setPlans(savedPlans)
         setNotifications(userNotifications || [])
+        setReferralDetails(refDetails || [])
 
         const referredByCode = getStartParam()
         registerUser(tid, referredByCode, tgUser).catch(e => console.warn('[registerUser]', e))
@@ -236,12 +240,16 @@ export function useApp() {
       // Debounce 300ms để tránh burst khi nhiều bảng thay đổi cùng lúc
       {
         try {
-          const bundle = await getUserBundle(tid)
+          const [bundle, refDetails] = await Promise.all([
+            getUserBundle(tid),
+            getReferralDetails(tid).catch(() => []),
+          ])
           if (!bundle) return
           if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
           if (bundle.investments)  setInvestments(bundle.investments)
           if (bundle.transactions) setTransactions(bundle.transactions)
           if (bundle.referral)     setReferral(p => ({ ...p, ...bundle.referral }))
+          setReferralDetails(refDetails || [])
         } catch (e) {
           console.warn('[ws refresh]', e)
         }
@@ -807,7 +815,7 @@ export function useApp() {
 
   return {
     tab, setTab, loading, toast, config,
-    user, plans, investments:myInvestments, transactions, referral: referralDisplay,
+    user, plans, investments:myInvestments, transactions, referral: referralDisplay, referralDetails,
     notifications, notificationUnread, markNotificationsSeen,
     isAdmin:adminMode, isAdminView, setIsAdmin:setIsAdminView,
     walletConnected:!!wallet, wallet,
