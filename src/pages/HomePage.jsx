@@ -215,9 +215,10 @@ const getGreeting = () => {
 }
 const formatCountdown = (ms) => {
   const total = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(total / 60)
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
   const s = total % 60
-  return `${m}m ${String(s).padStart(2, '0')}s`
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 const formatYieldName = (name) => {
   const v = String(name || '')
@@ -575,7 +576,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                 <div className="inv-right">
                   <PlanRing inv={inv} onActivate={activateInvestment} onCollect={collectProfit} />
                   <div className="inv-countdown-label">
-                    {!activeToday ? 'Paused today' : `Next distribution ${formatCountdown(Math.max(0, inv.nextProfitTime - Date.now()))}`}
+                    {!activeToday ? 'PAUSED' : formatCountdown(Math.max(0, inv.nextProfitTime - Date.now()))}
                   </div>
                 </div>
               </div>

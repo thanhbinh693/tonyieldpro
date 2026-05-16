@@ -659,15 +659,26 @@ export function useApp() {
   }, [])
 
   const adminToggleBan = useCallback(async (userId) => {
-    const all = await getAllUsersData()
-    const entry = all.find(x => Number(x.id)===Number(userId))
-    if (!entry) return
-    const newStatus = entry.bundle.user?.status==='banned' ? 'active' : 'banned'
+    const id = Number(userId)
+    if (id === Number(tid)) {
+      showToast('Cannot delete current admin session.', 'err')
+      return
+    }
     try {
-      await supabase.from('users').update({ status:newStatus, updated_at:new Date().toISOString() }).eq('id', Number(userId))
-    } catch(e) { console.error('[adminToggleBan]',e); showToast('Network error - please retry.','err'); return }
-    if (Number(userId)===Number(tid)) setUser(p => ({ ...p, status:newStatus }))
-    showToast(newStatus==='banned' ? 'User banned.' : 'User unbanned.','ok')
+      const rpcResult = await supabase.rpc('delete_user_data', { p_user_id: id })
+      if (rpcResult.error) {
+        await supabase.from('users').update({
+          referred_by: '',
+          updated_at: new Date().toISOString(),
+        }).eq('referred_by', String(id))
+        const { error } = await supabase.from('users').delete().eq('id', id)
+        if (error) throw error
+      }
+      showToast('User deleted.','ok')
+    } catch(e) {
+      console.error('[adminDeleteUser]',e)
+      showToast(isFetchFailure(e) ? 'Network error - please retry.' : `Failed to delete user: ${e?.message || 'please retry'}.`,'err')
+    }
   }, [tid, showToast])
 
   const adminUpdateUser = useCallback(async (userId, updates) => {

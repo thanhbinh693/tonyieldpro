@@ -396,6 +396,31 @@ $$;
 
 grant execute on function register_referral_user(bigint, text, text, text) to anon, authenticated;
 
+create or replace function delete_user_data(
+  p_user_id bigint
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_count int := 0;
+begin
+  update users
+  set referred_by = '',
+      updated_at = now()
+  where referred_by = p_user_id::text;
+
+  delete from users
+  where id = p_user_id;
+
+  get diagnostics deleted_count = row_count;
+  return deleted_count > 0;
+end;
+$$;
+
+grant execute on function delete_user_data(bigint) to anon, authenticated;
+
 create or replace function retry_stuck_withdrawals()
 returns void
 language plpgsql
@@ -562,6 +587,9 @@ select 'function.record_deposit',
 union all
 select 'function.register_referral_user',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='register_referral_user')
+union all
+select 'function.delete_user_data',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='delete_user_data')
 union all
 select 'notifications.table',
        exists(select 1 from information_schema.tables where table_schema='public' and table_name='notifications')

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   ArrowDownCircle, ArrowUpCircle, Ban, BarChart2, Bell, Bot, CheckCircle2,
   Clock, Cloud, Coins, Database, Download, Globe2, IdCard, Link2, Lock,
-  RefreshCw, Save, Search, Send, Settings as SettingsIcon, Shield, User,
+  RefreshCw, Save, Search, Send, Settings as SettingsIcon, Shield, Trash2, User,
   Users, Wallet, X, XCircle, Zap
 } from 'lucide-react'
 import { DAY_NAMES, DAY_NAMES_FULL } from '../utils/config'
@@ -103,6 +103,10 @@ export default function AdminPage({
       (u.walletAddr||'').toLowerCase().includes(q)
     )
   })
+  const confirmDeleteUser = (u) => {
+    const label = u?.username ? `@${u.username}` : `ID #${u?.id}`
+    return window.confirm(`Delete ${label}?\n\nThis removes the user, positions, transactions, and user notifications permanently.`)
+  }
 
   const stats = adminStats ? [
     { label:'Registered Users',   val: adminStats.totalUsers,                color:'blue',   Icon: Users },
@@ -240,7 +244,7 @@ export default function AdminPage({
                   allTx={allTx.filter(t => Number(t.userId) === Number(u.id))}
                   onClose={() => setSelectedUser(null)}
                   onEdit={() => { setSelectedUser(null); setEditUser(u.id) }}
-                  onBan={() => { adminToggleBan(u.id); setTimeout(loadAdminData, 800) }}
+                  onBan={() => { if (confirmDeleteUser(u)) { adminToggleBan(u.id); setSelectedUser(null); setTimeout(loadAdminData, 800) } }}
                 />
               ) : (
                 <>
@@ -297,8 +301,8 @@ export default function AdminPage({
                   <div className="uc-actions">
                     <button className="uc-detail-btn" onClick={() => setSelectedUser(u.id)}><User size={16} color="#0098EA" /> Details</button>
                     <button className="uc-edit-btn"   onClick={() => setEditUser(u.id)}><SettingsIcon size={16} color="#0098EA" /> Edit</button>
-                    <button className={`ban-btn ${u.status==='banned'?'unban':'ban'}`} onClick={() => { adminToggleBan(u.id); setTimeout(loadAdminData, 800) }}>
-                      {u.status==='banned' ? <><CheckCircle2 size={16} color="#FFD600" /> Unban</> : <><Ban size={16} color="#EF4444" /> Ban</>}
+                    <button className="ban-btn delete" onClick={() => { if (confirmDeleteUser(u)) { adminToggleBan(u.id); setTimeout(loadAdminData, 800) } }}>
+                      <Trash2 size={16} color="#EF4444" /> Delete
                     </button>
                   </div>
                 </>
@@ -563,8 +567,8 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 
       <div className="ud-actions">
         <button className="uc-edit-btn" onClick={onEdit}><SettingsIcon size={16} color="#0098EA" /> Edit User</button>
-        <button className={`ban-btn ${u.status==='banned'?'unban':'ban'}`} onClick={onBan}>
-          {u.status==='banned' ? <><CheckCircle2 size={16} color="#FFD600" /> Unban</> : <><Ban size={16} color="#EF4444" /> Ban</>}
+        <button className="ban-btn delete" onClick={onBan}>
+          <Trash2 size={16} color="#EF4444" /> Delete User
         </button>
         <button className="ud-close-btn" onClick={onClose}><X size={16} color="#FFFFFF" /> Close</button>
       </div>

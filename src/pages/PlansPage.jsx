@@ -128,17 +128,17 @@ export default function PlansPage({ plans, onDeposit, config }) {
         <div className="calc-results">
           <div className="cr-item">
             <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${profitPerInterval.toFixed(3)} TON` : '---'}</div>
-            <div className="cr-label">per cycle</div>
+            <div className="cr-label">Cycle</div>
           </div>
           <div className="cr-divider"/>
           <div className="cr-item">
             <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${hourlyProfit.toFixed(3)} TON` : '---'}</div>
-            <div className="cr-label">/ hour</div>
+            <div className="cr-label">Hourly</div>
           </div>
           <div className="cr-divider"/>
           <div className="cr-item">
             <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${totalProfit.toFixed(3)} TON` : '---'}</div>
-            <div className="cr-label">est. total return</div>
+            <div className="cr-label">Total return</div>
           </div>
         </div>
       </div>

@@ -65,7 +65,8 @@
 .ucs-val { font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--gold); }
 .ucs-lbl { font-size:9px;color:var(--muted);margin-top:2px; }
 .ban-btn { width:100%;padding:10px;border:none;border-radius:10px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;transition:.15s; }
-.ban-btn.ban   { background:#f04f5a18;color:var(--red);border:1px solid #f04f5a30; }
+.ban-btn.ban,
+.ban-btn.delete { background:#f04f5a18;color:var(--red);border:1px solid #f04f5a30; }
 .ban-btn.unban { background:#22d17a18;color:var(--green);border:1px solid #22d17a30; }
 
 /* Plans editor */
