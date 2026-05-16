@@ -249,6 +249,19 @@ export function useApp() {
     }
 
     // WebSocket channel — lắng nghe 3 bảng của user hiện tại
+    const refreshGlobalConfig = async () => {
+      try {
+        const [cfg, savedPlans] = await Promise.all([
+          getAdminConfig(null).catch(() => null),
+          getAdminPlans(null).catch(() => null),
+        ])
+        if (cfg) setConfig(p => ({ ...p, ...DEFAULT_CONFIG, ...cfg }))
+        if (savedPlans) setPlans(savedPlans)
+      } catch (e) {
+        console.warn('[ws config refresh]', e)
+      }
+    }
+
     const channel = supabase
       .channel(`user-realtime-${tid}`)
       .on('postgres_changes', {
@@ -269,16 +282,28 @@ export function useApp() {
         try { setNotifications(await getNotifications(tid)) }
         catch(e) { console.warn('[notifications]', e) }
       })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'admin_config',
+      }, refreshGlobalConfig)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'plans',
+      }, refreshGlobalConfig)
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           // Fallback: nếu WS lỗi, refresh ngay
           console.warn('[ws] channel error →', status)
           refreshFromDb()
+          refreshGlobalConfig()
         }
       })
 
     // Backup: refresh khi tab visible lại (user quay lại sau khi chuyển app)
-    const onVisible = () => { if (!document.hidden) refreshFromDb() }
+    const onVisible = () => {
+      if (!document.hidden) {
+        refreshFromDb()
+        refreshGlobalConfig()
+      }
+    }
     window.addEventListener('focus', onVisible)
     document.addEventListener('visibilitychange', onVisible)
 

@@ -700,6 +700,18 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [showNetConfirm, setShowNetConfirm] = useState(false)
   const [pendingNetwork, setPendingNetwork] = useState(null)
 
+  useEffect(() => {
+    setAdminWalletTestnet(config.adminWalletTestnet || config.adminWallet || '')
+    setAdminWalletMainnet(config.adminWalletMainnet || '')
+    setAdminIds(Array.isArray(config.adminIds) ? config.adminIds.join(', ') : config.adminIds || String(currentUserId||''))
+    setBotUsername(config.botUsername || '')
+    setWithdrawalWebhookUrl(config.withdrawalWebhookUrl || '')
+    setWithdrawalWebhookSecret(config.withdrawalWebhookSecret || '')
+    setReferralRate(config.referralRate || 5)
+    setMinWithdraw(config.minWithdraw || 5)
+    setTonNetwork(config.tonNetwork || 'testnet')
+  }, [config, currentUserId])
+
   const handleNetworkSwitch = (net) => {
     if (net === tonNetwork) return
     setPendingNetwork(net)
