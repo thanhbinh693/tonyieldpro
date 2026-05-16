@@ -10,7 +10,6 @@ const formatDuration = (plan) => {
   const unit = plan?.durationUnit === 'hours' ? 'hour' : 'day'
   return `${n} ${unit}${n === 1 ? '' : 's'}`
 }
-const formatDistribution = (minutes) => `Every ${Number(minutes) || 0} min`
 const formatYieldName = (plan) => {
   if (plan?.id === 1) return 'Starter Yield'
   if (plan?.id === 2) return 'Pro Yield'
@@ -222,7 +221,6 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
                     <div className="er-lbl">Est. return</div>
                   </div>
                 </div>
-                <div className="er-note">{autoPlan ? `${formatDistribution(autoPlan.profitIntervalMinutes || 5)}. Duration ${formatDuration(autoPlan)}. This action cannot be undone.` : ''}</div>
               </div>
             )}
 
