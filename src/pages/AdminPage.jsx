@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   ArrowDownCircle, ArrowUpCircle, Ban, BarChart2, Bell, Bot, CheckCircle2,
-  Clock, Cloud, Coins, Database, Download, Globe2, IdCard, Link2, Lock,
+  Clock, Cloud, Coins, Database, Download, Globe2, IdCard,
   RefreshCw, Save, Search, Send, Settings as SettingsIcon, Shield, Trash2, User,
   Users, Wallet, X, XCircle, Zap
 } from 'lucide-react'
@@ -775,41 +775,6 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
         <div className="sg-ref-preview">
           <span className="sg-ref-label">Ref link preview:</span>
           <span className="sg-ref-url">{refLink}</span>
-        </div>
-      </div>
-
-      <div className="setting-group">
-        <div className="sg-label"><Link2 size={16} color="#0098EA" />Withdrawal Webhook URL</div>
-        <div className="sg-desc">Supabase triggers this endpoint whenever a withdrawal transaction becomes pending.</div>
-        <input
-          className="sg-input"
-          type="url"
-          value={withdrawalWebhookUrl}
-          onChange={e=>setWithdrawalWebhookUrl(e.target.value)}
-          placeholder="https://your-domain.com/api/withdraw-webhook"
-          spellCheck={false}
-        />
-      </div>
-
-      <div className="setting-group">
-        <div className="sg-label"><Lock size={16} color="#0098EA" />Webhook Secret</div>
-        <div className="sg-desc">Sent as x-webhook-secret so your processor can verify requests.</div>
-        <input
-          className="sg-input"
-          type="password"
-          value={withdrawalWebhookSecret}
-          onChange={e=>setWithdrawalWebhookSecret(e.target.value)}
-          placeholder="Optional shared secret"
-          spellCheck={false}
-        />
-      </div>
-
-      <div className="setting-group">
-        <div className="sg-label"><Cloud size={16} color="#0098EA" />Realtime WebSocket</div>
-        <div className="sg-desc">Supabase Realtime is active in code for users, positions, transactions, plans, notifications, and configuration.</div>
-        <div className="websocket-status">
-          <span className="websocket-dot" />
-          <span>POSTGRES CHANGES ENABLED</span>
         </div>
       </div>
 

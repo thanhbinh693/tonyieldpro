@@ -249,30 +249,6 @@
 }
 .sg-input.with-prefix:focus { border: none; outline: none; }
 
-.websocket-status {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--color-ton-border);
-  border-radius: 10px;
-  background: var(--color-ton-muted);
-  color: var(--blue);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: .08em;
-  padding: 0 13px;
-}
-.websocket-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--blue);
-  box-shadow: var(--shadow-nav-active);
-  animation: blink 2s infinite;
-}
-
 .sg-hint {
   font-size: 11px; color: var(--text-muted, #8899aa);
   margin-top: 7px;
