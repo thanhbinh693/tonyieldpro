@@ -263,6 +263,34 @@ export default function ProfilePage({ user, referral, referralDetails = [], conf
         </div>
       )}
 
+      <div className="ref-full card">
+        <div className="rf-header">
+          <div>
+            <div className="rf-title">REFERRAL PROGRAM</div>
+            <div className="rf-sub">Earn {refRate}% commission on every deposit made by your referrals.</div>
+          </div>
+          <div className="rf-badge">{refRate}%</div>
+        </div>
+        <div className="rf-code-box">
+          <span className="rf-code">{referral?.code}</span>
+          <button className="copy-btn" onClick={copyRef}><Copy size={16} color="#FFFFFF" /> Copy</button>
+        </div>
+        <div className="rf-stats">
+          <div className="rfs-item">
+            <div className="rfs-val">{referral?.friends}</div>
+            <div className="rfs-label">Referred Users</div>
+          </div>
+          <div className="rfs-item">
+            <div className="rfs-val">{formatTon(referral?.commission)}</div>
+            <div className="rfs-label">Referral Income</div>
+          </div>
+          <div className="rfs-item">
+            <div className="rfs-val">{formatTon(referral?.depositVolume || 0)}</div>
+            <div className="rfs-label">Referred Volume</div>
+          </div>
+        </div>
+      </div>
+
       <div className="menu-list card">
         {menu.map((item, i) => (
           <div key={i} className="menu-item" onClick={item.action}>
