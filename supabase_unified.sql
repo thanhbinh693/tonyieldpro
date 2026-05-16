@@ -396,6 +396,132 @@ $$;
 
 grant execute on function register_referral_user(bigint, text, text, text) to anon, authenticated;
 
+create or replace function credit_referral_commission(
+  p_user_id bigint,
+  p_deposit_amount numeric,
+  p_deposit_tx_id text,
+  p_now bigint default null
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  invitee record;
+  referrer record;
+  referral_rate numeric;
+  commission numeric;
+  referral_tx_id text;
+  now_ms bigint;
+  inserted_count int := 0;
+begin
+  if p_user_id is null or p_deposit_amount is null or p_deposit_amount <= 0 then
+    return false;
+  end if;
+
+  select id, username, first_name, referred_by
+  into invitee
+  from users
+  where id = p_user_id;
+
+  if invitee.id is null or coalesce(invitee.referred_by, '') = '' then
+    return false;
+  end if;
+
+  select id
+  into referrer
+  from users
+  where referral_code = invitee.referred_by
+    and id <> p_user_id
+  for update;
+
+  if referrer.id is null then
+    return false;
+  end if;
+
+  select admin_config.referral_rate
+  into referral_rate
+  from admin_config
+  where id = 1;
+
+  commission := round((p_deposit_amount * (coalesce(referral_rate, 5) / 100))::numeric, 6);
+  if commission <= 0 then
+    return false;
+  end if;
+
+  referral_tx_id := 'ref-' || referrer.id::text || '-' || p_user_id::text || '-' || coalesce(nullif(p_deposit_tx_id, ''), floor(extract(epoch from clock_timestamp()) * 1000)::text);
+  now_ms := coalesce(p_now, floor(extract(epoch from clock_timestamp()) * 1000)::bigint);
+
+  insert into transactions (id, user_id, type, label, amount, status, invoice_id, created_at, updated_at)
+  values (
+    referral_tx_id,
+    referrer.id,
+    'referral',
+    'Referral - @' || coalesce(nullif(invitee.username, ''), nullif(invitee.first_name, ''), p_user_id::text) || ' deposit ' || p_deposit_amount::text || ' TON',
+    commission,
+    'completed',
+    coalesce(p_deposit_tx_id, ''),
+    now_ms,
+    now()
+  )
+  on conflict (id) do nothing;
+
+  get diagnostics inserted_count = row_count;
+  if inserted_count = 0 then
+    return false;
+  end if;
+
+  update users
+  set balance = balance + commission,
+      referral_commission = referral_commission + commission,
+      referral_deposit_volume = referral_deposit_volume + p_deposit_amount,
+      updated_at = now()
+  where id = referrer.id;
+
+  return true;
+end;
+$$;
+
+grant execute on function credit_referral_commission(bigint, numeric, text, bigint) to anon, authenticated;
+
+create or replace function repair_referral_commissions()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deposit_tx record;
+  repaired_count int := 0;
+  credited boolean := false;
+begin
+  for deposit_tx in
+    select id, user_id, abs(amount) as amount, created_at
+    from transactions
+    where type = 'deposit'
+      and status = 'completed'
+      and amount <> 0
+    order by created_at asc
+  loop
+    select credit_referral_commission(
+      deposit_tx.user_id,
+      deposit_tx.amount,
+      deposit_tx.id,
+      deposit_tx.created_at
+    )
+    into credited;
+
+    if credited then
+      repaired_count := repaired_count + 1;
+    end if;
+  end loop;
+
+  return repaired_count;
+end;
+$$;
+
+grant execute on function repair_referral_commissions() to anon, authenticated;
+
 create or replace function delete_user_data(
   p_user_id bigint
 ) returns boolean
@@ -587,6 +713,12 @@ select 'function.record_deposit',
 union all
 select 'function.register_referral_user',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='register_referral_user')
+union all
+select 'function.credit_referral_commission',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='credit_referral_commission')
+union all
+select 'function.repair_referral_commissions',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='repair_referral_commissions')
 union all
 select 'function.delete_user_data',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='delete_user_data')

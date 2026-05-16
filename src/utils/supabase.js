@@ -221,6 +221,22 @@ export async function getUserReferredBy(telegramId) {
  * @param {string} depositTxId - ID của deposit transaction (để idempotency)
  */
 export async function creditReferralViaServer(userId, depositAmount, depositTxId) {
+  const fallbackToRpc = async (edgeData = null) => {
+    try {
+      const { data, error } = await supabase.rpc('credit_referral_commission', {
+        p_user_id: Number(userId),
+        p_deposit_amount: Number(depositAmount),
+        p_deposit_tx_id: String(depositTxId || ''),
+        p_now: Date.now(),
+      })
+      if (error) throw error
+      return { ok: true, credited: !!data, source: 'rpc' }
+    } catch (rpcError) {
+      console.warn('[creditReferralViaRpc] failed (non-fatal):', rpcError)
+      return edgeData || null
+    }
+  }
+
   try {
     const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import('./config.js')
     const url = SUPABASE_URL.replace('/rest/v1', '') + '/functions/v1/credit-referral'
@@ -236,13 +252,14 @@ export async function creditReferralViaServer(userId, depositAmount, depositTxId
         deposit_tx_id:  depositTxId,
       }),
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
     console.log('[creditReferralViaServer]', data)
-    return data
+    if (res.ok && data?.ok) return data
+    return fallbackToRpc(data)
   } catch (e) {
     // Non-fatal: deposit đã success, chỉ referral fail
     console.warn('[creditReferralViaServer] failed (non-fatal):', e)
-    return null
+    return fallbackToRpc(null)
   }
 }
 

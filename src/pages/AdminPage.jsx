@@ -739,7 +739,8 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     })
   }
 
-  const refLink = botUsername.trim() ? `https://t.me/${botUsername.trim()}?start=${currentUserId}` : '(enter bot username to preview)'
+  const cleanBotUsername = botUsername.trim().replace(/^@/, '')
+  const refLink = cleanBotUsername ? `https://t.me/${cleanBotUsername}?startapp=${currentUserId}` : '(enter bot username to preview)'
 
   return (
     <div className="adm-section settings-panel">

@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       referrer_id: referrer.id,
       commission,
       deposit_volume: deposit_amount,
-      new_friend: isNewFriend,
+      new_friend: false,
     })
   } catch (err) {
     console.error('[credit-referral]', err)
