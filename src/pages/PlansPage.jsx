@@ -104,11 +104,15 @@ export default function PlansPage({ plans, onDeposit, config }) {
         </div>
 
         {/* Range guide */}
-        <div className="plan-range-guide" style={{marginBottom:12}}>
+        <div className="plan-range-guide">
           {plans.map(p => (
             <div key={p.id} className={`prg-item ${autoPlan?.id === p.id ? 'active ' + p.color : ''}`}>
               <div className="prg-tier">{p.tier}</div>
-              <div className="prg-range">{formatTon(p.min)}-{p.max ? formatTon(p.max) : 'No limit'}</div>
+              <div className="prg-range">
+                <span>{formatTon(p.min)}</span>
+                <span className="prg-sep">to</span>
+                <span>{p.max ? formatTon(p.max) : 'No limit'}</span>
+              </div>
               <div className="prg-rate">{formatPct(p.rate)}</div>
             </div>
           ))}
