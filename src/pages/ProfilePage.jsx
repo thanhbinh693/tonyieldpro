@@ -61,9 +61,7 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
   const [showDisconnect, setShowDisconnect] = useState(false)
 
   const refRate = config?.referralRate ?? 5
-  const referralIncome = Number(referral?.commission) || 0
   const totalProfit = Number(user?.todayProfit) || 0
-  const netPnl = totalProfit + referralIncome
 
   const copyRef = () => {
     // referral.code is already a full https://t.me/... link when botUsername is configured
@@ -171,22 +169,6 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
           <Shield size={16} color="#0098EA" /> Admin Panel · Tap to enter
         </div>
       )}
-
-      <div className="ref-full card">
-        <div className="rf-header">
-          <div>
-            <div className="rf-title">PERFORMANCE OVERVIEW</div>
-            <div className="rf-sub">Net P&L is calculated from profit and referral income.</div>
-          </div>
-        </div>
-        <div className="rf-stats">
-          <div className="rfs-item"><div className="rfs-val">{formatTon(user?.totalDeposit)}</div><div className="rfs-label">Total Deposited</div></div>
-          <div className="rfs-item"><div className="rfs-val">{formatTon(user?.totalWithdraw)}</div><div className="rfs-label">Total Withdrawn</div></div>
-          <div className="rfs-item"><div className="rfs-val">{formatTon(totalProfit)}</div><div className="rfs-label">Total Profit Earned</div></div>
-          <div className="rfs-item"><div className="rfs-val">{formatTon(referralIncome)}</div><div className="rfs-label">Referral Income</div></div>
-          <div className="rfs-item"><div className="rfs-val" style={{color:'var(--gold)'}}>{formatTon(netPnl, true)}</div><div className="rfs-label">Net P&L</div></div>
-        </div>
-      </div>
 
       <div className="ref-full card">
         <div className="rf-header">

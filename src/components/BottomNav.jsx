@@ -1,12 +1,11 @@
 import React from 'react'
-import { Home, Layers, TrendingUp, User } from 'lucide-react'
+import { Home, Layers, User } from 'lucide-react'
 import './BottomNav.css'
 
 export default function BottomNav({ tab, setTab }) {
   const tabs = [
     { id: 'home', label: 'HOME', Icon: Home },
     { id: 'plans', label: 'MARKETS', Icon: Layers },
-    { id: 'portfolio', label: 'PORTFOLIO', Icon: TrendingUp },
     { id: 'profile', label: 'ACCOUNT', Icon: User },
   ]
 

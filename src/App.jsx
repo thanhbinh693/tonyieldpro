@@ -44,12 +44,12 @@ export default function App() {
   return (
     <div className="app">
       <div className="noise" />
-      <div className={`glow-top glow-gold  ${tab === 'home' || tab === 'portfolio' ? 'on' : ''}`} />
+      <div className={`glow-top glow-gold  ${tab === 'home' ? 'on' : ''}`} />
       <div className={`glow-top glow-blue  ${tab === 'plans' ? 'on' : ''}`} />
       <div className={`glow-top glow-purple${tab === 'profile' ? 'on' : ''}`} />
 
       <div className="pages">
-        {(tab === 'home' || tab === 'portfolio') && <HomePage {...appState} onDeposit={openDeposit} onWithdraw={openWithdraw} />}
+        {tab === 'home' && <HomePage {...appState} onDeposit={openDeposit} onWithdraw={openWithdraw} />}
         {tab === 'plans' && <PlansPage {...appState} onDeposit={openDeposit} />}
         {tab === 'profile' && <ProfilePage {...appState} />}
       </div>
