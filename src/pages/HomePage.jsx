@@ -226,6 +226,26 @@ const formatYieldName = (name) => {
     .replace(/\bElite\b/gi, 'VIP Yield')
   return /\byield\b/i.test(v) ? v : `${v} Yield`
 }
+const formatYieldLabel = (label) => String(label || '')
+  .replace(/\bBasic\b/gi, 'Starter Yield')
+  .replace(/\bProfessional\b/gi, 'Pro Yield')
+  .replace(/\bElite\b/gi, 'VIP Yield')
+  .replace(/\bYield\s+Yield\b/gi, 'Yield')
+const yieldNameByMarketId = (id) => {
+  const marketId = Number(String(id || '').replace(/^plan-/, ''))
+  if (marketId === 1) return 'Starter Yield'
+  if (marketId === 2) return 'Pro Yield'
+  if (marketId === 3) return 'VIP Yield'
+  return ''
+}
+const formatMarketIdLabel = (key, planName = '') => {
+  const normalizedKey = String(key || '')
+  if (normalizedKey.startsWith('plan-')) {
+    const marketName = planName || yieldNameByMarketId(normalizedKey)
+    return marketName ? `Market ID ${formatYieldName(marketName)}` : `Market ID ${normalizedKey.replace(/^plan-/, '')}`
+  }
+  return `Market ID ${normalizedKey}`
+}
 
 const statusBadge = (s) => {
   const map = { completed:'badge-ok', approved:'badge-ok', done:'badge-ok', rejected:'badge-err', failed:'badge-err' }
@@ -267,9 +287,18 @@ function getProfitPlanId(tx) {
 function getProfitPlanName(items, investments) {
   const first = items[0] || {}
   const key = getProfitPlanId(first)
-  const inv = investments.find(i => String(i.invoiceId || i.id || i.planId) === String(key))
+  const inv = investments.find(i => {
+    const ids = [i.invoiceId, i.id, i.planId, i.planId ? `plan-${i.planId}` : '']
+    return ids.some(id => String(id || '') === String(key))
+  })
   if (inv?.plan) return formatYieldName(inv.plan)
-  return String(first.label || '').replace(/^Profit collected ·\s*|^Profit ·\s*/i, '') || 'Plan'
+  const labelPlan = String(first.label || '')
+    .replace(/^Profit collected\s*[·-]\s*/i, '')
+    .replace(/^Profit\s*[·-]\s*/i, '')
+    .replace(/^Deposit\s*[·-]\s*/i, '')
+    .replace(/^Reinvest\s*[·-]\s*/i, '')
+    .trim()
+  return formatYieldName(labelPlan || yieldNameByMarketId(key) || 'Starter Yield')
 }
 
 function buildTxDisplayItems(items, investments) {
@@ -516,7 +545,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                   </div>
                   {inv.invoiceId && (
                     <div className="inv-id-row">
-                      <span className="inv-id-lbl">Basis ID</span>
+                      <span className="inv-id-lbl">Market ID</span>
                       <span className="inv-id-val">{inv.invoiceId}</span>
                     </div>
                   )}
@@ -612,8 +641,8 @@ export default function HomePage({ user, investments, transactions, plans, confi
                             {opened ? <Minus size={16} color="#FFD600" /> : <Plus size={16} color="#FFD600" />}
                           </div>
                           <div className="tx-inf">
-                            <div className="tx-n">Profit - {planName} Yield</div>
-                            <div className="tx-id">ID {item.key}. {item.items.length} distributions.</div>
+                            <div className="tx-n">Profit - {planName}</div>
+                            <div className="tx-id">{formatMarketIdLabel(item.key, planName)}. {item.items.length} distributions.</div>
                           </div>
                           <div className="tx-right">
                             <div className="tx-a pos">{formatTon(total, true)}</div>
@@ -626,7 +655,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                               <div key={tx.id} className="tx-row tx-profit-child">
                                 <div className={`tx-ico ${txClass.profit}`}><TxIconNode type="profit" /></div>
                                 <div className="tx-inf">
-                                  <div className="tx-n">{tx.label}</div>
+                                  <div className="tx-n">{formatYieldLabel(tx.label)}</div>
                                   <div className="tx-id">{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
                                 </div>
                                 <div className="tx-right">
@@ -646,8 +675,8 @@ export default function HomePage({ user, investments, transactions, plans, confi
                     <div key={tx.id} className="tx-row">
                       <div className={`tx-ico ${txClass[tx.type]}`}><TxIconNode type={tx.type} /></div>
                       <div className="tx-inf">
-                        <div className="tx-n">{tx.label}</div>
-                        {tx.invoiceId && <div className="tx-id">ID {tx.invoiceId}</div>}
+                        <div className="tx-n">{formatYieldLabel(tx.label)}</div>
+                        {tx.invoiceId && <div className="tx-id">Market ID {tx.invoiceId}</div>}
                       </div>
                       <div className="tx-right">
                         <div className={`tx-a ${shownAmount >= 0 ? 'pos' : 'neg'}`}>{formatTon(shownAmount, true)}</div>
