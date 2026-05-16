@@ -692,6 +692,8 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     Array.isArray(config.adminIds) ? config.adminIds.join(', ') : config.adminIds || String(currentUserId||'')
   )
   const [botUsername,  setBotUsername]  = useState(config.botUsername  || '')
+  const [withdrawalWebhookUrl, setWithdrawalWebhookUrl] = useState(config.withdrawalWebhookUrl || '')
+  const [withdrawalWebhookSecret, setWithdrawalWebhookSecret] = useState(config.withdrawalWebhookSecret || '')
   const [referralRate, setReferralRate] = useState(config.referralRate || 5)
   const [minWithdraw,  setMinWithdraw]  = useState(config.minWithdraw  || 5)
   const [tonNetwork,   setTonNetwork]   = useState(config.tonNetwork   || 'testnet')
@@ -707,14 +709,18 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const handleSave = () => {
     const parsedIds = adminIds.split(/[\s,]+/).map(s=>s.trim()).filter(Boolean).map(Number).filter(n=>!isNaN(n)&&n>0)
     const activeAdminWallet = tonNetwork === 'mainnet' ? adminWalletMainnet.trim() : adminWalletTestnet.trim()
+    const cleanWebhookUrl = withdrawalWebhookUrl.trim()
     if (!activeAdminWallet) { showToast(`Admin ${tonNetwork} wallet cannot be empty`,'err'); return }
     if (parsedIds.length === 0) { showToast('Add at least one Admin Telegram ID','err'); return }
+    if (cleanWebhookUrl && !/^https?:\/\//i.test(cleanWebhookUrl)) { showToast('Webhook URL must start with http:// or https://','err'); return }
     onSave({
       adminWallet: activeAdminWallet,
       adminWalletTestnet: adminWalletTestnet.trim(),
       adminWalletMainnet: adminWalletMainnet.trim(),
       adminIds: parsedIds,
       botUsername: botUsername.trim(),
+      withdrawalWebhookUrl: cleanWebhookUrl,
+      withdrawalWebhookSecret: withdrawalWebhookSecret.trim(),
       referralRate: +referralRate,
       minWithdraw: +minWithdraw,
       tonNetwork,
@@ -757,6 +763,41 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
         <div className="sg-ref-preview">
           <span className="sg-ref-label">Ref link preview:</span>
           <span className="sg-ref-url">{refLink}</span>
+        </div>
+      </div>
+
+      <div className="setting-group">
+        <div className="sg-label"><Link2 size={16} color="#0098EA" />Withdrawal Webhook URL</div>
+        <div className="sg-desc">Supabase triggers this endpoint whenever a withdrawal transaction becomes pending.</div>
+        <input
+          className="sg-input"
+          type="url"
+          value={withdrawalWebhookUrl}
+          onChange={e=>setWithdrawalWebhookUrl(e.target.value)}
+          placeholder="https://your-domain.com/api/withdraw-webhook"
+          spellCheck={false}
+        />
+      </div>
+
+      <div className="setting-group">
+        <div className="sg-label"><Lock size={16} color="#0098EA" />Webhook Secret</div>
+        <div className="sg-desc">Sent as x-webhook-secret so your processor can verify requests.</div>
+        <input
+          className="sg-input"
+          type="password"
+          value={withdrawalWebhookSecret}
+          onChange={e=>setWithdrawalWebhookSecret(e.target.value)}
+          placeholder="Optional shared secret"
+          spellCheck={false}
+        />
+      </div>
+
+      <div className="setting-group">
+        <div className="sg-label"><Cloud size={16} color="#0098EA" />Realtime WebSocket</div>
+        <div className="sg-desc">Supabase Realtime is active in code for users, positions, transactions, plans, notifications, and configuration.</div>
+        <div className="websocket-status">
+          <span className="websocket-dot" />
+          <span>POSTGRES CHANGES ENABLED</span>
         </div>
       </div>
 

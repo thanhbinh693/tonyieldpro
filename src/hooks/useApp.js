@@ -109,6 +109,8 @@ const DEFAULT_CONFIG = {
   adminWalletMainnet: '',
   adminIds: [...ADMIN_IDS],
   botUsername: '',
+  withdrawalWebhookUrl: '',
+  withdrawalWebhookSecret: '',
   tonNetwork: TON_NETWORK,
 }
 

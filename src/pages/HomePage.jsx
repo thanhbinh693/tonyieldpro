@@ -127,8 +127,9 @@ function PlanRing({ inv, onActivate, onCollect }) {
   if (expired) return null
 
   return (
-    <div className="rings-wrap">
-      <svg viewBox="0 0 100 100" className="rings-svg" style={{overflow:'visible'}}>
+    <>
+      <div className="rings-wrap">
+        <svg viewBox="0 0 100 100" className="rings-svg" style={{overflow:'visible'}}>
         <defs>
           <filter id="ringGlow" x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="2.5" result="blur"/>
@@ -180,10 +181,12 @@ function PlanRing({ inv, onActivate, onCollect }) {
           <animate attributeName="r" values="16;50;16" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
           <animate attributeName="opacity" values="0.3;0;0.3" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
         </circle>
-        <text x="50" y="46" className="ring-time-h">{fmt(h)}:{fmt(m)}</text>
-        <text x="50" y="57" className="ring-time-s">{fmt(s)}s</text>
-      </svg>
-    </div>
+          <text x="50" y="46" className="ring-time-h">{fmt(h)}:{fmt(m)}</text>
+          <text x="50" y="57" className="ring-time-s">{fmt(s)}s</text>
+        </svg>
+      </div>
+      <div className="inv-countdown-label">{fmt(h)}:{fmt(m)}:{fmt(s)}</div>
+    </>
   )
 }
 
@@ -212,13 +215,6 @@ const getGreeting = () => {
   if (h < 12) return 'Good morning'
   if (h < 18) return 'Good afternoon'
   return 'Good evening'
-}
-const formatCountdown = (ms) => {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const h = Math.floor(total / 3600)
-  const m = Math.floor((total % 3600) / 60)
-  const s = total % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 const formatYieldName = (name) => {
   const v = String(name || '')
@@ -575,9 +571,6 @@ export default function HomePage({ user, investments, transactions, plans, confi
                 </div>
                 <div className="inv-right">
                   <PlanRing inv={inv} onActivate={activateInvestment} onCollect={collectProfit} />
-                  <div className="inv-countdown-label">
-                    {!activeToday ? 'PAUSED' : formatCountdown(Math.max(0, inv.nextProfitTime - Date.now()))}
-                  </div>
                 </div>
               </div>
             </div>

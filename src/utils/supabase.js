@@ -276,6 +276,8 @@ export async function getAdminConfig(fallback = null) {
     adminWalletMainnet: data.admin_wallet_mainnet || '',
     adminIds:         data.admin_ids || [],
     botUsername:      data.bot_username || '',
+    withdrawalWebhookUrl: data.withdrawal_webhook_url || '',
+    withdrawalWebhookSecret: data.withdrawal_webhook_secret || '',
     tonNetwork:       data.ton_network || 'testnet',
   }
 }
@@ -289,15 +291,19 @@ export async function saveAdminConfig(cfg) {
       admin_wallet:     cfg.adminWallet,
       admin_wallet_testnet: cfg.adminWalletTestnet || cfg.adminWallet || '',
       admin_wallet_mainnet: cfg.adminWalletMainnet || '',
+      withdrawal_webhook_url: cfg.withdrawalWebhookUrl || '',
+      withdrawal_webhook_secret: cfg.withdrawalWebhookSecret || '',
       admin_ids:        cfg.adminIds || [],
       bot_username:     cfg.botUsername || '',
       ton_network:      cfg.tonNetwork || 'testnet',
       updated_at:       new Date().toISOString(),
   }
   let result = await supabase.from('admin_config').upsert(row, { onConflict: 'id' })
-  if (result.error && /admin_wallet_(testnet|mainnet)/i.test(result.error.message || '')) {
+  if (result.error && /(admin_wallet_(testnet|mainnet)|withdrawal_webhook_(url|secret))/i.test(result.error.message || '')) {
     delete row.admin_wallet_testnet
     delete row.admin_wallet_mainnet
+    delete row.withdrawal_webhook_url
+    delete row.withdrawal_webhook_secret
     result = await supabase.from('admin_config').upsert(row, { onConflict: 'id' })
   }
   check(result, 'saveAdminConfig')
