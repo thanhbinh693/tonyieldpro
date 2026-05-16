@@ -12,6 +12,11 @@
 
 .admin-hint { background:#f04f5a12;border:1px solid #f04f5a30;border-radius:10px;padding:10px 14px;font-size:12px;color:var(--red);font-weight:600;text-align:center;cursor:pointer;margin-bottom:12px; }
 
+.ref-page-header { display:flex;align-items:center;gap:12px;margin-bottom:12px; }
+.ref-back-btn { width:44px;height:44px;border:none;border-radius:14px;background:var(--s2);display:flex;align-items:center;justify-content:center;box-shadow:var(--ton-glow); }
+.ref-page-title { font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:.08em; }
+.ref-page-sub { font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:2px; }
+
 .ref-full { padding:18px;margin-bottom:12px; }
 .rf-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px; }
 .rf-title { font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:3px; }
