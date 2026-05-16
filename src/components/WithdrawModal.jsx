@@ -99,7 +99,7 @@ export default function WithdrawModal({
       <div className="overlay" onClick={e => e.target.classList.contains('overlay') && onClose()}>
         <div className="sheet" style={{ padding: '56px 24px 40px', textAlign: 'center' }}>
           <div className="handle" />
-          <div style={{ marginBottom: 16 }}><CheckCircle2 size={32} color="#FFD600" /></div>
+          <div style={{ marginBottom: 16 }}><CheckCircle2 size={32} color="var(--color-gold)" /></div>
           <h2 className="sheet-title" style={{ marginBottom: 8 }}>REQUEST SUBMITTED</h2>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.6 }}>
             Withdrawal request submitted for <b>{formatTon(amt)}</b>.<br />
@@ -127,15 +127,15 @@ export default function WithdrawModal({
         {/* ── Step 1: Connect wallet ────────────────────────────────────── */}
         {step === 'connect' && (
           <div className="wallet-connect-wrap">
-            <div className="wc-icon"><Wallet size={32} color="#0098EA" /></div>
+            <div className="wc-icon"><Wallet size={32} color="var(--color-ton)" /></div>
             <h2 className="sheet-title" style={{ marginTop: 8 }}>WITHDRAWAL REQUEST</h2>
             <p className="wc-desc">
               Connect your TON wallet to set the destination address.
             </p>
             <div className="wc-features">
-              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> Destination is read from TON Connect.</div>
-              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> No private keys are stored.</div>
-              <div className="wc-feat"><ShieldCheck size={16} color="#FFD600" /> Payout is handled by the withdrawal system.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Destination is read from TON Connect.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> No private keys are stored.</div>
+              <div className="wc-feat"><ShieldCheck size={16} color="var(--color-gold)" /> Payout is handled by the withdrawal system.</div>
             </div>
             <button
               className={`sheet-btn main ${loading ? 'btn-loading' : ''}`}
@@ -143,7 +143,7 @@ export default function WithdrawModal({
               onClick={handleConnect}
               disabled={loading}
             >
-              {loading ? <><span className="spinner" /><span className="btn-loading-text">CONNECTING...</span></> : <><Wallet size={16} color="#FFFFFF" /> CONNECT WALLET</>}
+              {loading ? <><span className="spinner" /><span className="btn-loading-text">CONNECTING...</span></> : <><Wallet size={16} color="var(--color-text)" /> CONNECT WALLET</>}
             </button>
             <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
           </div>
@@ -166,7 +166,7 @@ export default function WithdrawModal({
               marginBottom: 14, border: '1px solid var(--border)',
             }}>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>
-                <Wallet size={16} color="#94A3B8" /> DESTINATION WALLET
+                <Wallet size={16} color="var(--color-muted)" /> DESTINATION WALLET
               </div>
               {walletAddr ? (
                 <>
@@ -176,19 +176,19 @@ export default function WithdrawModal({
                   {/* Warning if current wallet differs from previously saved address */}
                   {user?.walletAddr && user.walletAddr !== walletAddr && (
                     <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 5 }}>
-                      <XCircle size={16} color="#FFD600" /> This address differs from the saved wallet.
+                      <XCircle size={16} color="var(--color-gold)" /> This address differs from the saved wallet.
                     </div>
                   )}
                 </>
               ) : (
                 <div style={{ fontSize: 13, color: 'var(--red)' }}>
-                  <XCircle size={16} color="#EF4444" /> No wallet connected.
+                  <XCircle size={16} color="var(--color-loss)" /> No wallet connected.
                 </div>
               )}
             </div>
 
             <div className="info-bar" style={{ marginBottom: 14 }}>
-              <Info size={16} color="#0098EA" /> Minimum: <b>{formatTon(minW)}</b>. Processing time: up to 24 hours.
+              <Info size={16} color="var(--color-ton)" /> Minimum: <b>{formatTon(minW)}</b>. Processing time: up to 24 hours.
             </div>
 
             {/* Amount input */}
@@ -237,7 +237,7 @@ export default function WithdrawModal({
               onClick={handleSubmit}
               disabled={!amt || loading}
             >
-              {loading ? <><span className="spinner" /><span className="btn-loading-text">SUBMITTING...</span></> : <><Send size={16} color="#FFFFFF" /> SUBMIT WITHDRAWAL</>}
+              {loading ? <><span className="spinner" /><span className="btn-loading-text">SUBMITTING...</span></> : <><Send size={16} color="var(--color-text)" /> SUBMIT WITHDRAWAL</>}
             </button>
             <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
           </>

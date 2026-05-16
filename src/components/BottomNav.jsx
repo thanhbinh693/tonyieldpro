@@ -14,7 +14,7 @@ export default function BottomNav({ tab, setTab }) {
       {tabs.map(t => (
         <div key={t.id} className={`ni ${tab===t.id?'on':''}`} onClick={() => setTab(t.id)}>
           <div className="ni-ico">
-            <t.Icon size={20} color={tab === t.id ? '#0098EA' : '#94A3B8'} />
+            <t.Icon size={20} color={tab === t.id ? 'var(--color-ton)' : 'var(--color-muted)'} />
           </div>
           <span className="ni-lbl">{t.label}</span>
           {tab === t.id && <div className="ni-active-dot"/>}

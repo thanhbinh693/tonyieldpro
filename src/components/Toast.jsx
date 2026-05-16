@@ -9,8 +9,8 @@ export default function Toast({ msg, type }) {
     <div className={`toast ${type} ${visible ? 'in' : ''}`}>
       <span className="toast-icon">
         {type === 'ok'
-          ? <CheckCircle2 size={16} color="#FFD600" />
-          : <XCircle size={16} color="#EF4444" />}
+          ? <CheckCircle2 size={16} color="var(--color-gold)" />
+          : <XCircle size={16} color="var(--color-loss)" />}
       </span>
       <span>{msg}</span>
     </div>

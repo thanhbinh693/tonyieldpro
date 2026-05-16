@@ -145,9 +145,8 @@ export default function ProfilePage({ user, referral, config, showToast, setIsAd
             </text>
           </svg>
         </div>
-        <div className="prof-name">ACCOUNT</div>
-        <div className="prof-id">@{user?.username || 'username'} · ID {user?.id}</div>
-        <div className="prof-id">Member since {memberSince(user?.joinDate)}</div>
+        <div className="prof-name">@{user?.username || user?.firstName || 'user'}</div>
+        <div className="prof-id">ID {user?.id}</div>
         <div className="prof-stats">
           <div className="ps-item">
             <div className="ps-val">{formatTon(user?.balance).replace(' TON','')}</div>

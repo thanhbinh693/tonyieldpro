@@ -1,39 +1,101 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:      #030304;
-  --s1:      rgba(15,17,21,.76);
-  --s2:      rgba(18,23,31,.78);
-  --s3:      rgba(25,34,46,.82);
-  --surface: #0F1115;
-  --border:  rgba(255,255,255,.08);
+  --font-heading: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  --text-display: clamp(2rem, 8vw, 3.5rem);
+  --text-h1: clamp(1.5rem, 5vw, 2.25rem);
+  --text-h2: clamp(1.25rem, 4vw, 1.75rem);
+  --text-h3: 1.125rem;
+  --text-lg: 1rem;
+  --text-base: .9375rem;
+  --text-sm: .8125rem;
+  --text-xs: .6875rem;
+
+  --color-void: #030304;
+  --color-surface: #0F1115;
+  --color-surface-2: #161A1F;
+  --color-surface-3: #1C2128;
+  --color-border: rgba(255,255,255,.08);
+  --color-border-hover: rgba(0,152,234,.40);
+  --color-border-active: rgba(0,152,234,.80);
+  --color-border-subtle: rgba(255,255,255,.04);
+  --color-text: #FFFFFF;
+  --color-muted: #94A3B8;
+  --color-muted-2: #64748B;
+  --color-muted-3: #334155;
+  --color-placeholder: rgba(255,255,255,.25);
+  --color-ton: #0098EA;
+  --color-ton-light: #00C2FF;
+  --color-ton-dark: #006DB3;
+  --color-ton-muted: rgba(0,152,234,.15);
+  --color-ton-border: rgba(0,152,234,.35);
+  --color-profit: #22C55E;
+  --color-profit-muted: rgba(34,197,94,.15);
+  --color-loss: #EF4444;
+  --color-loss-muted: rgba(239,68,68,.15);
+  --color-warning: #F59E0B;
+  --color-warning-muted: rgba(245,158,11,.15);
+  --color-gold: #FFD600;
+  --color-gold-warm: #F7931A;
+  --color-gold-muted: rgba(255,214,0,.15);
+  --color-overlay: rgba(0,0,0,.60);
+  --color-glass: rgba(15,17,21,.80);
+  --color-glass-light: rgba(255,255,255,.04);
+
+  --gradient-ton: linear-gradient(135deg, #0098EA 0%, #00C2FF 100%);
+  --gradient-ton-h: linear-gradient(to right, #006DB3, #0098EA, #00C2FF);
+  --gradient-gold: linear-gradient(135deg, #F7931A 0%, #FFD600 100%);
+  --gradient-gold-h: linear-gradient(to right, #EA580C, #F7931A, #FFD600);
+  --gradient-surface: linear-gradient(145deg, #161A1F 0%, #0F1115 60%, #0A0D11 100%);
+  --gradient-glow-ton: radial-gradient(circle at 50% 50%, rgba(0,152,234,.12) 0%, transparent 65%);
+  --gradient-glow-gold: radial-gradient(circle at 50% 50%, rgba(255,214,0,.08) 0%, transparent 65%);
+  --gradient-text-ton: linear-gradient(135deg, #0098EA 0%, #00C2FF 100%);
+  --gradient-text-gold: linear-gradient(135deg, #F7931A 0%, #FFD600 100%);
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.05);
+  --shadow-card-hover: 0 4px 20px rgba(0,0,0,.5), 0 0 0 1px rgba(0,152,234,.25), 0 0 30px -8px rgba(0,152,234,.20);
+  --shadow-btn-ton: 0 0 20px -4px rgba(0,152,234,.50), 0 4px 15px -4px rgba(0,152,234,.30);
+  --shadow-btn-ton-hover: 0 0 35px -4px rgba(0,152,234,.70), 0 4px 20px -4px rgba(0,152,234,.50);
+  --shadow-btn-gold: 0 0 20px -4px rgba(247,147,26,.50), 0 4px 15px -4px rgba(247,147,26,.30);
+  --shadow-input-focus: 0 4px 20px -8px rgba(0,152,234,.40);
+  --shadow-profit: 0 0 16px -4px rgba(34,197,94,.40);
+  --shadow-modal: 0 25px 60px rgba(0,0,0,.70), 0 0 0 1px rgba(255,255,255,.06);
+  --shadow-nav-active: 0 0 20px -4px rgba(0,152,234,.50);
+
+  --bg: var(--color-void);
+  --s1: rgba(15,17,21,.76);
+  --s2: rgba(18,23,31,.78);
+  --s3: rgba(25,34,46,.82);
+  --surface: var(--color-surface);
+  --border: var(--color-border);
   --border2: rgba(255,255,255,.12);
-  --text:    #FFFFFF;
-  --muted:   #94A3B8;
-  --muted2:  #64748B;
-  --text-muted: #94A3B8;
-  --gold:    #FFD600;
-  --gold2:   #FFE66D;
-  --blue:    #0077B6;
-  --blue2:   #38BDF8;
-  --purple:  #0891B2;
-  --purple2: #67C7E6;
-  --green:   #FFD600;
-  --red:     #FF4D6D;
-  --ton-glow: 0 0 18px rgba(0,119,182,.28);
-  --ton-glow-strong: 0 0 32px rgba(56,189,248,.34);
-  --gold-glow: 0 0 24px rgba(255,214,0,.32);
-  --glass: linear-gradient(145deg, rgba(15,17,21,.82), rgba(5,10,16,.64));
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --muted2: var(--color-muted-2);
+  --text-muted: var(--color-muted);
+  --gold: var(--color-gold);
+  --gold2: #FFE66D;
+  --blue: var(--color-ton);
+  --blue2: var(--color-ton-light);
+  --purple: var(--color-ton-dark);
+  --purple2: var(--color-ton-light);
+  --green: var(--color-profit);
+  --red: var(--color-loss);
+  --ton-glow: var(--shadow-btn-ton);
+  --ton-glow-strong: var(--shadow-btn-ton-hover);
+  --gold-glow: var(--shadow-btn-gold);
+  --glass: var(--gradient-surface);
   --glass-border: 1px solid rgba(255,255,255,.10);
-  --btn-ton: linear-gradient(135deg, #0077B6 0%, #38BDF8 100%);
-  --text-gradient: linear-gradient(135deg, #FFFFFF 0%, #BFE8F7 48%, #38BDF8 100%);
+  --btn-ton: var(--gradient-ton);
+  --text-gradient: linear-gradient(135deg, var(--color-text) 0%, #BFE8F7 48%, var(--color-ton-light) 100%);
   --r1: 14px; --r2: 18px; --r3: 22px;
-  --font: 'Inter', sans-serif;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font: var(--font-body);
+  --font-display: var(--font-heading);
 }
 
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
@@ -60,7 +122,129 @@ button { -webkit-tap-highlight-color: transparent; }
   background: var(--glass);
   border: var(--glass-border);
   backdrop-filter: blur(18px);
-  box-shadow: 0 0 24px rgba(0,152,234,.12);
+  box-shadow: var(--shadow-card);
+}
+
+.heading-display {
+  font-family: var(--font-mono);
+  font-size: var(--text-display);
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+
+.heading-page {
+  font-family: var(--font-heading);
+  font-size: var(--text-h1);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.heading-section {
+  font-family: var(--font-heading);
+  font-size: var(--text-h2);
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.heading-card {
+  font-family: var(--font-heading);
+  font-size: var(--text-h3);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.body-lg {
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.body-base {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.body-sm {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.mono-display {
+  font-family: var(--font-mono);
+  font-size: var(--text-display);
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+
+.mono-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 500;
+  letter-spacing: .02em;
+}
+
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.text-gradient-ton {
+  background: var(--gradient-text-ton);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-gold {
+  background: var(--gradient-text-gold);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.status-completed {
+  color: var(--color-profit);
+  background: var(--color-profit-muted);
+  border: 1px solid rgba(34,197,94,.25);
+}
+
+.status-pending {
+  color: var(--color-warning);
+  background: var(--color-warning-muted);
+  border: 1px solid rgba(245,158,11,.25);
+}
+
+.status-failed {
+  color: var(--color-loss);
+  background: var(--color-loss-muted);
+  border: 1px solid rgba(239,68,68,.25);
+}
+
+.status-active {
+  color: var(--color-ton);
+  background: var(--color-ton-muted);
+  border: 1px solid var(--color-ton-border);
+}
+
+.status-banned {
+  color: var(--color-loss);
+  background: var(--color-loss-muted);
+  border: 1px solid rgba(239,68,68,.25);
 }
 
 @keyframes shimmer {

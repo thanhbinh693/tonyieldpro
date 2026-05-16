@@ -12,7 +12,7 @@ export default function LoadingScreen({ mode = 'loading' }) {
       <div className="loading-orb" />
       <div className="loading-core">
         <div className="loading-logo-node">
-          <Icon size={isMaintenance ? 48 : 32} color="#0098EA" />
+          <Icon size={isMaintenance ? 48 : 32} color="var(--color-ton)" />
         </div>
         {isMaintenance ? (
           <>

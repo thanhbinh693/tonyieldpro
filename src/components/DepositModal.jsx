@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { CheckCircle2, Coins, Send, Wallet } from 'lucide-react'
 import './Modal.css'
 
-const colorMap = { gold: '#FFD600', blue: '#0098EA', purple: '#00C2FF' }
+const colorMap = { gold: 'var(--color-gold)', blue: 'var(--color-ton)', purple: 'var(--color-ton-light)' }
 const formatTon = (value) => `${(Number(value) || 0).toFixed(3)} TON`
 const formatPct = (value) => `${(Number(value) || 0).toFixed(1)}%`
 const formatDuration = (plan) => {
@@ -87,19 +87,19 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
         {/* ── Step: Connect Wallet ── */}
         {step === 'connect' && (
           <div className="wallet-connect-wrap">
-            <div className="wc-icon"><Wallet size={32} color="#0098EA" /></div>
+            <div className="wc-icon"><Wallet size={32} color="var(--color-ton)" /></div>
             <h2 className="sheet-title" style={{marginTop:8}}>NEW POSITION</h2>
             <p className="wc-desc">
               Connect your TON wallet to open a position from an external wallet.
             </p>
             <div className="wc-features">
-              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> Secured by TON Connect.</div>
-              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> No private keys are stored.</div>
-              <div className="wc-feat"><CheckCircle2 size={16} color="#FFD600" /> You confirm the transaction in your wallet.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Secured by TON Connect.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> No private keys are stored.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> You confirm the transaction in your wallet.</div>
             </div>
             <button className={`sheet-btn main ${loading ? 'btn-loading' : ''}`} style={{background:'linear-gradient(135deg,#0098EA,#00C2FF)',color:'#fff',marginTop:24}}
               onClick={handleConnectWallet} disabled={loading}>
-              {loading ? <><span className="spinner" /><span className="btn-loading-text">CONNECTING...</span></> : <><Wallet size={16} color="#FFFFFF" /> CONNECT WALLET</>}
+              {loading ? <><span className="spinner" /><span className="btn-loading-text">CONNECTING...</span></> : <><Wallet size={16} color="var(--color-text)" /> CONNECT WALLET</>}
             </button>
             <button className="sheet-btn ghost" onClick={onClose}>Cancel</button>
           </div>
@@ -121,7 +121,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
                   color: paymentMethod==='wallet' ? '#fff' : 'var(--muted)',
                   transition:'all 0.15s'
                 }}>
-                <Wallet size={16} color={paymentMethod === 'wallet' ? '#FFFFFF' : '#94A3B8'} /> TON Wallet
+                <Wallet size={16} color={paymentMethod === 'wallet' ? 'var(--color-text)' : 'var(--color-muted)'} /> TON Wallet
               </button>
               <button
                 onClick={() => setPaymentMethod('balance')}
@@ -132,7 +132,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
                   color: paymentMethod==='balance' ? '#fff' : 'var(--muted)',
                   transition:'all 0.15s'
                 }}>
-                <Coins size={16} color={paymentMethod === 'balance' ? '#FFFFFF' : '#94A3B8'} /> Account Balance
+                <Coins size={16} color={paymentMethod === 'balance' ? 'var(--color-text)' : 'var(--color-muted)'} /> Account Balance
               </button>
             </div>
 
