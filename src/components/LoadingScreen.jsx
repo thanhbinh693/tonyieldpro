@@ -17,7 +17,10 @@ export default function LoadingScreen({ mode = 'loading' }) {
         {isMaintenance ? (
           <>
             <div className="loading-title">SCHEDULED MAINTENANCE</div>
-            <div className="loading-subtitle">The system is temporarily unavailable. Operations will resume shortly.</div>
+            <div className="loading-subtitle maintenance-copy">
+              <span>The system is temporarily unavailable.</span>
+              <span>Operations will resume shortly.</span>
+            </div>
           </>
         ) : (
           <>

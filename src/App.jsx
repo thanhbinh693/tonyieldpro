@@ -26,7 +26,7 @@ export default function App() {
 
   if (appState.loading) return <LoadingScreen />
 
-  if (appState.config?.maintenanceMode && !(isAdmin && isAdminView)) {
+  if (appState.config?.maintenanceMode && !isAdmin) {
     return <LoadingScreen mode="maintenance" />
   }
 
