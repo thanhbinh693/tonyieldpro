@@ -166,6 +166,22 @@ export async function registerUser(telegramId, referredByCode = '', profile = {}
   }
 }
 
+function yieldNameByTier(tierOrName, id) {
+  const v = String(tierOrName || '').toLowerCase()
+  if (id === 1 || /starter|basic/.test(v)) return 'Starter Yield'
+  if (id === 2 || /\bpro\b|professional/.test(v)) return 'Pro Yield'
+  if (id === 3 || /vip|elite/.test(v)) return 'VIP Yield'
+  return String(tierOrName || 'Starter Yield')
+}
+
+function normalizeYieldText(text, planId) {
+  const preferred = yieldNameByTier(text, planId)
+  return String(text || preferred)
+    .replace(/\bBasic\b/gi, 'Starter Yield')
+    .replace(/\bProfessional\b/gi, 'Pro Yield')
+    .replace(/\bElite\b/gi, 'VIP Yield')
+}
+
 /** Find referrer by referral_code directly from DB */
 export async function getReferrerByCode(refCode) {
   if (!refCode) return null
@@ -369,7 +385,7 @@ export async function getAdminPlans(fallback = null) {
     const durationMs            = p.duration_ms             || (durationUnit === 'hours' ? p.duration * 3_600_000 : p.duration * 86_400_000)
     return {
       id:                    p.id,
-      name:                  p.name,
+      name:                  yieldNameByTier(p.tier || p.name, p.id),
       tier:                  p.tier,
       min:                   p.min_amount,
       max:                   p.max_amount,
@@ -518,7 +534,7 @@ function dbInvToApp(i) {
     || Math.round(profitIntervalMs / 60_000)
   return {
     id:                    i.id,
-    plan:                  i.plan,
+    plan:                  yieldNameByTier(i.plan, i.plan_id),
     planColor:             i.plan_color          || 'gold',
     amount:                i.amount,
     rate:                  Number(i.rate),
@@ -576,7 +592,7 @@ function dbTxToApp(t) {
   return {
     id:        t.id,
     type:      t.type,
-    label:     t.label,
+    label:     normalizeYieldText(t.label, t.plan_id),
     amount:    isReinvest ? -Math.abs(rawAmount) : rawAmount,
     status:    t.status,
     date:      t.created_at ? new Date(t.created_at).toLocaleString() : 'Unknown',

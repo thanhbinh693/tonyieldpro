@@ -219,6 +219,13 @@ const formatCountdown = (ms) => {
   const s = total % 60
   return `${m}m ${String(s).padStart(2, '0')}s`
 }
+const formatYieldName = (name) => {
+  const v = String(name || '')
+    .replace(/\bBasic\b/gi, 'Starter Yield')
+    .replace(/\bProfessional\b/gi, 'Pro Yield')
+    .replace(/\bElite\b/gi, 'VIP Yield')
+  return /\byield\b/i.test(v) ? v : `${v} Yield`
+}
 
 const statusBadge = (s) => {
   const map = { completed:'badge-ok', approved:'badge-ok', done:'badge-ok', rejected:'badge-err', failed:'badge-err' }
@@ -261,7 +268,7 @@ function getProfitPlanName(items, investments) {
   const first = items[0] || {}
   const key = getProfitPlanId(first)
   const inv = investments.find(i => String(i.invoiceId || i.id || i.planId) === String(key))
-  if (inv?.plan) return inv.plan
+  if (inv?.plan) return formatYieldName(inv.plan)
   return String(first.label || '').replace(/^Profit collected ·\s*|^Profit ·\s*/i, '') || 'Plan'
 }
 
@@ -504,7 +511,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
               <div className="inv-main">
                 <div className="inv-left">
                   <div className="inv-badge-row">
-                    <span className={`inv-badge ${inv.planColor}`}>{String(inv.plan || '').toUpperCase()} YIELD</span>
+                    <span className={`inv-badge ${inv.planColor}`}>{formatYieldName(inv.plan).toUpperCase()}</span>
                     <span className="tx-badge badge-ok">{activeToday ? 'ACTIVE' : 'PAUSED'}</span>
                   </div>
                   {inv.invoiceId && (

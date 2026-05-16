@@ -11,6 +11,16 @@ const formatDuration = (plan) => {
   return `${n} ${unit}${n === 1 ? '' : 's'}`
 }
 const formatDistribution = (minutes) => `Every ${Number(minutes) || 0} min`
+const formatYieldName = (plan) => {
+  if (plan?.id === 1) return 'Starter Yield'
+  if (plan?.id === 2) return 'Pro Yield'
+  if (plan?.id === 3) return 'VIP Yield'
+  const v = String(plan?.name || plan?.tier || '')
+    .replace(/\bBasic\b/gi, 'Starter Yield')
+    .replace(/\bProfessional\b/gi, 'Pro Yield')
+    .replace(/\bElite\b/gi, 'VIP Yield')
+  return /\byield\b/i.test(v) ? v : `${v} Yield`
+}
 
 function detectPlan(plans, amount) {
   const amt = parseFloat(amount) || 0
@@ -163,7 +173,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
               {autoPlan && (
                 <div className="auto-plan-badge" style={{background: planColor, color: planTextColor}}>
                   <Coins size={16} color={planTextColor} />
-                  <span>{autoPlan.tier || autoPlan.name} Yield - {formatPct(autoPlan.rate)} / cycle - {formatDuration(autoPlan)}</span>
+                  <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} / cycle - {formatDuration(autoPlan)}</span>
                   <span className="apb-tag">AUTO</span>
                 </div>
               )}

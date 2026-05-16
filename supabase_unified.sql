@@ -126,9 +126,9 @@ insert into plans (
   duration_ms, profit_interval_hours, profit_interval_minutes, profit_interval_ms,
   active_days, color, hot
 ) values
-  (1, 'Basic',        'Starter', 0.01, 0.99, 2.5, 1, 'hours', 3600000,  0.0833, 5,  300000,  '{0,1,2,3,4,5,6}', 'gold',   false),
-  (2, 'Professional', 'Pro',     1,    4.99, 3.0, 2, 'hours', 7200000,  0.25,   15, 900000,  '{0,1,2,3,4,5,6}', 'blue',   true),
-  (3, 'Elite',        'VIP',     5,    null, 3.5, 3, 'hours', 10800000, 0.5,    30, 1800000, '{0,1,2,3,4,5,6}', 'purple', false)
+  (1, 'Starter Yield', 'Starter', 0.01, 0.99, 2.5, 1, 'hours', 3600000,  0.0833, 5,  300000,  '{0,1,2,3,4,5,6}', 'gold',   false),
+  (2, 'Pro Yield',     'Pro',     1,    4.99, 3.0, 2, 'hours', 7200000,  0.25,   15, 900000,  '{0,1,2,3,4,5,6}', 'blue',   true),
+  (3, 'VIP Yield',     'VIP',     5,    null, 3.5, 3, 'hours', 10800000, 0.5,    30, 1800000, '{0,1,2,3,4,5,6}', 'purple', false)
 on conflict (id) do update set
   name = excluded.name,
   tier = excluded.tier,
@@ -149,6 +149,19 @@ on conflict (id) do update set
 update users
 set referral_code = cast(id as text)
 where referral_code is null or referral_code = '';
+
+update investments
+set plan = case
+  when plan ilike 'basic' then 'Starter Yield'
+  when plan ilike 'professional' then 'Pro Yield'
+  when plan ilike 'elite' then 'VIP Yield'
+  else plan
+end
+where plan ilike any (array['basic', 'professional', 'elite']);
+
+update transactions
+set label = replace(replace(replace(label, 'Basic', 'Starter Yield'), 'Professional', 'Pro Yield'), 'Elite', 'VIP Yield')
+where label ~* '(basic|professional|elite)';
 
 create index if not exists idx_users_referral_code on users (referral_code);
 create index if not exists idx_users_referred_by on users (referred_by);

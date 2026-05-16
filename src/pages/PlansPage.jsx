@@ -17,6 +17,16 @@ const formatDistribution = (minutes) => {
   const h = n / 60
   return `${h} hour${h === 1 ? '' : 's'}`
 }
+const formatYieldName = (plan) => {
+  if (plan?.id === 1) return 'Starter Yield'
+  if (plan?.id === 2) return 'Pro Yield'
+  if (plan?.id === 3) return 'VIP Yield'
+  const v = String(plan?.name || plan?.tier || '')
+    .replace(/\bBasic\b/gi, 'Starter Yield')
+    .replace(/\bProfessional\b/gi, 'Pro Yield')
+    .replace(/\bElite\b/gi, 'VIP Yield')
+  return /\byield\b/i.test(v) ? v : `${v} Yield`
+}
 
 function detectPlan(plans, amount) {
   const amt = parseFloat(amount) || 0
@@ -87,7 +97,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
               color: autoPlan.color === 'gold' ? '#080b12' : '#fff'
             }}>
               <Coins size={16} color={autoPlan.color === 'gold' ? '#080b12' : '#fff'} />
-              <span>{autoPlan.tier} Yield - {formatPct(autoPlan.rate)} per cycle - {formatDuration(autoPlan)}</span>
+              <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} per cycle - {formatDuration(autoPlan)}</span>
               <span className="apb-tag">AUTO</span>
             </div>
           )}
@@ -138,8 +148,8 @@ export default function PlansPage({ plans, onDeposit, config }) {
           {plan.hot && <div className="pc-hot-ribbon">★ TOP</div>}
           <div className="pc-top">
             <div>
-              <span className={`pc-badge ${plan.color}`}>{String(plan.tier || plan.name).toUpperCase()}</span>
-              <div className="pc-name">{String(plan.tier || plan.name).toUpperCase()} YIELD</div>
+              <span className={`pc-badge ${plan.color}`}>{formatYieldName(plan).replace(/\s+Yield$/i, '').toUpperCase()}</span>
+              <div className="pc-name">{formatYieldName(plan).toUpperCase()}</div>
               <div className="pc-range">Min. deposit {formatTon(plan.min)} · Max. deposit {plan.max ? formatTon(plan.max) : 'No limit'}</div>
             </div>
             <div className="pc-rate-wrap">
