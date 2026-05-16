@@ -50,10 +50,9 @@ export default function PlansPage({ plans, onDeposit, config }) {
   const durationMs = activePlan?.durationMs || (duration * (activePlan?.durationUnit === 'hours' ? 3_600_000 : 86_400_000))
 
   const profitPerInterval = amt * rate / 100
-  const intervalsPerHour = 60 / intervalMin
-  const hourlyProfit = profitPerInterval * intervalsPerHour
   const totalIntervals = Math.floor(durationMs / (intervalMin * 60_000))
   const totalProfit = profitPerInterval * totalIntervals
+  const cycleLabel = formatDistribution(intervalMin)
 
   const referralRate = config?.referralRate || 5
 
@@ -132,14 +131,8 @@ export default function PlansPage({ plans, onDeposit, config }) {
         <div className="calc-results">
           <div className="cr-item">
             <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${profitPerInterval.toFixed(3)} TON` : '---'}</div>
-            <div className="cr-label">Cycle</div>
+            <div className="cr-label">{cycleLabel}</div>
           </div>
-          <div className="cr-divider"/>
-          <div className="cr-item">
-            <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${hourlyProfit.toFixed(3)} TON` : '---'}</div>
-            <div className="cr-label">Hourly</div>
-          </div>
-          <div className="cr-divider"/>
           <div className="cr-item">
             <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${totalProfit.toFixed(3)} TON` : '---'}</div>
             <div className="cr-label">Total return</div>
