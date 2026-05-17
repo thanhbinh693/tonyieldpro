@@ -11,6 +11,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_URL, SUPABASE_ANON_KEY, DEFAULT_PLANS } from './config'
+import { secureApi } from './secureApi'
 
 // ─── Supabase client ──────────────────────────────────────────────────────────
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -68,6 +69,8 @@ export async function getUserBundle(telegramId) {
  * This prevents stale local state from overwriting correct DB values.
  */
 export async function saveUserBundle(telegramId, bundle) {
+  console.warn('[saveUserBundle] direct client writes are disabled; use secure-api actions instead.')
+  return null
   const id = Number(telegramId)
   const { user, investments = [], transactions = [], referral = {} } = bundle
 
@@ -119,8 +122,13 @@ export async function registerUser(telegramId, referredByCode = '', profile = {}
     p_referred_by_code: /^\d{5,15}$/.test(cleanRef) ? cleanRef : '',
   }
 
-  const { error: rpcError } = await supabase.rpc('register_referral_user', rpcPayload)
-  if (!rpcError) return
+  try {
+    await secureApi('register_user', { referred_by_code: rpcPayload.p_referred_by_code })
+    return
+  } catch (apiError) {
+    console.warn('[secure register_user] failed:', apiError)
+    throw apiError
+  }
 
   // Step 1: Try insert (new user). ignoreDuplicates avoids error for existing users.
   await supabase.from('users').upsert(
@@ -272,20 +280,10 @@ export async function getReferralDetails(telegramId) {
  * @param {string} depositTxId - ID của deposit transaction (để idempotency)
  */
 export async function creditReferralViaServer(userId, depositAmount, depositTxId) {
+  // Deprecated path. Referral credit now happens inside secure-api record_deposit.
+  // Keep this as a verified Edge Function call only; never fall back to direct RPC.
   const fallbackToRpc = async (edgeData = null) => {
-    try {
-      const { data, error } = await supabase.rpc('credit_referral_commission', {
-        p_user_id: Number(userId),
-        p_deposit_amount: Number(depositAmount),
-        p_deposit_tx_id: String(depositTxId || ''),
-        p_now: Date.now(),
-      })
-      if (error) throw error
-      return { ok: true, credited: !!data, source: 'rpc' }
-    } catch (rpcError) {
-      console.warn('[creditReferralViaRpc] failed (non-fatal):', rpcError)
-      return edgeData || null
-    }
+    return edgeData || null
   }
 
   try {
@@ -366,15 +364,7 @@ export async function saveAdminConfig(cfg) {
       ton_network:      cfg.tonNetwork || 'testnet',
       updated_at:       new Date().toISOString(),
   }
-  let result = await supabase.from('admin_config').upsert(row, { onConflict: 'id' })
-  if (result.error && /(admin_wallet_(testnet|mainnet)|withdrawal_webhook_(url|secret))/i.test(result.error.message || '')) {
-    delete row.admin_wallet_testnet
-    delete row.admin_wallet_mainnet
-    delete row.withdrawal_webhook_url
-    delete row.withdrawal_webhook_secret
-    result = await supabase.from('admin_config').upsert(row, { onConflict: 'id' })
-  }
-  check(result, 'saveAdminConfig')
+  await secureApi('admin_save_config', { row })
 }
 
 export async function getNotifications(userId) {
@@ -416,28 +406,18 @@ export async function getAllNotifications() {
 }
 
 export async function createNotification({ title, body, audience = 'all', userId = null, createdBy = null }) {
-  const payload = {
-    title: String(title || '').trim(),
-    body: String(body || '').trim(),
+  const data = await secureApi('admin_create_notification', {
+    title,
+    body,
     audience,
     user_id: audience === 'user' && userId ? Number(userId) : null,
     created_by: createdBy ? Number(createdBy) : null,
-  }
-  const { data, error } = await supabase
-    .from('notifications')
-    .insert(payload)
-    .select('*')
-    .single()
-  if (error) throw error
-  return data
+  })
+  return data.notification
 }
 
 export async function deleteNotification(notificationId) {
-  const { error } = await supabase
-    .from('notifications')
-    .delete()
-    .eq('id', notificationId)
-  if (error) throw error
+  await secureApi('admin_delete_notification', { notification_id: notificationId })
   return true
 }
 
@@ -504,10 +484,7 @@ export async function saveAdminPlans(plans) {
       updated_at:              new Date().toISOString(),
     }
   })
-  check(
-    await supabase.from('plans').upsert(rows, { onConflict: 'id' }),
-    'saveAdminPlans'
-  )
+  await secureApi('admin_save_plans', { rows })
 }
 
 // ─── ADMIN: get all users data ─────────────────────────────────────────────────

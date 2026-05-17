@@ -765,3 +765,77 @@ select 'realtime.admin_config',
        exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='admin_config');
 
 select * from tonyield_healthcheck order by check_name;
+
+-- ---------------------------------------------------------------------------
+-- Minimal security hardening
+-- ---------------------------------------------------------------------------
+-- Frontend code in Telegram Web/Mini App is inspectable. Keep anon read access
+-- for the current UI/realtime flow, but block direct client writes and direct
+-- money/admin RPC calls. Sensitive writes should go through Supabase Edge
+-- Function `secure-api`, which verifies Telegram initData and uses service role.
+
+drop policy if exists "allow_all_users" on users;
+drop policy if exists "allow_all_investments" on investments;
+drop policy if exists "allow_all_transactions" on transactions;
+drop policy if exists "allow_all_config" on admin_config;
+drop policy if exists "allow_all_plans" on plans;
+drop policy if exists "allow_all_notifications" on notifications;
+
+drop policy if exists "public_select_users" on users;
+drop policy if exists "public_select_investments" on investments;
+drop policy if exists "public_select_transactions" on transactions;
+drop policy if exists "public_select_config" on admin_config;
+drop policy if exists "public_select_plans" on plans;
+drop policy if exists "public_select_notifications" on notifications;
+
+create policy "public_select_users" on users
+  for select using (true);
+
+create policy "public_select_investments" on investments
+  for select using (true);
+
+create policy "public_select_transactions" on transactions
+  for select using (true);
+
+create policy "public_select_config" on admin_config
+  for select using (true);
+
+create policy "public_select_plans" on plans
+  for select using (true);
+
+create policy "public_select_notifications" on notifications
+  for select using (true);
+
+revoke execute on function credit_profit(bigint, text, numeric, numeric, bigint, bigint, text, text, bigint)
+  from anon, authenticated;
+revoke execute on function record_deposit(
+  bigint, text, text, numeric, boolean, text, text, text, int, text, text,
+  numeric, int, bigint, numeric, numeric, int[], bigint, bigint, bigint
+) from anon, authenticated;
+revoke execute on function register_referral_user(bigint, text, text, text)
+  from anon, authenticated;
+revoke execute on function credit_referral_commission(bigint, numeric, text, bigint)
+  from anon, authenticated;
+revoke execute on function repair_referral_commissions()
+  from anon, authenticated;
+revoke execute on function delete_user_data(bigint)
+  from anon, authenticated;
+revoke execute on function retry_stuck_withdrawals()
+  from anon, authenticated;
+
+grant execute on function credit_profit(bigint, text, numeric, numeric, bigint, bigint, text, text, bigint)
+  to service_role;
+grant execute on function record_deposit(
+  bigint, text, text, numeric, boolean, text, text, text, int, text, text,
+  numeric, int, bigint, numeric, numeric, int[], bigint, bigint, bigint
+) to service_role;
+grant execute on function register_referral_user(bigint, text, text, text)
+  to service_role;
+grant execute on function credit_referral_commission(bigint, numeric, text, bigint)
+  to service_role;
+grant execute on function repair_referral_commissions()
+  to service_role;
+grant execute on function delete_user_data(bigint)
+  to service_role;
+grant execute on function retry_stuck_withdrawals()
+  to service_role;

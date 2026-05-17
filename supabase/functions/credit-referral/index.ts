@@ -32,8 +32,24 @@ Deno.serve(async (req) => {
   if (!user_id || !deposit_amount || deposit_amount <= 0) {
     return json({ ok: false, error: 'Missing user_id or deposit_amount' }, 400)
   }
+  if (!deposit_tx_id) {
+    return json({ ok: false, error: 'Missing deposit_tx_id' }, 400)
+  }
 
   try {
+    const { data: depositTx } = await supabase
+      .from('transactions')
+      .select('id, user_id, type, status, amount')
+      .eq('id', deposit_tx_id)
+      .eq('user_id', user_id)
+      .eq('type', 'deposit')
+      .eq('status', 'completed')
+      .maybeSingle()
+
+    if (!depositTx || Math.abs(Number(depositTx.amount)) !== Number(deposit_amount)) {
+      return json({ ok: false, error: 'Deposit transaction not verified' }, 403)
+    }
+
     const { data: user } = await supabase
       .from('users')
       .select('referred_by, username, first_name')
@@ -66,7 +82,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, credited: false, reason: 'commission = 0' })
     }
 
-    const safeDepositTxId = deposit_tx_id || `${user_id}-${Date.now()}`
+    const safeDepositTxId = deposit_tx_id
     const refTxId = `ref-${referrer.id}-${user_id}-${safeDepositTxId}`
 
     const { data: existingTx } = await supabase

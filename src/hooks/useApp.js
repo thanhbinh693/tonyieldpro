@@ -23,11 +23,11 @@ import {
   registerUser,
   getReferralDetails,
   getAllUsersData,
-  creditReferralViaServer,
   getNotifications, getAllNotifications, createNotification, deleteNotification,
   getAdminConfig, saveAdminConfig,
   getAdminPlans, saveAdminPlans,
 } from '../utils/supabase'
+import { secureApi } from '../utils/secureApi'
 
 // ─── TON helpers ──────────────────────────────────────────────────────────────
 function crc32c(data) {
@@ -206,17 +206,12 @@ export function useApp() {
         registerUser(tid, referredByCode, tgUser).catch(e => console.warn('[registerUser]', e))
 
         if (tgUser.id) {
-          supabase.from('users').update({
-            username:   tgUser.username   || '',
-            first_name: tgUser.first_name || '',
-          }).eq('id', Number(tid)).then(() => {
-            setUser(p => ({
-              ...p,
-              username:  tgUser.username   || p.username,
-              firstName: tgUser.first_name || p.firstName,
-              photoUrl:  tgUser.photo_url  || p.photoUrl,
-            }))
-          }).catch(() => {})
+          setUser(p => ({
+            ...p,
+            username:  tgUser.username   || p.username,
+            firstName: tgUser.first_name || p.firstName,
+            photoUrl:  tgUser.photo_url  || p.photoUrl,
+          }))
         }
       } catch(e) { console.warn('[load]', e) }
       finally { setLoading(false) }
@@ -361,68 +356,16 @@ export function useApp() {
     .filter(i => i.status === 'active')
     .map(enrichInvestment)
 
-  // ─── Referral commission — server-side via Edge Function ─────────────────
-  // Được gọi sau khi deposit tx đã insert vào DB.
-  // Edge Function credits every deposit and keeps idempotency by deposit tx id.
-  const applyReferralCommission = useCallback(async (amount, txId) => {
-    try {
-      await creditReferralViaServer(tid, parseFloat(amount), txId)
-    } catch(e) { console.warn('[applyReferralCommission]', e) }
-  }, [tid])
-
   const recordDeposit = useCallback(async ({ amt, txId, newInv, dbInv, plan, fromBalance }) => {
-    const rpcPayload = {
-      p_user_id: Number(tid),
-      p_username: user.username || tgUser.username || '',
-      p_first_name: user.firstName || tgUser.first_name || '',
-      p_amount: amt,
-      p_from_balance: !!fromBalance,
-      p_tx_id: txId,
-      p_inv_id: newInv.id,
-      p_invoice_id: newInv.invoiceId,
-      p_plan_id: plan.id,
-      p_plan: plan.name,
-      p_plan_color: plan.color,
-      p_rate: plan.rate,
-      p_days_total: plan.duration,
-      p_profit_interval_ms: dbInv.profit_interval_ms,
-      p_profit_interval_minutes: dbInv.profit_interval_minutes,
-      p_profit_interval_hours: dbInv.profit_interval_hours,
-      p_active_days: dbInv.active_days,
-      p_start_time: dbInv.start_time,
-      p_end_time: dbInv.end_time,
-      p_next_profit_time: dbInv.next_profit_time,
-    }
-
-    const { data, error } = await supabase.rpc('record_deposit', rpcPayload)
-    if (!error) return data?.[0] || null
-    if (!/record_deposit/i.test(error.message || '')) throw error
-
-    const { data: dbUser } = await supabase
-      .from('users').select('balance, total_deposit').eq('id', Number(tid)).maybeSingle()
-    const currentBal = Number(dbUser?.balance) || 0
-    const currentDep = Number(dbUser?.total_deposit) || 0
-    if (fromBalance && currentBal < amt) throw new Error('Insufficient balance')
-    const nextBal = +(currentBal - (fromBalance ? amt : 0)).toFixed(6)
-    const nextDep = +(currentDep + amt).toFixed(6)
-
-    await supabase.from('users').upsert({
-      id:Number(tid),
-      username: user.username || tgUser.username || '',
-      first_name: user.firstName || tgUser.first_name || '',
-      balance: nextBal,
-      total_deposit: nextDep,
-      referral_code:String(tid),
-      updated_at:new Date().toISOString(),
-    }, { onConflict:'id' })
-    await supabase.from('transactions').insert({
-      id:txId, user_id:Number(tid), type:'deposit',
-      label:`${fromBalance ? 'Reinvest' : 'Deposit'} · ${plan.name}`, amount:fromBalance ? -amt : amt,
-      status:'completed', invoice_id:newInv.invoiceId, plan_id:plan.id, created_at:dbInv.start_time,
+    return secureApi('record_deposit', {
+      amount: amt,
+      from_balance: !!fromBalance,
+      tx_id: txId,
+      inv_id: newInv.id,
+      invoice_id: newInv.invoiceId,
+      plan_id: plan.id,
     })
-    await supabase.from('investments').insert(dbInv)
-    return { balance: nextBal, total_deposit: nextDep }
-  }, [tid, user.username, user.firstName, tgUser.username, tgUser.first_name])
+  }, [])
 
   // ─── DEPOSIT ───────────────────────────────────────────────────────────────
   const submitDeposit = useCallback(async (planId, amount, paymentMethod = 'wallet') => {
@@ -473,7 +416,6 @@ export function useApp() {
       const txId = 'tx-'+now
       try {
         const saved = await recordDeposit({ amt, txId, newInv, dbInv, plan, fromBalance:true })
-        await applyReferralCommission(amount, txId)
         setUser(p => ({
           ...p,
           balance:Number(saved?.balance ?? Math.max(0, p.balance - amt)),
@@ -495,14 +437,6 @@ export function useApp() {
     }
 
     try {
-      await supabase.from('users').upsert({
-        id:Number(tid),
-        username: user.username || tgUser.username || '',
-        first_name: user.firstName || tgUser.first_name || '',
-        referral_code:String(tid),
-        updated_at:new Date().toISOString(),
-      }, { onConflict:'id' })
-
       await tonUI.sendTransaction({
         validUntil: Math.floor(now/1000)+600,
         messages: [{ address:aw, amount:toNano(amount), payload:buildPayload(iid) }],
@@ -511,9 +445,6 @@ export function useApp() {
       const amt = parseFloat(amount)
       const txId = 'tx-'+now
       const saved = await recordDeposit({ amt, txId, newInv, dbInv, plan, fromBalance:false })
-      // Credit referral commission after the deposit tx exists.
-      // The Edge Function credits every deposit and ignores duplicate tx ids.
-      await applyReferralCommission(amount, txId)
 
       setUser(p => ({
         ...p,
@@ -536,7 +467,7 @@ export function useApp() {
       else { console.error('[deposit]',e); showToast(`Transaction failed: ${m || 'please retry'}.`,'err') }
       return false
     }
-  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, recordDeposit, applyReferralCommission])
+  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, recordDeposit])
 
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
@@ -556,36 +487,18 @@ export function useApp() {
       const txId   = `tx-wd-${tid}-${now}-${Math.random().toString(36).slice(2,7)}`
       const newBal = +(user.balance - amount).toFixed(6)
 
-      const { data: dbUser } = await supabase
-        .from('users').select('status, balance').eq('id', Number(tid)).maybeSingle()
-      if (dbUser?.status === 'banned') { showToast('Account restricted.', 'err'); return false }
-      if (Number(dbUser?.balance) < amount) { showToast('Insufficient balance.', 'err'); return false }
-
-      const { error: balErr } = await supabase.from('users').upsert({
-        id:Number(tid), balance:newBal, wallet_addr:destWallet,
-        referral_code:String(tid), updated_at:new Date().toISOString(),
-      }, { onConflict: 'id' })
-      if (balErr) throw new Error('Failed to update balance')
-
-      const { error: txErr } = await supabase.from('transactions').insert({
-        id:txId, user_id:Number(tid), type:'withdraw',
-        label:`Withdrawal → ${destWallet.slice(0, 8)}...`,
-        amount, status:'pending', to_wallet:destWallet,
-        created_at:now, updated_at:new Date().toISOString(),
+      const saved = await secureApi('submit_withdraw', {
+        amount,
+        wallet_address: destWallet,
+        tx_id: txId,
       })
-      if (txErr) {
-        await supabase.from('users').update({
-          balance: user.balance, updated_at: new Date().toISOString(),
-        }).eq('id', Number(tid))
-        throw new Error(txErr.message || 'Failed to create transaction')
-      }
 
-      setUser(p => ({ ...p, balance: newBal, walletAddr: destWallet }))
+      setUser(p => ({ ...p, balance: Number(saved.balance ?? newBal), walletAddr: destWallet }))
       setTransactions(p => [{
         id:txId, type:'withdraw',
         label:`Withdrawal → ${destWallet.slice(0, 8)}...`,
         date:'Just now', amount, status:'pending',
-        toWallet:destWallet, createdAt:now, userId:tid,
+        toWallet:destWallet, createdAt:saved.created_at || now, userId:tid,
       }, ...p])
       showToast('Withdrawal request submitted.', 'ok')
       return true
@@ -620,13 +533,12 @@ export function useApp() {
 
     // DB write
     try {
-      await supabase.from('investments')
-        .update({
-          activated: true,
-          next_profit_time: nextProfitTime,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', invId)
+      const saved = await secureApi('activate_investment', { investment_id: invId })
+      if (saved.next_profit_time) {
+        setInvestments(p => p.map(i =>
+          i.id === invId ? { ...i, nextProfitTime: saved.next_profit_time } : i
+        ))
+      }
     } catch(e) {
       console.warn('[activate]', e)
       // Rollback
@@ -702,15 +614,7 @@ export function useApp() {
       return
     }
     try {
-      const rpcResult = await supabase.rpc('delete_user_data', { p_user_id: id })
-      if (rpcResult.error) {
-        await supabase.from('users').update({
-          referred_by: '',
-          updated_at: new Date().toISOString(),
-        }).eq('referred_by', String(id))
-        const { error } = await supabase.from('users').delete().eq('id', id)
-        if (error) throw error
-      }
+      await secureApi('admin_delete_user', { user_id: id })
       showToast('User deleted.','ok')
     } catch(e) {
       console.error('[adminDeleteUser]',e)
@@ -736,14 +640,10 @@ export function useApp() {
       if (updates.referralCommission !== undefined) referralPatch.referral_commission = Number(updates.referralCommission)
       if (updates.referralDepositVolume !== undefined) referralPatch.referral_deposit_volume = Number(updates.referralDepositVolume)
 
-      const { error: coreError } = await supabase.from('users').update(corePatch).eq('id', id)
-      if (coreError) throw coreError
+      await secureApi('admin_update_user', { user_id: id, patch: corePatch })
 
       if (Object.keys(referralPatch).length > 1) {
-        const { error: referralError } = await supabase.from('users').update(referralPatch).eq('id', id)
-        if (referralError && !/(referral_deposit_volume|referral_friends|referral_commission)/i.test(referralError.message || '')) {
-          throw referralError
-        }
+        await secureApi('admin_update_user', { user_id: id, patch: referralPatch })
       }
       if (id===Number(tid)) setUser(p => ({ ...p, ...updates }))
       showToast('User updated.','ok')
