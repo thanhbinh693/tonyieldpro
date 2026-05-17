@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || ''
+const BOT_TOKEN = normalizeBotToken(Deno.env.get('TELEGRAM_BOT_TOKEN') || '')
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 
@@ -319,18 +319,38 @@ async function verifyTelegramInitData(initData: string, botToken: string): Promi
   if (!hash || !authDate) return { ok: false, error: 'Invalid initData' }
   if (Math.abs(Date.now() / 1000 - authDate) > 86400) return { ok: false, error: 'Expired initData' }
 
-  const dataCheckString = [...params.entries()]
+  const buildDataCheckString = (source: URLSearchParams) => [...source.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join('\n')
 
   const secret = await hmacSha256(new TextEncoder().encode('WebAppData'), botToken)
-  const sig = await hmacSha256(secret, dataCheckString)
-  if (toHex(sig) !== hash) return { ok: false, error: 'Bad Telegram signature' }
+  const sig = await hmacSha256(secret, buildDataCheckString(params))
+
+  if (toHex(sig) !== hash) {
+    const withoutSignature = new URLSearchParams(params)
+    withoutSignature.delete('signature')
+    const fallbackSig = await hmacSha256(secret, buildDataCheckString(withoutSignature))
+    if (toHex(fallbackSig) !== hash) {
+      return { ok: false, error: 'Bad Telegram signature. Check TELEGRAM_BOT_TOKEN matches the Mini App bot, then redeploy secure-api.' }
+    }
+  }
 
   const userRaw = params.get('user')
   if (!userRaw) return { ok: false, error: 'Missing Telegram user' }
-  return { ok: true, user: JSON.parse(userRaw) }
+  try {
+    return { ok: true, user: JSON.parse(userRaw) }
+  } catch {
+    return { ok: false, error: 'Invalid Telegram user payload' }
+  }
+}
+
+function normalizeBotToken(token: string) {
+  return token
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .trim()
+    .replace(/^bot(?=\d+:)/i, '')
 }
 
 async function hmacSha256(key: Uint8Array, data: string) {

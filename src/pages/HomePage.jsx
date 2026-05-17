@@ -80,10 +80,7 @@ function PlanRing({ inv, onActivate, onCollect }) {
             <circle cx="50" cy="50" r={R_outer} fill="none" stroke={ringColor} strokeWidth="3.5"
               strokeDasharray={arc(R_outer, 0.15)} strokeLinecap="round" opacity="0.2"
               transform="rotate(-90 50 50)"/>
-            <text x="50" y="48" className="ring-time-h" style={{fontSize:'8px'}}>Wait</text>
-            <text x="50" y="59" className="ring-time-s" style={{fontSize:'7px'}}>{nextActiveDay}</text>
           </svg>
-          <div className="waiting-label">Waiting for<br/>active day</div>
         </div>
       )
     }
@@ -669,7 +666,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                     <div key={tx.id} className="tx-row">
                       <div className={`tx-ico ${txClass[tx.type]}`}><TxIconNode type={tx.type} /></div>
                       <div className="tx-inf">
-                        <div className="tx-n">{formatYieldLabel(tx.label)}</div>
+                        <div className="tx-n">{tx.type === 'withdraw' ? 'Withdrawal' : formatYieldLabel(tx.label)}</div>
                         {tx.invoiceId && <div className="tx-id">Market ID {tx.invoiceId}</div>}
                       </div>
                       <div className="tx-right">

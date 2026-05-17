@@ -43,6 +43,7 @@ Deploy functions:
 ```bash
 supabase functions deploy tick-profits --no-verify-jwt
 supabase functions deploy credit-referral --no-verify-jwt
+supabase functions deploy secure-api --no-verify-jwt
 supabase functions deploy telegram-webhook --no-verify-jwt
 supabase functions deploy process-withdrawal --no-verify-jwt
 ```
