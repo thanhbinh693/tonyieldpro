@@ -52,7 +52,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
   const profitPerInterval = amt * rate / 100
   const totalIntervals = Math.floor(durationMs / (intervalMin * 60_000))
   const totalProfit = profitPerInterval * totalIntervals
-  const cycleLabel = formatDistribution(intervalMin)
+  const intervalLabel = formatDistribution(intervalMin)
 
   const referralRate = config?.referralRate || 5
 
@@ -96,7 +96,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
               color: autoPlan.color === 'gold' ? '#080b12' : '#fff'
             }}>
               <Coins size={16} color={autoPlan.color === 'gold' ? '#080b12' : '#fff'} />
-              <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} per cycle - {formatDuration(autoPlan)}</span>
+              <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} every {formatDistribution(autoPlan.profitIntervalMinutes)} - {formatDuration(autoPlan)}</span>
               <span className="apb-tag">AUTO</span>
             </div>
           )}
@@ -131,7 +131,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
         <div className="calc-results">
           <div className="cr-item">
             <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${profitPerInterval.toFixed(3)} TON` : '---'}</div>
-            <div className="cr-label">{cycleLabel}</div>
+            <div className="cr-label">{intervalLabel}</div>
           </div>
           <div className="cr-item">
             <div className="cr-val" style={amt ? {color: planColor} : {}}>{amt ? `+${totalProfit.toFixed(3)} TON` : '---'}</div>
@@ -151,7 +151,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
             </div>
             <div className="pc-rate-wrap">
               <div className={`pc-rate ${plan.color}`}>{formatPct(plan.rate)}</div>
-              <div className="pc-per">per cycle</div>
+              <div className="pc-per">every {formatDistribution(plan.profitIntervalMinutes)}</div>
             </div>
           </div>
           {/* Active days chips */}
