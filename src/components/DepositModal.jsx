@@ -10,6 +10,12 @@ const formatDuration = (plan) => {
   const unit = plan?.durationUnit === 'hours' ? 'hour' : 'day'
   return `${n} ${unit}${n === 1 ? '' : 's'}`
 }
+const formatDistribution = (minutes) => {
+  const n = Number(minutes) || 0
+  if (n < 60) return `${n} min`
+  const h = n / 60
+  return `${h} hour${h === 1 ? '' : 's'}`
+}
 const formatYieldName = (plan) => {
   if (plan?.id === 1) return 'Starter Yield'
   if (plan?.id === 2) return 'Pro Yield'
@@ -172,7 +178,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
               {autoPlan && (
                 <div className="auto-plan-badge" style={{background: planColor, color: planTextColor}}>
                   <Coins size={16} color={planTextColor} />
-                  <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} / cycle - {formatDuration(autoPlan)}</span>
+                  <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} - {formatDistribution(intervalMin)} - {formatDuration(autoPlan)}</span>
                   <span className="apb-tag">AUTO</span>
                 </div>
               )}
@@ -210,7 +216,7 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
                 <div className="er-grid">
                   <div className="er-item">
                     <div className="er-val" style={{color: planColor}}>{perInterval ? `+${Number(perInterval).toFixed(3)} TON` : '---'}</div>
-                    <div className="er-lbl">Per cycle</div>
+                    <div className="er-lbl">{formatDistribution(intervalMin)}</div>
                   </div>
                   <div className="er-item">
                     <div className="er-val" style={{color: planColor}}>{autoPlan ? formatPct(autoPlan.rate) : '---'}</div>

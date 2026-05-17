@@ -96,7 +96,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
               color: autoPlan.color === 'gold' ? '#080b12' : '#fff'
             }}>
               <Coins size={16} color={autoPlan.color === 'gold' ? '#080b12' : '#fff'} />
-              <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} every {formatDistribution(autoPlan.profitIntervalMinutes)} - {formatDuration(autoPlan)}</span>
+              <span>{formatYieldName(autoPlan)} - {formatPct(autoPlan.rate)} - {formatDistribution(autoPlan.profitIntervalMinutes)} - {formatDuration(autoPlan)}</span>
               <span className="apb-tag">AUTO</span>
             </div>
           )}
@@ -151,7 +151,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
             </div>
             <div className="pc-rate-wrap">
               <div className={`pc-rate ${plan.color}`}>{formatPct(plan.rate)}</div>
-              <div className="pc-per">every {formatDistribution(plan.profitIntervalMinutes)}</div>
+              <div className="pc-per">{formatDistribution(plan.profitIntervalMinutes)}</div>
             </div>
           </div>
           {/* Active days chips */}
@@ -165,7 +165,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
           <div className="pc-divider"/>
           <div className="pc-features">
             <div className="pc-feat"><div className={`dot ${plan.color}`}/>Duration {formatDuration(plan)}</div>
-            <div className="pc-feat"><div className={`dot ${plan.color}`}/>Distribution every {formatDistribution(plan.profitIntervalMinutes)}</div>
+            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{formatDistribution(plan.profitIntervalMinutes)}</div>
             <div className="pc-feat"><div className={`dot ${plan.color}`}/>{formatPct(referralRate)} referral income</div>
             <div className="pc-feat"><div className={`dot ${plan.color}`}/>{(plan.activeDays||[1,2,3,4,5]).map(d=>DAY_NAMES[d]).join('-')} distributions</div>
           </div>

@@ -552,8 +552,11 @@ export default function HomePage({ user, investments, transactions, plans, confi
                         || (inv.profitIntervalMinutes ? inv.profitIntervalMinutes * 60_000 : 0)
                         || (inv.profitIntervalHours   ? inv.profitIntervalHours   * 3_600_000 : 0)
                         || 86_400_000
-                      if (ms < 3_600_000)  return `${formatPct(inv.rate)} / ${Math.round(ms/60_000)} min cycle`
-                      if (ms < 86_400_000) return `${formatPct(inv.rate)} / ${Math.round(ms/3_600_000)} hour cycle`
+                      if (ms < 3_600_000)  return `${formatPct(inv.rate)} / ${Math.round(ms/60_000)} min`
+                      if (ms < 86_400_000) {
+                        const hours = Math.round(ms/3_600_000)
+                        return `${formatPct(inv.rate)} / ${hours} hour${hours === 1 ? '' : 's'}`
+                      }
                       return `${formatPct(inv.rate)} / day`
                     })()}
                   </div>
