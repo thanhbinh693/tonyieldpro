@@ -8,6 +8,7 @@ create table if not exists users (
   balance numeric(18,6) default 0,
   total_deposit numeric(18,6) default 0,
   total_withdraw numeric(18,6) default 0,
+  total_profit numeric(18,6) default 0,
   today_profit numeric(18,6) default 0,
   referrals int default 0,
   wallet_addr text default '',
@@ -110,6 +111,7 @@ create table if not exists notifications (
 
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';
+alter table users add column if not exists total_profit numeric(18,6) default 0;
 alter table admin_config add column if not exists admin_wallet_testnet text default '';
 alter table admin_config add column if not exists admin_wallet_mainnet text default '';
 alter table admin_config add column if not exists withdrawal_webhook_url text default '';
@@ -117,6 +119,20 @@ alter table admin_config add column if not exists withdrawal_webhook_secret text
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';
 alter table transactions add column if not exists updated_at timestamptz default now();
+
+update users u
+set total_profit = coalesce(p.profit_amount, 0),
+    updated_at = now()
+from (
+  select user_id, round(sum(abs(amount))::numeric, 6) as profit_amount
+  from transactions
+  where type = 'profit'
+    and status = 'completed'
+  group by user_id
+) p
+where u.id = p.user_id
+  and coalesce(u.total_profit, 0) = 0
+  and coalesce(p.profit_amount, 0) > 0;
 
 insert into admin_config (id) values (1)
 on conflict (id) do update set updated_at = now();
@@ -226,6 +242,7 @@ begin
 
   update users
   set balance = balance + p_profit,
+      total_profit = total_profit + p_profit,
       today_profit = today_profit + p_profit,
       updated_at = now()
   where id = p_user_id;
@@ -686,6 +703,9 @@ select 'users.balance' as check_name,
 union all
 select 'users.total_deposit',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='total_deposit')
+union all
+select 'users.total_profit',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='total_profit')
 union all
 select 'users.referral_commission',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='referral_commission')

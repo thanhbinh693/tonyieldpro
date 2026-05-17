@@ -63,7 +63,7 @@ export async function getUserBundle(telegramId) {
 
 /**
  * Save user non-financial data to Supabase.
- * IMPORTANT: Does NOT write balance, total_deposit, total_withdraw, today_profit
+ * IMPORTANT: Does NOT write balance, total_deposit, total_withdraw, total_profit, today_profit
  * because those are now managed atomically by credit_profit RPC and backend API.
  * This prevents stale local state from overwriting correct DB values.
  */
@@ -563,6 +563,7 @@ function dbUserToApp(u) {
     balance:       Number(u.balance)        || 0,
     totalDeposit:  Number(u.total_deposit)  || 0,
     totalWithdraw: Number(u.total_withdraw) || 0,
+    totalProfit:   Number(u.total_profit)   || 0,
     todayProfit:   Number(u.today_profit)   || 0,
     referrals:     u.referrals     || 0,
     walletAddr:    u.wallet_addr   || '',
@@ -583,6 +584,7 @@ function appUserToDb(id, user, referral = {}) {
     balance:              Number(user?.balance)        || 0,
     total_deposit:        Number(user?.totalDeposit)   || 0,
     total_withdraw:       Number(user?.totalWithdraw)  || 0,
+    total_profit:         Number(user?.totalProfit)    || 0,
     today_profit:         Number(user?.todayProfit)    || 0,
     referrals:            user?.referrals     || 0,
     wallet_addr:          user?.walletAddr    || '',

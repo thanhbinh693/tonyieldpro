@@ -58,18 +58,13 @@ function DisconnectModal({ walletAddr, onClose, onConfirm }) {
 }
 
 // ─── ProfilePage ──────────────────────────────────────────────────────────────
-export default function ProfilePage({ user, investments = [], transactions = [], referral, referralDetails = [], config, showToast, setIsAdmin, isAdmin, walletConnected, disconnectWallet, connectWallet }) {
+export default function ProfilePage({ user, referral, referralDetails = [], config, showToast, setIsAdmin, isAdmin, walletConnected, disconnectWallet, connectWallet }) {
   const [showDisconnect, setShowDisconnect] = useState(false)
   const [showReferralPage, setShowReferralPage] = useState(false)
 
   const refRate = config?.referralRate ?? 5
   const todayProfit = Number(user?.todayProfit) || 0
-  const txProfitEarned = transactions
-    .filter(tx => tx.type === 'profit' && tx.status === 'completed')
-    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0)
-  const investmentProfitEarned = investments
-    .reduce((sum, inv) => sum + Math.abs(Number(inv.earned) || 0), 0)
-  const profitEarned = txProfitEarned > 0 ? txProfitEarned : investmentProfitEarned
+  const profitEarned = Number(user?.totalProfit) || 0
 
   const copyRef = () => {
     // referral.code is already a full https://t.me/... link when botUsername is configured

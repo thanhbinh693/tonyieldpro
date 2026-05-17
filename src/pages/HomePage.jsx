@@ -116,10 +116,7 @@ function PlanRing({ inv, onActivate, onCollect }) {
           <circle cx="50" cy="50" r={R_outer} fill="none" stroke={ringColor} strokeWidth="3.5"
             strokeDasharray={arc(R_outer, planPct)} strokeLinecap="round" opacity="0.35"
             transform="rotate(-90 50 50)"/>
-          <text x="50" y="46" className="ring-time-h" style={{fontSize:'9px',opacity:.6}}>Pause</text>
-          <text x="50" y="58" className="ring-time-s" style={{fontSize:'8px',opacity:.6}}>off</text>
         </svg>
-        <div className="paused-label">Resumes<br/>{nextActiveDay}</div>
       </div>
     )
   }

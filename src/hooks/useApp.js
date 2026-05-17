@@ -92,7 +92,7 @@ function mkDefaultUser(tgUser) {
     id: tgUser.id,
     username: tgUser.username || tgUser.first_name || 'user',
     firstName: tgUser.first_name || '',
-    balance: 0, totalDeposit: 0, totalWithdraw: 0, todayProfit: 0,
+    balance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0, todayProfit: 0,
     referrals: 0, walletAddr: '',
     photoUrl: tgUser.photo_url || '',
     joinDate: new Date().toISOString().split('T')[0],
@@ -727,6 +727,7 @@ export function useApp() {
       if (updates.balance        !== undefined) corePatch.balance         = Number(updates.balance)
       if (updates.totalDeposit   !== undefined) corePatch.total_deposit   = Number(updates.totalDeposit)
       if (updates.totalWithdraw  !== undefined) corePatch.total_withdraw  = Number(updates.totalWithdraw)
+      if (updates.totalProfit    !== undefined) corePatch.total_profit    = Number(updates.totalProfit)
       if (updates.todayProfit    !== undefined) corePatch.today_profit    = Number(updates.todayProfit)
       if (updates.referrals      !== undefined) corePatch.referrals       = Number(updates.referrals)
       if (updates.status         !== undefined) corePatch.status          = updates.status

@@ -526,6 +526,7 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
         <div className="ud-stat"><div className="ud-stat-val">{(u.balance||0).toFixed(2)}</div><div className="ud-stat-lbl">Balance (TON)</div></div>
         <div className="ud-stat"><div className="ud-stat-val" style={{color:'var(--green)'}}>{(+u.totalDeposit||0).toFixed(2)}</div><div className="ud-stat-lbl">Total Deposited</div></div>
         <div className="ud-stat"><div className="ud-stat-val" style={{color:'var(--red)'}}>{(+u.totalWithdraw||0).toFixed(2)}</div><div className="ud-stat-lbl">Total Withdrawn</div></div>
+        <div className="ud-stat"><div className="ud-stat-val" style={{color:'var(--green)'}}>{(+u.totalProfit||0).toFixed(2)}</div><div className="ud-stat-lbl">Total Profit</div></div>
         <div className="ud-stat"><div className="ud-stat-val" style={{color:'var(--gold)'}}>{(+u.todayProfit||0).toFixed(2)}</div><div className="ud-stat-lbl">Today Profit</div></div>
         <div className="ud-stat"><div className="ud-stat-val">{u.activeInvestments||0}</div><div className="ud-stat-lbl">Active Inv</div></div>
         <div className="ud-stat"><div className="ud-stat-val" style={{color:'var(--blue)'}}>{u.referralFriends||0}</div><div className="ud-stat-lbl">Referrals</div></div>
@@ -827,6 +828,7 @@ function UserEditor({ user, onSave, onCancel }) {
   const [balance,       setBalance]       = useState(user.balance||0)
   const [totalDeposit,  setTotalDeposit]  = useState(user.totalDeposit||0)
   const [totalWithdraw, setTotalWithdraw] = useState(user.totalWithdraw||0)
+  const [totalProfit,   setTotalProfit]   = useState(user.totalProfit||0)
   const [todayProfit,   setTodayProfit]   = useState(user.todayProfit||0)
   const [referrals,     setReferrals]     = useState(user.referrals||0)
   const [referralFriends, setReferralFriends] = useState(user.referralFriends||0)
@@ -841,13 +843,14 @@ function UserEditor({ user, onSave, onCancel }) {
       <div className="pe-row"><label>Balance</label><input type="number" value={balance} onChange={e=>setBalance(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Total Deposited</label><input type="number" value={totalDeposit} onChange={e=>setTotalDeposit(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Total Withdrawn</label><input type="number" value={totalWithdraw} onChange={e=>setTotalWithdraw(+e.target.value)} step="0.01"/></div>
+      <div className="pe-row"><label>Total Profit</label><input type="number" value={totalProfit} onChange={e=>setTotalProfit(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Today's Profit</label><input type="number" value={todayProfit} onChange={e=>setTodayProfit(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Referrals</label><input type="number" value={referrals} onChange={e=>setReferrals(+e.target.value)}/></div>
       <div className="pe-row"><label>Referral Friends</label><input type="number" value={referralFriends} onChange={e=>setReferralFriends(+e.target.value)}/></div>
       <div className="pe-row"><label>Referral Earned</label><input type="number" value={referralCommission} onChange={e=>setReferralCommission(+e.target.value)} step="0.01"/></div>
       <div className="pe-row"><label>Ref Deposit Volume</label><input type="number" value={referralDepositVolume} onChange={e=>setReferralDepositVolume(+e.target.value)} step="0.01"/></div>
       <div className="pe-btns">
-        <button className="pe-save" onClick={() => onSave({ balance, totalDeposit, totalWithdraw, todayProfit, referrals, referralFriends, referralCommission, referralDepositVolume })}><Save size={16} color="#FFFFFF" /> SAVE CHANGES</button>
+        <button className="pe-save" onClick={() => onSave({ balance, totalDeposit, totalWithdraw, totalProfit, todayProfit, referrals, referralFriends, referralCommission, referralDepositVolume })}><Save size={16} color="#FFFFFF" /> SAVE CHANGES</button>
         <button className="pe-cancel" onClick={onCancel}>CANCEL</button>
       </div>
     </div>
