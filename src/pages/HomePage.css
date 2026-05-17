@@ -394,11 +394,7 @@
   min-height: 126px;
   align-self: stretch;
   justify-content: center;
-  padding: 8px 6px;
-  border-radius: 18px;
-  background: rgba(15,17,21,.54);
-  border: 1px solid rgba(0,194,255,.12);
-  box-shadow: inset 0 0 18px rgba(0,152,234,.08);
+  padding: 8px 0;
 }
 
 .sec .rings-wrap {
