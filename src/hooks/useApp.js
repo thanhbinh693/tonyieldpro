@@ -94,6 +94,7 @@ function mkDefaultUser(tgUser) {
     firstName: tgUser.first_name || '',
     balance: 0, totalDeposit: 0, totalWithdraw: 0, todayProfit: 0,
     referrals: 0, walletAddr: '',
+    photoUrl: tgUser.photo_url || '',
     joinDate: new Date().toISOString().split('T')[0],
     status: 'active',
   }
@@ -213,6 +214,7 @@ export function useApp() {
               ...p,
               username:  tgUser.username   || p.username,
               firstName: tgUser.first_name || p.firstName,
+              photoUrl:  tgUser.photo_url  || p.photoUrl,
             }))
           }).catch(() => {})
         }

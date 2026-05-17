@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { ChevronLeft, ChevronRight, Copy, LogOut, Shield, Users, Wallet } from 'lucide-react'
+import { AvatarCard } from '../components/AvatarCard'
 import './ProfilePage.css'
 
 const formatTon = (value, signed = false) => {
@@ -182,80 +183,12 @@ export default function ProfilePage({ user, referral, referralDetails = [], conf
     <div className="page page-enter">
       <div style={{height:18}}/>
 
-      <div className="prof-hero card">
-        <div className="prof-hero-glow"/>
-        <div className="avatar-svg-wrap">
-          <svg viewBox="0 0 100 100" width="100" height="100" style={{overflow:'visible'}}>
-            <defs>
-              <filter id="profRingGlow" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="2.5" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-              <filter id="profRingGlowOuter" x="-60%" y="-60%" width="220%" height="220%">
-                <feGaussianBlur stdDeviation="4" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-            </defs>
-            {/* Track rings */}
-            <circle cx="50" cy="50" r="46" fill="none" stroke="#0d2a4a" strokeWidth="2"/>
-            <circle cx="50" cy="50" r="39" fill="none" stroke="#0d2a4a" strokeWidth="2"/>
-            <circle cx="50" cy="50" r="32" fill="none" stroke="#0d2a4a" strokeWidth="1.5"/>
-            {/* Dim backdrop full rings */}
-            <circle cx="50" cy="50" r="46" fill="none" stroke="#00d4ff" strokeWidth="2" opacity="0.06" strokeDasharray="289"/>
-            <circle cx="50" cy="50" r="39" fill="none" stroke="#00aaff" strokeWidth="2" opacity="0.06" strokeDasharray="245"/>
-            <circle cx="50" cy="50" r="32" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.06" strokeDasharray="201"/>
-            {/* Outer ring — cyan — spinning arc */}
-            <circle cx="50" cy="50" r="46" fill="none" stroke="#00d4ff" strokeWidth="2.2"
-              strokeDasharray="110 179" strokeLinecap="round" filter="url(#profRingGlowOuter)" opacity="0.95">
-              <animateTransform attributeName="transform" type="rotate"
-                from="0 50 50" to="360 50 50" dur="8s" repeatCount="indefinite"/>
-            </circle>
-            {/* Mid ring — electric blue — reverse */}
-            <circle cx="50" cy="50" r="39" fill="none" stroke="#00aaff" strokeWidth="2"
-              strokeDasharray="80 164" strokeLinecap="round" filter="url(#profRingGlow)" opacity="0.88">
-              <animateTransform attributeName="transform" type="rotate"
-                from="0 50 50" to="-360 50 50" dur="6s" repeatCount="indefinite"/>
-            </circle>
-            {/* Inner ring — bright cyan — fast spin */}
-            <circle cx="50" cy="50" r="32" fill="none" stroke="#00eeff" strokeWidth="1.8"
-              strokeDasharray="55 146" strokeLinecap="round" filter="url(#profRingGlow)" opacity="0.9">
-              <animateTransform attributeName="transform" type="rotate"
-                from="0 50 50" to="360 50 50" dur="3.5s" repeatCount="indefinite"/>
-            </circle>
-            {/* Ripple pulse */}
-            <circle cx="50" cy="50" r="46" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0">
-              <animate attributeName="r" values="46;68;46" dur="3s" begin="0s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.4;0;0.4" dur="3s" begin="0s" repeatCount="indefinite"/>
-            </circle>
-            <circle cx="50" cy="50" r="46" fill="none" stroke="#00aaff" strokeWidth="1" opacity="0">
-              <animate attributeName="r" values="46;68;46" dur="3s" begin="1.1s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.25;0;0.25" dur="3s" begin="1.1s" repeatCount="indefinite"/>
-            </circle>
-            {/* Avatar circle */}
-            <circle cx="50" cy="50" r="26" fill="var(--s2)"/>
-            <text x="50" y="57" textAnchor="middle"
-              style={{fontSize:24,fontWeight:600,fill:'var(--text)',fontFamily:'var(--font-display)'}}>
-              {user?.username?.[0]?.toUpperCase() || 'U'}
-            </text>
-          </svg>
-        </div>
-        <div className="prof-name">@{user?.username || user?.firstName || 'user'}</div>
-        <div className="prof-id">ID {user?.id}</div>
-        <div className="prof-stats">
-          <div className="ps-item">
-            <div className="ps-val">{formatTon(user?.balance).replace(' TON','')}</div>
-            <div className="ps-label">Portfolio Value</div>
-          </div>
-          <div className="ps-item">
-            <div className="ps-val" style={{color:'var(--green)'}}>{formatTon(totalProfit).replace(' TON','')}</div>
-            <div className="ps-label">Profit Earned</div>
-          </div>
-          <div className="ps-item">
-            <div className="ps-val" style={{color:'var(--blue)'}}>{referral?.friends}</div>
-            <div className="ps-label">Referred Users</div>
-          </div>
-        </div>
-      </div>
+      <AvatarCard
+        user={user}
+        balance={user?.balance}
+        todayProfit={totalProfit}
+        referredUsers={referral?.friends || 0}
+      />
 
       {isAdmin && (
         <div className="admin-hint" onClick={() => setIsAdmin(true)}>

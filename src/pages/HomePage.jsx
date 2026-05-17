@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ArrowDownCircle, ArrowUpCircle, Bell, ChevronRight, Minus, Pause, Play, Plus, Shield, Target, TrendingUp, Users } from 'lucide-react'
 import { DAY_NAMES_FULL } from '../utils/config'
+import { PlanRing as CountdownRing } from '../components/PlanRing'
 import './HomePage.css'
 
 const TODAY_DOW = new Date().getDay()
@@ -67,6 +68,31 @@ function PlanRing({ inv, onActivate, onCollect }) {
   const ringColorMid = '#00aaff'
   const activeToday = isPlanActiveToday(inv)
   const nextActiveDay = getNextActiveDay(inv)
+
+  if (!inv.activated || !activeToday) {
+    return (
+      <CountdownRing
+        nextProfitTime={inv.nextProfitTime}
+        intervalMs={intervalMs}
+        planColor={inv.planColor}
+        activated={!!inv.activated}
+        paused={!activeToday}
+        waitingLabel={!activeToday ? `Resumes ${nextActiveDay}` : ''}
+        size={100}
+        onActivate={() => activeToday && onActivate(inv.id)}
+      />
+    )
+  }
+
+  return (
+    <CountdownRing
+      nextProfitTime={inv.nextProfitTime}
+      intervalMs={intervalMs}
+      planColor={inv.planColor}
+      activated
+      size={100}
+    />
+  )
 
   // Not yet activated → show Activate button (or waiting if inactive day)
   if (!inv.activated) {

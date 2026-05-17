@@ -1,0 +1,111 @@
+.plan-ring-shell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-ring-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plan-ring-svg {
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+
+.plan-ring-arc {
+  transition: stroke-dashoffset 1s linear;
+}
+
+.plan-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  text-align: center;
+}
+
+.ring-timer {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ring-muted {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.ring-label {
+  font-family: var(--font-body);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ring-activate {
+  min-width: 64px;
+  min-height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: var(--gradient-ton);
+  color: var(--text);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  box-shadow: var(--shadow-btn-ton);
+}
+
+.plan-ring-status {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+@keyframes ring-urgent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.ring-timer.urgent {
+  color: var(--gold);
+  animation: ring-urgent-pulse 1s ease-in-out infinite;
+}
+
+@keyframes distributing-glow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(255,214,0,0.4)); }
+  50% { filter: drop-shadow(0 0 16px rgba(255,214,0,0.9)); }
+}
+
+.ring-distributing {
+  animation: distributing-glow 0.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-timer.urgent,
+  .ring-distributing {
+    animation: none;
+  }
+}

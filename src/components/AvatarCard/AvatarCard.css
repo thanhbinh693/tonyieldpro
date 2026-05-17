@@ -1,0 +1,173 @@
+.avatar-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(0,152,234,.18), transparent 34%),
+    var(--glass);
+  border: var(--glass-border);
+  border-radius: var(--r3);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(18px);
+  margin-bottom: 12px;
+}
+
+.avatar-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.avatar-card-identity {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.avatar-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.avatar-card-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avatar-card-username {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.avatar-card-id {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  width: fit-content;
+}
+
+.avatar-card-since {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--muted2);
+}
+
+.avatar-card-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border) 30%, var(--border) 70%, transparent);
+}
+
+.avatar-card-portfolio {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.avatar-card-balance {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  background: var(--gradient-text-ton);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.avatar-card-balance-label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--muted2);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.avatar-card-profit {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.avatar-card-metrics {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.avatar-card-metric {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(15,17,21,.72);
+  border: 1px solid rgba(255,255,255,.07);
+  backdrop-filter: blur(14px);
+}
+
+.avatar-card-metric-value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-card-metric-value.profit {
+  color: var(--green);
+}
+
+.avatar-card-metric-value.team {
+  color: var(--blue2);
+  text-shadow: var(--ton-glow);
+}
+
+.avatar-card-metric-label {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 380px) {
+  .avatar-card-balance { font-size: 18px; }
+  .avatar-card-name { font-size: 15px; }
+  .avatar-card-metric-value { font-size: 13px; }
+}

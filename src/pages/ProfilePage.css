@@ -1,15 +1,3 @@
-.prof-hero { padding:22px 20px;margin-bottom:12px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden; }
-.prof-hero-glow { position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:300px;height:200px;background:radial-gradient(ellipse,#8b5cf614,transparent 65%);pointer-events:none; }
-.avatar-svg-wrap { width:100px;height:100px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center; }
-.avatar-ring { width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--purple));padding:2px;margin:0 auto 14px; }
-.avatar-inner { width:100%;height:100%;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:28px;font-weight:600; }
-.prof-name { font-family:var(--font-display);font-size:20px;font-weight:600;margin-bottom:3px; }
-.prof-id { font-size:11px;color:var(--muted);font-weight:500; }
-.prof-stats { display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:12px;overflow:hidden;margin-top:18px;width:100%; }
-.ps-item { background:var(--s1);padding:12px 8px;text-align:center; }
-.ps-val { font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--gold); }
-.ps-label { font-size:10px;color:var(--muted);margin-top:2px; }
-
 .admin-hint { background:#f04f5a12;border:1px solid #f04f5a30;border-radius:10px;padding:10px 14px;font-size:12px;color:var(--red);font-weight:600;text-align:center;cursor:pointer;margin-bottom:12px; }
 
 .ref-page-header { display:flex;align-items:center;gap:12px;margin-bottom:12px; }
@@ -69,19 +57,12 @@
 .app-version { text-align:center;font-size:11px;color:var(--muted2);margin-top:4px;margin-bottom:8px; }
 
 /* TON DeFi aesthetic */
-.prof-hero,
 .ref-full,
 .ref-detail,
 .menu-list { background:var(--glass);border:var(--glass-border);backdrop-filter:blur(18px);box-shadow:0 0 24px rgba(0,152,234,.13);border-radius:22px; }
-.prof-hero-glow { background:radial-gradient(ellipse,rgba(0,152,234,.24),transparent 66%); }
-.prof-name { font-size:22px;font-weight:700;background:var(--text-gradient);-webkit-background-clip:text;background-clip:text;color:transparent; }
-.prof-stats { background:rgba(255,255,255,.08); }
-.ps-item,
 .rfs-item,
 .rf-code-box { background:rgba(15,17,21,.72);backdrop-filter:blur(14px); }
-.ps-val,
 .rfs-val { font-family:var(--font-mono); }
-.ps-val { color:var(--blue2);text-shadow:var(--ton-glow); }
 .rf-badge { background:rgba(255,214,0,.12);border-color:rgba(255,214,0,.30);box-shadow:var(--gold-glow); }
 .rf-code { color:var(--blue2);font-family:var(--font-mono); }
 .copy-btn { min-height:44px;border-radius:999px;background:var(--btn-ton);color:#fff;box-shadow:var(--ton-glow); }
