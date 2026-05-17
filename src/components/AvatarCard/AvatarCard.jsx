@@ -10,10 +10,11 @@ const formatSince = (value) => {
   return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
 }
 
-export function AvatarCard({ user, balance, todayProfit, referredUsers = 0 }) {
+export function AvatarCard({ user, balance, todayProfit, profitEarned, referredUsers = 0 }) {
   const [copied, setCopied] = useState(false)
   const name = user?.firstName || user?.username || 'Anonymous'
-  const profit = Number(todayProfit) || 0
+  const today = Number(todayProfit) || 0
+  const earned = Number(profitEarned) || 0
   const teamCount = Number(referredUsers) || 0
 
   const copyId = () => {
@@ -47,12 +48,12 @@ export function AvatarCard({ user, balance, todayProfit, referredUsers = 0 }) {
           <span className="avatar-card-balance">{(Number(balance) || 0).toFixed(3)} TON</span>
           <span className="avatar-card-balance-label">Portfolio Value</span>
         </div>
-        {profit > 0 && <span className="avatar-card-profit">+{profit.toFixed(3)} today</span>}
+        {today > 0 && <span className="avatar-card-profit">+{today.toFixed(3)} today</span>}
       </div>
 
       <div className="avatar-card-metrics">
         <div className="avatar-card-metric">
-          <span className="avatar-card-metric-value profit">{profit.toFixed(3)} TON</span>
+          <span className="avatar-card-metric-value profit">{earned.toFixed(3)} TON</span>
           <span className="avatar-card-metric-label">Profit Earned</span>
         </div>
         <div className="avatar-card-metric">
