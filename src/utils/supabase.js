@@ -428,7 +428,7 @@ export async function createNotification({ title, body, audience = 'all', userId
     user_id: audience === 'user' && userId ? Number(userId) : null,
     created_by: createdBy ? Number(createdBy) : null,
   })
-  return data.notification
+  return data
 }
 
 export async function deleteNotification(notificationId) {

@@ -687,8 +687,12 @@ export function useApp() {
     try {
       if (!String(title || '').trim()) { showToast('Notification title is required.','err'); return false }
       if (!String(body || '').trim()) { showToast('Notification message is required.','err'); return false }
-      await createNotification({ title, body, audience, userId, createdBy: tid })
-      showToast('Notification sent.','ok')
+      const result = await createNotification({ title, body, audience, userId, createdBy: tid })
+      const bot = result?.bot_delivery
+      const skipped = Number(bot?.skipped_no_chat) || 0
+      const skippedText = skipped ? ` ${skipped} no bot chat.` : ''
+      const botText = bot ? ` Bot: ${bot.sent}/${bot.attempted} sent.${skippedText}` : ''
+      showToast(`Notification sent.${botText}`,'ok')
       return true
     } catch(e) {
       console.error('[adminSendNotification]', e)

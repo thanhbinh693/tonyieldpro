@@ -285,6 +285,7 @@ async function adminCreateNotification(adminId: number, payload: Record<string, 
   const audience = payload.audience === 'user' ? 'user' : 'all'
   const userId = audience === 'user' ? Number(payload.user_id) : null
   if (!title || !body) return json({ ok: false, error: 'Missing notification content' }, 400)
+  if (audience === 'user' && !userId) return json({ ok: false, error: 'Missing user_id' }, 400)
   const { data, error } = await supabase.from('notifications').insert({
     title,
     body,
@@ -293,7 +294,9 @@ async function adminCreateNotification(adminId: number, payload: Record<string, 
     created_by: adminId,
   }).select('*').single()
   if (error) throw error
-  return json({ ok: true, notification: data })
+
+  const botDelivery = await sendNotificationToTelegram({ title, body, audience, userId })
+  return json({ ok: true, notification: data, bot_delivery: botDelivery })
 }
 
 async function adminDeleteNotification(adminId: number, payload: Record<string, unknown>) {
@@ -309,6 +312,126 @@ async function requireAdmin(userId: number) {
   const { data } = await supabase.from('admin_config').select('admin_ids').eq('id', 1).maybeSingle()
   const ids = Array.isArray(data?.admin_ids) ? data.admin_ids.map(Number) : []
   if (!ids.includes(Number(userId))) throw new Error('Admin only')
+}
+
+async function sendNotificationToTelegram(
+  notification: { title: string; body: string; audience: 'all' | 'user'; userId: number | null },
+) {
+  const recipients = await getTelegramRecipients(notification.audience, notification.userId)
+  if (recipients.chatIds.length === 0) {
+    return { attempted: 0, sent: 0, failed: 0, skipped_no_chat: recipients.skippedNoChat }
+  }
+
+  const text = formatTelegramNotification(notification.title, notification.body)
+  let sent = 0
+  let failed = 0
+
+  for (const recipient of recipients.chatIds) {
+    const result = await sendTelegramMessage(recipient.chatId, text)
+    if (result.ok) {
+      sent += 1
+    } else {
+      failed += 1
+      if (result.blocked) {
+        await supabase.from('users').update({
+          bot_blocked_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq('id', recipient.userId)
+      }
+    }
+    await sleep(35)
+  }
+
+  return { attempted: recipients.chatIds.length, sent, failed, skipped_no_chat: recipients.skippedNoChat }
+}
+
+async function getTelegramRecipients(audience: 'all' | 'user', userId: number | null): Promise<{
+  chatIds: Array<{ userId: number; chatId: number }>
+  skippedNoChat: number
+}> {
+  if (audience === 'user') {
+    if (!userId) return { chatIds: [], skippedNoChat: 0 }
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, bot_chat_id')
+      .eq('id', userId)
+      .maybeSingle()
+    if (error) {
+      console.warn('[telegram notification recipient]', error)
+      return { chatIds: [], skippedNoChat: 1 }
+    }
+    const chatId = Number(data?.bot_chat_id)
+    return chatId ? { chatIds: [{ userId, chatId }], skippedNoChat: 0 } : { chatIds: [], skippedNoChat: 1 }
+  }
+
+  const chatIds: Array<{ userId: number; chatId: number }> = []
+  let skippedNoChat = 0
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, bot_chat_id')
+      .neq('status', 'banned')
+      .is('bot_blocked_at', null)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) {
+      console.warn('[telegram notification recipients]', error)
+      break
+    }
+
+    const page = data || []
+    for (const u of page) {
+      const chatId = Number(u.bot_chat_id)
+      if (chatId) chatIds.push({ userId: Number(u.id), chatId })
+      else skippedNoChat += 1
+    }
+    if (page.length < pageSize) break
+  }
+  return { chatIds, skippedNoChat }
+}
+
+async function sendTelegramMessage(chatId: number, text: string) {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
+    })
+    if (!res.ok) {
+      const detail = await res.text()
+      console.warn('[telegram sendMessage]', chatId, res.status, detail)
+      return {
+        ok: false,
+        blocked: res.status === 403 || /bot was blocked|chat not found|user is deactivated/i.test(detail),
+      }
+    }
+    const data = await res.json().catch(() => null)
+    return { ok: Boolean(data?.ok), blocked: false }
+  } catch (err) {
+    console.warn('[telegram sendMessage]', chatId, err)
+    return { ok: false, blocked: false }
+  }
+}
+
+function formatTelegramNotification(title: string, body: string) {
+  return `<b>${escapeHtml(title)}</b>\n\n${escapeHtml(body)}`
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function verifyTelegramInitData(initData: string, botToken: string): Promise<{ ok: boolean; user?: TelegramUser; error?: string }> {

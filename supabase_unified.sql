@@ -19,6 +19,9 @@ create table if not exists users (
   referral_commission numeric(18,6) default 0,
   referral_deposit_volume numeric(18,6) default 0,
   referred_by text default '',
+  bot_chat_id bigint,
+  bot_started_at timestamptz,
+  bot_blocked_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -112,6 +115,9 @@ create table if not exists notifications (
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';
 alter table users add column if not exists total_profit numeric(18,6) default 0;
+alter table users add column if not exists bot_chat_id bigint;
+alter table users add column if not exists bot_started_at timestamptz;
+alter table users add column if not exists bot_blocked_at timestamptz;
 alter table admin_config add column if not exists admin_wallet_testnet text default '';
 alter table admin_config add column if not exists admin_wallet_mainnet text default '';
 alter table admin_config add column if not exists withdrawal_webhook_url text default '';
@@ -181,6 +187,7 @@ where label ~* '(basic|professional|elite)';
 
 create index if not exists idx_users_referral_code on users (referral_code);
 create index if not exists idx_users_referred_by on users (referred_by);
+create index if not exists idx_users_bot_chat_id on users (bot_chat_id);
 create index if not exists idx_investments_user_id on investments (user_id);
 create index if not exists idx_investments_status on investments (status);
 create index if not exists idx_investments_due on investments (status, activated, next_profit_time);
@@ -799,6 +806,9 @@ select 'users.referral_commission',
 union all
 select 'users.referral_deposit_volume',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='referral_deposit_volume')
+union all
+select 'users.bot_chat_id',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='bot_chat_id')
 union all
 select 'admin_config.admin_wallet_testnet',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='admin_wallet_testnet')

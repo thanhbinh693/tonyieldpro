@@ -27,7 +27,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || ''
+const BOT_TOKEN = normalizeBotToken(Deno.env.get('TELEGRAM_BOT_TOKEN') || '')
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ async function sendMessage(chatId: number, text: string, parseMode = 'HTML') {
 
 // ─── Helper: upsert user vào DB ───────────────────────────────────────────────
 
-async function ensureUser(tgUser: TelegramUser) {
+async function ensureUser(tgUser: TelegramUser, chatId: number) {
   const id = tgUser.id
   await supabase.from('users').upsert(
     {
@@ -76,8 +76,12 @@ async function ensureUser(tgUser: TelegramUser) {
       referral_code: String(id),
       username:   tgUser.username   || '',
       first_name: tgUser.first_name || '',
+      bot_chat_id: chatId,
+      bot_started_at: new Date().toISOString(),
+      bot_blocked_at: null,
+      updated_at: new Date().toISOString(),
     },
-    { onConflict: 'id', ignoreDuplicates: true }
+    { onConflict: 'id' }
   )
 }
 
@@ -158,7 +162,7 @@ async function handleStart(message: TelegramMessage, startParam: string) {
   const userId = tgUser.id
 
   // 1. Đảm bảo user tồn tại trong DB
-  await ensureUser(tgUser)
+  await ensureUser(tgUser, message.chat.id)
 
   // 2. Nếu có start_param hợp lệ (referral code = Telegram ID dạng số)
   const isValidRef = /^\d{5,15}$/.test(startParam)
@@ -202,6 +206,8 @@ Deno.serve(async (req) => {
       return new Response('OK', { status: 200 })
     }
 
+    await ensureUser(message.from, message.chat.id)
+
     const text = message.text || ''
 
     // Xử lý lệnh /start [param]
@@ -227,3 +233,11 @@ Deno.serve(async (req) => {
     })
   }
 })
+
+function normalizeBotToken(token: string) {
+  return token
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .trim()
+    .replace(/^bot(?=\d+:)/i, '')
+}

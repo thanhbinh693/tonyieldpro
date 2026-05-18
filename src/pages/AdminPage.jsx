@@ -623,7 +623,7 @@ function NotificationPanel({ allUsers, onSend, onLoad, onDelete, showToast }) {
   return (
     <div className="adm-section notify-panel">
       <div className="adm-sec-title">SEND NOTIFICATION</div>
-      <div className="settings-info">Users receive this instantly through Supabase Realtime.</div>
+      <div className="settings-info">Users receive this in the Mini App and through the Telegram bot.</div>
 
       <div className="notify-toggle">
         <button className={audience==='all'?'on':''} onClick={() => setAudience('all')}>All users</button>
