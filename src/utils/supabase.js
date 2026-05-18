@@ -223,15 +223,30 @@ export async function getReferralDetails(telegramId) {
   const id = Number(telegramId)
   if (!id) return []
 
+  const { data: currentUser, error: currentUserError } = await supabase
+    .from('users')
+    .select('referral_code, referred_by')
+    .eq('id', id)
+    .maybeSingle()
+  if (currentUserError) throw currentUserError
+
+  const referralCode = currentUser?.referral_code || String(id)
+  const referrerCode = String(currentUser?.referred_by || '')
+
   const { data: invitees, error: inviteeError } = await supabase
     .from('users')
-    .select('id, username, first_name, total_deposit, join_date, created_at')
-    .eq('referred_by', String(id))
+    .select('id, username, first_name, referral_code, total_deposit, join_date, created_at')
+    .eq('referred_by', referralCode)
+    .neq('id', id)
     .order('created_at', { ascending: false })
   if (inviteeError) throw inviteeError
-  if (!invitees?.length) return []
+  const teamInvitees = (invitees || []).filter(u => {
+    if (!referrerCode) return true
+    return String(u.id) !== referrerCode && String(u.referral_code || '') !== referrerCode
+  })
+  if (!teamInvitees.length) return []
 
-  const inviteeIds = invitees.map(u => Number(u.id))
+  const inviteeIds = teamInvitees.map(u => Number(u.id))
   const { data: deposits, error: depositError } = await supabase
     .from('transactions')
     .select('id, user_id')
@@ -259,7 +274,7 @@ export async function getReferralDetails(telegramId) {
     })
   }
 
-  return invitees.map(u => ({
+  return teamInvitees.map(u => ({
     id: Number(u.id),
     username: u.username || '',
     firstName: u.first_name || '',

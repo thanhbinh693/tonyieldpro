@@ -392,6 +392,12 @@ begin
   end if;
 
   update users
+  set referred_by = '',
+      updated_at = now()
+  where id = referrer_id
+    and referred_by = p_user_id::text;
+
+  update users
   set referred_by = p_referred_by_code,
       updated_at = now()
   where id = p_user_id
@@ -404,10 +410,14 @@ begin
     set referral_friends = (
           select count(*) from users invitees
           where invitees.referred_by = p_referred_by_code
+            and invitees.id <> referrer_id
+            and invitees.referral_code <> coalesce((select referred_by from users where id = referrer_id), '')
         ),
         referrals = (
           select count(*) from users invitees
           where invitees.referred_by = p_referred_by_code
+            and invitees.id <> referrer_id
+            and invitees.referral_code <> coalesce((select referred_by from users where id = referrer_id), '')
         ),
         updated_at = now()
     where id = referrer_id;
@@ -428,6 +438,14 @@ as $$
 declare
   updated_count int := 0;
 begin
+  update users older_link
+  set referred_by = '',
+      updated_at = now()
+  from users newer_link
+  where older_link.referred_by = newer_link.referral_code
+    and newer_link.referred_by = older_link.referral_code
+    and older_link.created_at <= newer_link.created_at;
+
   update users referrers
   set referral_friends = coalesce(counts.invitee_count, 0),
       referrals = coalesce(counts.invitee_count, 0),
@@ -437,6 +455,8 @@ begin
     from users referrers_inner
     left join users invitees
       on invitees.referred_by = referrers_inner.referral_code
+      and invitees.id <> referrers_inner.id
+      and invitees.referral_code <> coalesce(referrers_inner.referred_by, '')
     group by referrers_inner.id
   ) counts
   where referrers.id = counts.id
@@ -609,10 +629,14 @@ begin
     set referral_friends = (
           select count(*) from users invitees
           where invitees.referred_by = old_referred_by
+            and invitees.id <> referrers.id
+            and invitees.referral_code <> coalesce(referrers.referred_by, '')
         ),
         referrals = (
           select count(*) from users invitees
           where invitees.referred_by = old_referred_by
+            and invitees.id <> referrers.id
+            and invitees.referral_code <> coalesce(referrers.referred_by, '')
         ),
         updated_at = now()
     where referrers.referral_code = old_referred_by;
@@ -796,6 +820,9 @@ union all
 select 'function.register_referral_user',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='register_referral_user')
 union all
+select 'function.sync_referral_counts',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='sync_referral_counts')
+union all
 select 'function.credit_referral_commission',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='credit_referral_commission')
 union all
@@ -880,6 +907,8 @@ revoke execute on function credit_referral_commission(bigint, numeric, text, big
   from anon, authenticated;
 revoke execute on function repair_referral_commissions()
   from anon, authenticated;
+revoke execute on function sync_referral_counts()
+  from anon, authenticated;
 revoke execute on function delete_user_data(bigint)
   from anon, authenticated;
 revoke execute on function retry_stuck_withdrawals()
@@ -896,6 +925,8 @@ grant execute on function register_referral_user(bigint, text, text, text)
 grant execute on function credit_referral_commission(bigint, numeric, text, bigint)
   to service_role;
 grant execute on function repair_referral_commissions()
+  to service_role;
+grant execute on function sync_referral_counts()
   to service_role;
 grant execute on function delete_user_data(bigint)
   to service_role;
