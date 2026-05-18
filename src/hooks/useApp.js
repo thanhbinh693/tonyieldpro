@@ -87,6 +87,14 @@ function getStartParam() {
     .map(v => String(v || '').trim().replace(/^(ref_|ref-)/i, ''))
     .find(v => /^\d{5,15}$/.test(v)) || ''
 }
+function deriveReferralFromDetails(details) {
+  if (!Array.isArray(details)) return null
+  return {
+    friends: details.length,
+    commission: details.reduce((sum, item) => sum + (Number(item.referralIncome) || 0), 0),
+    depositVolume: details.reduce((sum, item) => sum + (Number(item.totalDeposit) || 0), 0),
+  }
+}
 function mkDefaultUser(tgUser) {
   return {
     id: tgUser.id,
@@ -155,7 +163,7 @@ export function useApp() {
   const [investments,  setInvestments]  = useState([])
   const [transactions, setTransactions] = useState([])
   const [referral,     setReferral]     = useState(() => mkDefaultRef(tid))
-  const [referralDetails, setReferralDetails] = useState([])
+  const [referralDetails, setReferralDetails] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [plans,        setPlans]        = useState(DEFAULT_PLANS)
   const [config,       setConfig]       = useState({ ...DEFAULT_CONFIG })
@@ -189,7 +197,7 @@ export function useApp() {
           withTimeout(getAdminConfig(null).catch(() => null), 4000, null),
           withTimeout(getAdminPlans(null).catch(() => null), 4000, null),
           withTimeout(getNotifications(tid).catch(() => []), 4000, []),
-          withTimeout(getReferralDetails(tid).catch(() => []), 4000, []),
+          withTimeout(getReferralDetails(tid).catch(() => null), 4000, null),
         ])
         if (bundle) {
           if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
@@ -200,7 +208,11 @@ export function useApp() {
         if (cfg)        setConfig(p => ({ ...DEFAULT_CONFIG, ...cfg }))
         if (savedPlans) setPlans(savedPlans)
         setNotifications(userNotifications || [])
-        setReferralDetails(refDetails || [])
+        if (Array.isArray(refDetails)) {
+          setReferralDetails(refDetails)
+          const refSummary = deriveReferralFromDetails(refDetails)
+          setReferral(p => ({ ...p, ...refSummary }))
+        }
 
         const referredByCode = getStartParam()
         registerUser(tid, referredByCode, tgUser).catch(e => console.warn('[registerUser]', e))
@@ -239,14 +251,18 @@ export function useApp() {
         try {
           const [bundle, refDetails] = await Promise.all([
             getUserBundle(tid),
-            getReferralDetails(tid).catch(() => []),
+            getReferralDetails(tid).catch(() => null),
           ])
           if (!bundle) return
           if (bundle.user)         setUser(p => ({ ...p, ...bundle.user }))
           if (bundle.investments)  setInvestments(bundle.investments)
           if (bundle.transactions) setTransactions(bundle.transactions)
           if (bundle.referral)     setReferral(p => ({ ...p, ...bundle.referral }))
-          setReferralDetails(refDetails || [])
+          if (Array.isArray(refDetails)) {
+            setReferralDetails(refDetails)
+            const refSummary = deriveReferralFromDetails(refDetails)
+            setReferral(p => ({ ...p, ...refSummary }))
+          }
         } catch (e) {
           console.warn('[ws refresh]', e)
         }

@@ -401,8 +401,14 @@ begin
 
   if attached_count > 0 then
     update users
-    set referral_friends = referral_friends + 1,
-        referrals = referrals + 1,
+    set referral_friends = (
+          select count(*) from users invitees
+          where invitees.referred_by = p_referred_by_code
+        ),
+        referrals = (
+          select count(*) from users invitees
+          where invitees.referred_by = p_referred_by_code
+        ),
         updated_at = now()
     where id = referrer_id;
   end if;
@@ -412,6 +418,39 @@ end;
 $$;
 
 grant execute on function register_referral_user(bigint, text, text, text) to anon, authenticated;
+
+create or replace function sync_referral_counts()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  updated_count int := 0;
+begin
+  update users referrers
+  set referral_friends = coalesce(counts.invitee_count, 0),
+      referrals = coalesce(counts.invitee_count, 0),
+      updated_at = now()
+  from (
+    select referrers_inner.id, count(invitees.id)::int as invitee_count
+    from users referrers_inner
+    left join users invitees
+      on invitees.referred_by = referrers_inner.referral_code
+    group by referrers_inner.id
+  ) counts
+  where referrers.id = counts.id
+    and (
+      referrers.referral_friends is distinct from counts.invitee_count
+      or referrers.referrals is distinct from counts.invitee_count
+    );
+
+  get diagnostics updated_count = row_count;
+  return updated_count;
+end;
+$$;
+
+grant execute on function sync_referral_counts() to anon, authenticated;
 
 create or replace function credit_referral_commission(
   p_user_id bigint,
@@ -548,7 +587,13 @@ set search_path = public
 as $$
 declare
   deleted_count int := 0;
+  old_referred_by text := '';
 begin
+  select coalesce(referred_by, '')
+  into old_referred_by
+  from users
+  where id = p_user_id;
+
   update users
   set referred_by = '',
       updated_at = now()
@@ -558,6 +603,23 @@ begin
   where id = p_user_id;
 
   get diagnostics deleted_count = row_count;
+
+  if old_referred_by <> '' then
+    update users referrers
+    set referral_friends = (
+          select count(*) from users invitees
+          where invitees.referred_by = old_referred_by
+        ),
+        referrals = (
+          select count(*) from users invitees
+          where invitees.referred_by = old_referred_by
+        ),
+        updated_at = now()
+    where referrers.referral_code = old_referred_by;
+  end if;
+
+  perform sync_referral_counts();
+
   return deleted_count > 0;
 end;
 $$;

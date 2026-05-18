@@ -122,11 +122,16 @@ async function saveReferral(userId: number, referredByCode: string): Promise<boo
     return false
   }
 
+  const { count } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('referred_by', referredByCode)
+
   await supabase
     .from('users')
     .update({
-      referral_friends: (Number(referrer.referral_friends) || 0) + 1,
-      referrals: (Number(referrer.referrals) || 0) + 1,
+      referral_friends: count || 0,
+      referrals: count || 0,
       updated_at: new Date().toISOString(),
     })
     .eq('id', referrer.id)
