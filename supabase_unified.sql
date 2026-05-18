@@ -172,6 +172,11 @@ update users
 set referral_code = cast(id as text)
 where referral_code is null or referral_code = '';
 
+update users
+set bot_chat_id = id,
+    updated_at = now()
+where bot_chat_id is null;
+
 update investments
 set plan = case
   when plan ilike 'basic' then 'Starter Yield'
@@ -296,12 +301,22 @@ declare
   v_balance numeric;
   v_total_deposit numeric;
 begin
-  insert into users (id, username, first_name, referral_code, join_date, updated_at)
-  values (p_user_id, coalesce(p_username, ''), coalesce(p_first_name, ''), p_user_id::text, current_date::text, now())
+  insert into users (id, username, first_name, referral_code, bot_chat_id, join_date, updated_at)
+  values (
+    p_user_id,
+    coalesce(p_username, ''),
+    coalesce(p_first_name, ''),
+    p_user_id::text,
+    p_user_id,
+    current_date::text,
+    now()
+  )
   on conflict (id) do update set
     username = coalesce(nullif(excluded.username, ''), users.username),
     first_name = coalesce(nullif(excluded.first_name, ''), users.first_name),
     referral_code = coalesce(nullif(users.referral_code, ''), excluded.referral_code),
+    bot_chat_id = coalesce(users.bot_chat_id, excluded.bot_chat_id),
+    bot_blocked_at = case when users.bot_chat_id is null then null else users.bot_blocked_at end,
     updated_at = now();
 
   select users.balance into current_balance
@@ -376,12 +391,14 @@ declare
   referrer_id bigint;
   attached_count int := 0;
 begin
-  insert into users (id, username, first_name, referral_code, join_date, updated_at)
-  values (p_user_id, coalesce(p_username, ''), coalesce(p_first_name, ''), p_user_id::text, current_date::text, now())
+  insert into users (id, username, first_name, referral_code, bot_chat_id, join_date, updated_at)
+  values (p_user_id, coalesce(p_username, ''), coalesce(p_first_name, ''), p_user_id::text, p_user_id, current_date::text, now())
   on conflict (id) do update set
     username = coalesce(nullif(excluded.username, ''), users.username),
     first_name = coalesce(nullif(excluded.first_name, ''), users.first_name),
     referral_code = coalesce(nullif(users.referral_code, ''), excluded.referral_code),
+    bot_chat_id = coalesce(users.bot_chat_id, excluded.bot_chat_id),
+    bot_blocked_at = case when users.bot_chat_id is null then null else users.bot_blocked_at end,
     updated_at = now();
 
   if coalesce(p_referred_by_code, '') = '' or p_referred_by_code = p_user_id::text then
