@@ -436,6 +436,10 @@ export async function deleteNotification(notificationId) {
   return true
 }
 
+export async function testBotNotification() {
+  return secureApi('admin_test_bot_message')
+}
+
 // ─── PLANS ────────────────────────────────────────────────────────────────────
 
 export async function getAdminPlans(fallback = null) {

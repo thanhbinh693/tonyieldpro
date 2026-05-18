@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
         return await adminCreateNotification(userId, payload)
       case 'admin_delete_notification':
         return await adminDeleteNotification(userId, payload)
+      case 'admin_test_bot_message':
+        return await adminTestBotMessage(userId)
       default:
         return json({ ok: false, error: 'Unknown action' }, 400)
     }
@@ -308,6 +310,33 @@ async function adminDeleteNotification(adminId: number, payload: Record<string, 
   return json({ ok: true })
 }
 
+async function adminTestBotMessage(adminId: number) {
+  await requireAdmin(adminId)
+  const { data } = await supabase
+    .from('users')
+    .select('id, bot_chat_id, bot_started_at, bot_blocked_at')
+    .eq('id', adminId)
+    .maybeSingle()
+
+  const chatId = Number(data?.bot_chat_id || adminId)
+  const result = await sendTelegramMessage(chatId, 'TONYield bot notification test.')
+  if (result.ok) {
+    await supabase.from('users').update({
+      bot_chat_id: chatId,
+      bot_blocked_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', adminId)
+  }
+  return json({
+    ok: result.ok,
+    error: result.ok ? undefined : (result.error || 'Telegram bot message failed'),
+    bot_chat_id: chatId,
+    bot_started_at: data?.bot_started_at || null,
+    bot_blocked_at: data?.bot_blocked_at || null,
+    telegram_error: result.error || null,
+  }, result.ok ? 200 : 400)
+}
+
 async function requireAdmin(userId: number) {
   const { data } = await supabase.from('admin_config').select('admin_ids').eq('id', 1).maybeSingle()
   const ids = Array.isArray(data?.admin_ids) ? data.admin_ids.map(Number) : []
@@ -325,6 +354,9 @@ async function sendNotificationToTelegram(
   const text = formatTelegramNotification(notification.title, notification.body)
   let sent = 0
   let failed = 0
+  let blocked = 0
+  let notFound = 0
+  let lastError = ''
 
   for (const recipient of recipients.chatIds) {
     const result = await sendTelegramMessage(recipient.chatId, text)
@@ -332,6 +364,9 @@ async function sendNotificationToTelegram(
       sent += 1
     } else {
       failed += 1
+      lastError = result.error || lastError
+      if (result.blocked) blocked += 1
+      if (result.notFound) notFound += 1
       if (result.blocked) {
         await supabase.from('users').update({
           bot_blocked_at: new Date().toISOString(),
@@ -342,7 +377,15 @@ async function sendNotificationToTelegram(
     await sleep(35)
   }
 
-  return { attempted: recipients.chatIds.length, sent, failed, skipped_no_chat: recipients.skippedNoChat }
+  return {
+    attempted: recipients.chatIds.length,
+    sent,
+    failed,
+    blocked,
+    not_found: notFound,
+    skipped_no_chat: recipients.skippedNoChat,
+    last_error: lastError,
+  }
 }
 
 async function getTelegramRecipients(audience: 'all' | 'user', userId: number | null): Promise<{
@@ -406,16 +449,24 @@ async function sendTelegramMessage(chatId: number, text: string) {
     if (!res.ok) {
       const detail = await res.text()
       console.warn('[telegram sendMessage]', chatId, res.status, detail)
+      const notFound = /chat not found/i.test(detail)
       return {
         ok: false,
-        blocked: res.status === 403 || /bot was blocked|chat not found|user is deactivated/i.test(detail),
+        blocked: res.status === 403 || /bot was blocked|user is deactivated/i.test(detail),
+        notFound,
+        error: detail,
       }
     }
     const data = await res.json().catch(() => null)
-    return { ok: Boolean(data?.ok), blocked: false }
+    return {
+      ok: Boolean(data?.ok),
+      blocked: false,
+      notFound: false,
+      error: data?.ok === false ? String(data?.description || 'Telegram returned ok=false') : '',
+    }
   } catch (err) {
     console.warn('[telegram sendMessage]', chatId, err)
-    return { ok: false, blocked: false }
+    return { ok: false, blocked: false, notFound: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
 

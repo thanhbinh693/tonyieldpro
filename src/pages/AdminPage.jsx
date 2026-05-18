@@ -43,7 +43,7 @@ export default function AdminPage({
   plans,
   adminToggleBan, adminUpdatePlan, adminToggleMaintenance,
   adminUpdateUser, adminSaveSettings, adminSendNotification,
-  adminGetNotifications, adminDeleteNotification,
+  adminGetNotifications, adminDeleteNotification, adminTestBotNotification,
   config, showToast, setIsAdmin
 }) {
   const [section, setSection] = useState('overview')
@@ -427,6 +427,7 @@ export default function AdminPage({
           onSend={adminSendNotification}
           onLoad={adminGetNotifications}
           onDelete={adminDeleteNotification}
+          onTestBot={adminTestBotNotification}
           showToast={showToast}
         />
       )}
@@ -578,7 +579,7 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 }
 
 // ─── Settings Panel ───────────────────────────────────────────────────────────
-function NotificationPanel({ allUsers, onSend, onLoad, onDelete, showToast }) {
+function NotificationPanel({ allUsers, onSend, onLoad, onDelete, onTestBot, showToast }) {
   const [audience, setAudience] = useState('all')
   const [userId, setUserId] = useState('')
   const [title, setTitle] = useState('')
@@ -660,6 +661,9 @@ function NotificationPanel({ allUsers, onSend, onLoad, onDelete, showToast }) {
 
       <button className="sg-save-btn" onClick={handleSend} disabled={sending}>
         {sending ? 'SENDING...' : <><Send size={16} color="#FFFFFF" /> SEND NOTIFICATION</>}
+      </button>
+      <button className="sg-save-btn ghost" onClick={onTestBot} disabled={sending}>
+        <Bot size={16} color="#0098EA" /> TEST BOT MESSAGE
       </button>
 
       <div className="notify-history">

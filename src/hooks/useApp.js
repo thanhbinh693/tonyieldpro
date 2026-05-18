@@ -23,7 +23,7 @@ import {
   registerUser,
   getReferralDetails,
   getAllUsersData,
-  getNotifications, getAllNotifications, createNotification, deleteNotification,
+  getNotifications, getAllNotifications, createNotification, deleteNotification, testBotNotification,
   getAdminConfig, saveAdminConfig,
   getAdminPlans, saveAdminPlans,
 } from '../utils/supabase'
@@ -691,7 +691,8 @@ export function useApp() {
       const bot = result?.bot_delivery
       const skipped = Number(bot?.skipped_no_chat) || 0
       const skippedText = skipped ? ` ${skipped} no bot chat.` : ''
-      const botText = bot ? ` Bot: ${bot.sent}/${bot.attempted} sent.${skippedText}` : ''
+      const failedText = bot?.last_error ? ` Last error: ${bot.last_error.slice(0, 80)}` : ''
+      const botText = bot ? ` Bot: ${bot.sent}/${bot.attempted} sent.${skippedText}${failedText}` : ''
       showToast(`Notification sent.${botText}`,'ok')
       return true
     } catch(e) {
@@ -700,6 +701,18 @@ export function useApp() {
       return false
     }
   }, [tid, showToast])
+
+  const adminTestBotNotification = useCallback(async () => {
+    try {
+      const result = await testBotNotification()
+      showToast(`Bot test sent to ${result.bot_chat_id}.`,'ok')
+      return true
+    } catch(e) {
+      console.error('[adminTestBotNotification]', e)
+      showToast(`Bot test failed: ${e?.message || 'please retry'}.`,'err')
+      return false
+    }
+  }, [showToast])
 
   const adminGetNotifications = useCallback(async () => {
     try {
@@ -746,7 +759,7 @@ export function useApp() {
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
     computeAdminStats, getAllUsers, getAllTransactions,
     adminToggleBan, adminUpdateUser, adminUpdatePlan, adminSendNotification,
-    adminGetNotifications, adminDeleteNotification,
+    adminGetNotifications, adminDeleteNotification, adminTestBotNotification,
     adminToggleMaintenance, adminSaveSettings,
   }
 }
