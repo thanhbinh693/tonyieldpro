@@ -572,11 +572,12 @@ declare
   credited boolean := false;
 begin
   for deposit_tx in
-    select id, user_id, abs(amount) as amount, created_at
+    select id, user_id, amount, created_at
     from transactions
     where type = 'deposit'
       and status = 'completed'
-      and amount <> 0
+      and amount > 0
+      and label not ilike 'Reinvest -%'
     order by created_at asc
   loop
     select credit_referral_commission(
