@@ -605,6 +605,10 @@ export function useApp() {
     const all = await getAllUsersData()
     let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0, requiredYieldReserve=0
     const now = Date.now()
+    const todayDow = new Date(now).getDay()
+    const tomorrowStart = new Date(now)
+    tomorrowStart.setHours(24, 0, 0, 0)
+    const endOfToday = tomorrowStart.getTime() - 1
     const userList = []
     all.forEach(({ id, bundle }) => {
       const u = bundle.user||{}
@@ -615,13 +619,15 @@ export function useApp() {
       ;(bundle.investments||[]).forEach(inv => {
         if(inv.status==='active') {
           activeInv++
+          const activeDays = Array.isArray(inv.activeDays) ? inv.activeDays : [1,2,3,4,5]
+          if (!activeDays.includes(todayDow)) return
           const amount = Number(inv.amount) || 0
           const rate = Number(inv.rate) || 0
           const intervalMs = resolveIntervalMs(inv)
           const nextProfitTime = Math.max(Number(inv.nextProfitTime) || now, now)
-          const endTime = Number(inv.endTime) || nextProfitTime
-          const remainingTicks = intervalMs > 0 && endTime >= nextProfitTime
-            ? Math.floor((endTime - nextProfitTime) / intervalMs) + 1
+          const reserveEndTime = Math.min(Number(inv.endTime) || nextProfitTime, endOfToday)
+          const remainingTicks = intervalMs > 0 && reserveEndTime >= nextProfitTime
+            ? Math.floor((reserveEndTime - nextProfitTime) / intervalMs) + 1
             : 0
           requiredYieldReserve += amount * (rate / 100) * remainingTicks
         }
