@@ -603,7 +603,8 @@ export function useApp() {
 
   const computeAdminStats = useCallback(async () => {
     const all = await getAllUsersData()
-    let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0, requiredYieldReserve=0
+    let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0
+    let userBalanceLiability=0, pendingWithdrawAmount=0, todayYieldReserve=0
     const now = Date.now()
     const todayDow = new Date(now).getDay()
     const tomorrowStart = new Date(now)
@@ -616,6 +617,7 @@ export function useApp() {
       totalDeposited += Number(u.totalDeposit)||0
       totalWithdrawn += Number(u.totalWithdraw)||0
       todayPft       += Number(u.todayProfit)||0
+      userBalanceLiability += Number(u.balance)||0
       ;(bundle.investments||[]).forEach(inv => {
         if(inv.status==='active') {
           activeInv++
@@ -629,17 +631,27 @@ export function useApp() {
           const remainingTicks = intervalMs > 0 && reserveEndTime >= nextProfitTime
             ? Math.floor((reserveEndTime - nextProfitTime) / intervalMs) + 1
             : 0
-          requiredYieldReserve += amount * (rate / 100) * remainingTicks
+          todayYieldReserve += amount * (rate / 100) * remainingTicks
         }
       })
-      ;(bundle.transactions||[]).forEach(tx => { if(tx.type==='withdraw'&&tx.status==='pending') pendingWithdraws++ })
+      ;(bundle.transactions||[]).forEach(tx => {
+        if(tx.type==='withdraw'&&tx.status==='pending') {
+          pendingWithdraws++
+          pendingWithdrawAmount += Math.abs(Number(tx.amount) || 0)
+        }
+      })
     })
+    const requiredYieldReserve = userBalanceLiability + pendingWithdrawAmount + todayYieldReserve
     return {
       totalUsers: userList.length,
       activeUsers: userList.filter(u=>u.status!=='banned').length,
       bannedUsers: userList.filter(u=>u.status==='banned').length,
       totalDeposited, totalWithdrawn, netInCustody: totalDeposited - totalWithdrawn, activeInvestments: activeInv,
-      todayProfit: todayPft, pendingWithdraws, requiredYieldReserve: +requiredYieldReserve.toFixed(6),
+      todayProfit: todayPft, pendingWithdraws,
+      userBalanceLiability: +userBalanceLiability.toFixed(6),
+      pendingWithdrawAmount: +pendingWithdrawAmount.toFixed(6),
+      todayYieldReserve: +todayYieldReserve.toFixed(6),
+      requiredYieldReserve: +requiredYieldReserve.toFixed(6),
     }
   }, [])
 
