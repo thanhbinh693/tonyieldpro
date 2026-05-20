@@ -3,6 +3,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const BOT_TOKEN = normalizeBotToken(Deno.env.get('TELEGRAM_BOT_TOKEN') || '')
+const MINI_APP_URL = normalizeUrl(
+  Deno.env.get('MINI_APP_URL')
+    || Deno.env.get('WEBAPP_URL')
+    || Deno.env.get('APP_URL')
+    || Deno.env.get('PUBLIC_APP_URL')
+    || '',
+)
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 
@@ -319,7 +326,8 @@ async function adminTestBotMessage(adminId: number) {
     .maybeSingle()
 
   const chatId = Number(data?.bot_chat_id || adminId)
-  const result = await sendTelegramMessage(chatId, 'TONYield bot notification test.')
+  const replyMarkup = await getMiniAppReplyMarkup()
+  const result = await sendTelegramMessage(chatId, 'TONYield bot notification test.', replyMarkup)
   if (result.ok) {
     await supabase.from('users').update({
       bot_chat_id: chatId,
@@ -352,6 +360,7 @@ async function sendNotificationToTelegram(
   }
 
   const text = formatTelegramNotification(notification.title, notification.body)
+  const replyMarkup = await getMiniAppReplyMarkup()
   let sent = 0
   let failed = 0
   let blocked = 0
@@ -359,7 +368,7 @@ async function sendNotificationToTelegram(
   let lastError = ''
 
   for (const recipient of recipients.chatIds) {
-    const result = await sendTelegramMessage(recipient.chatId, text)
+    const result = await sendTelegramMessage(recipient.chatId, text, replyMarkup)
     if (result.ok) {
       sent += 1
     } else {
@@ -434,17 +443,20 @@ async function getTelegramRecipients(audience: 'all' | 'user', userId: number | 
   return { chatIds, skippedNoChat }
 }
 
-async function sendTelegramMessage(chatId: number, text: string) {
+async function sendTelegramMessage(chatId: number, text: string, replyMarkup: Record<string, unknown> | null = null) {
   try {
+    const payload: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    }
+    if (replyMarkup) payload.reply_markup = replyMarkup
+
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      }),
+      body: JSON.stringify(payload),
     })
     if (!res.ok) {
       const detail = await res.text()
@@ -468,6 +480,27 @@ async function sendTelegramMessage(chatId: number, text: string) {
     console.warn('[telegram sendMessage]', chatId, err)
     return { ok: false, blocked: false, notFound: false, error: err instanceof Error ? err.message : String(err) }
   }
+}
+
+async function getMiniAppReplyMarkup() {
+  const directUrl = MINI_APP_URL || await getTelegramMiniAppLink()
+  if (!directUrl) return null
+
+  const button = directUrl.startsWith('https://t.me/')
+    ? { text: '🚀 Open mini app', url: directUrl }
+    : { text: '🚀 Open mini app', web_app: { url: directUrl } }
+
+  return { inline_keyboard: [[button]] }
+}
+
+async function getTelegramMiniAppLink() {
+  const { data } = await supabase
+    .from('admin_config')
+    .select('bot_username')
+    .eq('id', 1)
+    .maybeSingle()
+  const bot = String(data?.bot_username || '').trim().replace(/^@/, '')
+  return bot ? `https://t.me/${bot}?startapp=app` : ''
 }
 
 function formatTelegramNotification(title: string, body: string) {
@@ -527,6 +560,11 @@ function normalizeBotToken(token: string) {
     .replace(/^['"]|['"]$/g, '')
     .trim()
     .replace(/^bot(?=\d+:)/i, '')
+}
+
+function normalizeUrl(url: string) {
+  const clean = url.trim().replace(/^['"]|['"]$/g, '').trim()
+  return /^https:\/\//i.test(clean) ? clean : ''
 }
 
 async function hmacSha256(key: Uint8Array, data: string) {

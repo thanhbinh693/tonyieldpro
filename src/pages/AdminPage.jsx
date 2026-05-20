@@ -118,6 +118,7 @@ export default function AdminPage({
     { label:'Active Positions',   val: adminStats.activeInvestments,         color:'blue',   Icon: Zap },
     { label:'Pending Withdrawals',val: adminStats.pendingWithdraws,          color: adminStats.pendingWithdraws > 0 ? 'red' : 'muted', Icon: Clock },
     { label:"Today's Yield",     val: formatTon(adminStats.todayProfit),    color:'green',  Icon: Coins },
+    { label:'Required Yield Reserve', val: formatTon(adminStats.requiredYieldReserve), color:'gold', Icon: Wallet },
   ] : []
 
   const sections = [

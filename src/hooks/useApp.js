@@ -603,7 +603,8 @@ export function useApp() {
 
   const computeAdminStats = useCallback(async () => {
     const all = await getAllUsersData()
-    let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0
+    let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0, requiredYieldReserve=0
+    const now = Date.now()
     const userList = []
     all.forEach(({ id, bundle }) => {
       const u = bundle.user||{}
@@ -611,7 +612,20 @@ export function useApp() {
       totalDeposited += Number(u.totalDeposit)||0
       totalWithdrawn += Number(u.totalWithdraw)||0
       todayPft       += Number(u.todayProfit)||0
-      ;(bundle.investments||[]).forEach(inv => { if(inv.status==='active') activeInv++ })
+      ;(bundle.investments||[]).forEach(inv => {
+        if(inv.status==='active') {
+          activeInv++
+          const amount = Number(inv.amount) || 0
+          const rate = Number(inv.rate) || 0
+          const intervalMs = resolveInvIntervalMs(inv)
+          const nextProfitTime = Math.max(Number(inv.nextProfitTime) || now, now)
+          const endTime = Number(inv.endTime) || nextProfitTime
+          const remainingTicks = intervalMs > 0 && endTime >= nextProfitTime
+            ? Math.floor((endTime - nextProfitTime) / intervalMs) + 1
+            : 0
+          requiredYieldReserve += amount * (rate / 100) * remainingTicks
+        }
+      })
       ;(bundle.transactions||[]).forEach(tx => { if(tx.type==='withdraw'&&tx.status==='pending') pendingWithdraws++ })
     })
     return {
@@ -619,7 +633,7 @@ export function useApp() {
       activeUsers: userList.filter(u=>u.status!=='banned').length,
       bannedUsers: userList.filter(u=>u.status==='banned').length,
       totalDeposited, totalWithdrawn, netInCustody: totalDeposited - totalWithdrawn, activeInvestments: activeInv,
-      todayProfit: todayPft, pendingWithdraws,
+      todayProfit: todayPft, pendingWithdraws, requiredYieldReserve: +requiredYieldReserve.toFixed(6),
     }
   }, [])
 
