@@ -617,7 +617,7 @@ export function useApp() {
           activeInv++
           const amount = Number(inv.amount) || 0
           const rate = Number(inv.rate) || 0
-          const intervalMs = resolveInvIntervalMs(inv)
+          const intervalMs = resolveIntervalMs(inv)
           const nextProfitTime = Math.max(Number(inv.nextProfitTime) || now, now)
           const endTime = Number(inv.endTime) || nextProfitTime
           const remainingTicks = intervalMs > 0 && endTime >= nextProfitTime
