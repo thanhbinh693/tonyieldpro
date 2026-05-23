@@ -182,6 +182,19 @@ export function useApp() {
     ]).finally(() => clearTimeout(timer))
   }, [])
 
+  const syncWalletToDb = useCallback(async (walletAddress) => {
+    const saved = await secureApi('update_wallet', { wallet_address: walletAddress })
+    const nextWallet = saved?.wallet_addr ?? walletAddress
+    setUser(p => p.walletAddr === nextWallet ? p : { ...p, walletAddr: nextWallet })
+    try {
+      const bundle = await getUserBundle(tid)
+      if (bundle?.user) setUser(p => ({ ...p, ...bundle.user }))
+    } catch (e) {
+      console.warn('[wallet sync refresh]', e)
+    }
+    return nextWallet
+  }, [tid])
+
   // ─── Load on mount ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (inited.current) return
@@ -349,7 +362,7 @@ export function useApp() {
       }
       if (tid && lastWalletSyncRef.current !== nextWallet) {
         lastWalletSyncRef.current = nextWallet
-        secureApi('update_wallet', { wallet_address: nextWallet }).catch(e => {
+        syncWalletToDb(nextWallet).catch(e => {
           console.warn('[wallet sync]', e)
           lastWalletSyncRef.current = null
         })
@@ -357,12 +370,12 @@ export function useApp() {
     } else if (tid && lastWalletSyncRef.current) {
       lastWalletSyncRef.current = ''
       setUser(p => p.walletAddr ? { ...p, walletAddr: '' } : p)
-      secureApi('update_wallet', { wallet_address: '' }).catch(e => {
+      syncWalletToDb('').catch(e => {
         console.warn('[wallet disconnect sync]', e)
         lastWalletSyncRef.current = null
       })
     }
-  }, [wallet, config.tonNetwork, tid])
+  }, [wallet, config.tonNetwork, tid, syncWalletToDb])
 
   // ─── Referral display link ─────────────────────────────────────────────────
   useEffect(() => {
@@ -382,13 +395,13 @@ export function useApp() {
     setUser(p => ({ ...p, walletAddr:'' }))
     if (tid) {
       lastWalletSyncRef.current = ''
-      secureApi('update_wallet', { wallet_address: '' }).catch(e => {
+      syncWalletToDb('').catch(e => {
         console.warn('[wallet disconnect sync]', e)
         lastWalletSyncRef.current = null
       })
     }
     showToast('Wallet disconnected.')
-  }, [tonUI, showToast, tid])
+  }, [tonUI, showToast, tid, syncWalletToDb])
 
   // Investments active với computed display fields
   const myInvestments = investments

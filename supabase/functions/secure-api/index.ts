@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       case 'submit_withdraw':
         return await submitWithdraw(userId, payload)
       case 'update_wallet':
-        return await updateWallet(userId, payload)
+        return await updateWallet(userId, verified.user, payload)
       case 'activate_investment':
         return await activateInvestment(userId, payload)
       case 'admin_update_user':
@@ -225,19 +225,23 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   return json({ ok: true, tx_id: txId, balance: nextBalance, created_at: now })
 }
 
-async function updateWallet(userId: number, payload: Record<string, unknown>) {
+async function updateWallet(userId: number, tgUser: TelegramUser, payload: Record<string, unknown>) {
   const wallet = String(payload.wallet_address || '').trim()
   if (wallet && !/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(wallet)) {
     return json({ ok: false, error: 'Invalid wallet' }, 400)
   }
 
-  const { error } = await supabase.from('users').update({
+  const { data, error } = await supabase.from('users').upsert({
+    id: userId,
+    username: tgUser.username || '',
+    first_name: tgUser.first_name || '',
+    referral_code: String(userId),
     wallet_addr: wallet,
     updated_at: new Date().toISOString(),
-  }).eq('id', userId)
+  }, { onConflict: 'id' }).select('wallet_addr').maybeSingle()
   if (error) throw error
 
-  return json({ ok: true, wallet_addr: wallet })
+  return json({ ok: true, wallet_addr: data?.wallet_addr || wallet })
 }
 
 async function activateInvestment(userId: number, payload: Record<string, unknown>) {
