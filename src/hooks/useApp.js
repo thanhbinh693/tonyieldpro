@@ -401,6 +401,9 @@ export function useApp() {
 
   const connectWallet    = useCallback(() => {
     walletConnectIntentRef.current = true
+    if (liveWalletAddr && user?.walletAddr !== liveWalletAddr) {
+      return Promise.resolve(tonUI.disconnect()).finally(() => tonUI.openModal())
+    }
     if (liveWalletAddr && lastWalletSyncRef.current !== liveWalletAddr) {
       lastWalletSyncRef.current = liveWalletAddr
       syncWalletToDb(liveWalletAddr).catch(e => {
@@ -409,7 +412,7 @@ export function useApp() {
       })
     }
     return tonUI.openModal()
-  }, [tonUI, liveWalletAddr, syncWalletToDb])
+  }, [tonUI, liveWalletAddr, user?.walletAddr, syncWalletToDb])
   const disconnectWallet = useCallback(() => {
     tonUI.disconnect()
     setUser(p => ({ ...p, walletAddr:'' }))
@@ -443,6 +446,10 @@ export function useApp() {
   const submitDeposit = useCallback(async (planId, amount, paymentMethod = 'wallet') => {
     const plan = plans.find(p => p.id===planId)
     if (!plan) return false
+    if (paymentMethod === 'wallet' && (!liveWalletAddr || !user.walletAddr || liveWalletAddr !== user.walletAddr)) {
+      showToast('Wallet mismatch. Disconnect all devices, then connect the linked wallet again.', 'err')
+      return false
+    }
     const now = Date.now()
     const iid = makeInvId(tid, planId)
     const activeNetwork = config.tonNetwork || TON_NETWORK
@@ -539,7 +546,7 @@ export function useApp() {
       else { console.error('[deposit]',e); showToast(`Transaction failed: ${m || 'please retry'}.`,'err') }
       return false
     }
-  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, recordDeposit])
+  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, user.walletAddr, liveWalletAddr, recordDeposit])
 
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
@@ -551,6 +558,10 @@ export function useApp() {
     if (!destWallet) { showToast('No wallet connected.', 'err'); return false }
     if (!/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(destWallet)) {
       showToast('Invalid destination address.', 'err')
+      return false
+    }
+    if (!liveWalletAddr || !user.walletAddr || liveWalletAddr !== user.walletAddr || destWallet !== user.walletAddr) {
+      showToast('Wallet mismatch. Disconnect all devices, then connect the linked wallet again.', 'err')
       return false
     }
 
@@ -578,11 +589,12 @@ export function useApp() {
       const msg = e?.message || ''
       if (/banned/i.test(msg))            showToast('Account restricted.', 'err')
       else if (/Insufficient/i.test(msg)) showToast('Insufficient balance.', 'err')
+      else if (/wallet mismatch/i.test(msg)) showToast('Wallet mismatch. Disconnect all devices, then connect the linked wallet again.', 'err')
       else                                showToast('Network error - please retry.', 'err')
       console.error('[withdraw]', e)
       return false
     }
-  }, [config.minWithdraw, user.balance, tid, showToast])
+  }, [config.minWithdraw, user.balance, user.walletAddr, liveWalletAddr, tid, showToast])
 
   // ─── ACTIVATE ─────────────────────────────────────────────────────────────
   //

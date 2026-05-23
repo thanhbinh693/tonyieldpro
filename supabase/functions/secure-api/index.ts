@@ -190,10 +190,14 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   const minWithdraw = Number(cfg?.min_withdraw) || 5
   if (amount < minWithdraw) return json({ ok: false, error: `Amount below minimum (${minWithdraw} TON)` }, 400)
 
-  const { data: user } = await supabase.from('users').select('status, balance').eq('id', userId).maybeSingle()
+  const { data: user } = await supabase.from('users').select('status, balance, wallet_addr').eq('id', userId).maybeSingle()
   if (!user) return json({ ok: false, error: 'User not found' }, 404)
   if (user.status === 'banned') return json({ ok: false, error: 'Account restricted' }, 403)
   if (Number(user.balance) < amount) return json({ ok: false, error: 'Insufficient balance' }, 400)
+  const linkedWallet = String(user.wallet_addr || '').trim()
+  if (!linkedWallet || linkedWallet !== wallet) {
+    return json({ ok: false, error: 'Wallet mismatch. Disconnect all devices and connect the linked wallet again.' }, 409)
+  }
 
   const now = Date.now()
   const txId = safeId(payload.tx_id, `tx-wd-${userId}-${now}-${crypto.randomUUID().slice(0, 8)}`)
@@ -229,6 +233,18 @@ async function updateWallet(userId: number, tgUser: TelegramUser, payload: Recor
   const wallet = String(payload.wallet_address || '').trim()
   if (wallet && !/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(wallet)) {
     return json({ ok: false, error: 'Invalid wallet' }, 400)
+  }
+
+  const { data: existing, error: existingErr } = await supabase
+    .from('users')
+    .select('wallet_addr')
+    .eq('id', userId)
+    .maybeSingle()
+  if (existingErr) throw existingErr
+
+  const linkedWallet = String(existing?.wallet_addr || '').trim()
+  if (wallet && linkedWallet && linkedWallet !== wallet) {
+    return json({ ok: false, error: 'Disconnect wallet on all devices before linking a new wallet' }, 409)
   }
 
   const { data, error } = await supabase.from('users').upsert({
