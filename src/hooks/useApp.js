@@ -11,7 +11,7 @@
  *  • Activate     → optimistic update ngay + DB write async
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTonConnectUI, useTonWallet, toUserFriendlyAddress } from '@tonconnect/ui-react'
 import {
   DEFAULT_PLANS, MIN_WITHDRAW, ADMIN_WALLET,
@@ -173,6 +173,7 @@ export function useApp() {
   const adminMode   = checkIsAdmin(tid, config.adminIds)
   const inited      = useRef(false)
   const lastWalletSyncRef = useRef(null)
+  const walletConnectIntentRef = useRef(false)
 
   const withTimeout = useCallback((promise, ms, fallback) => {
     let timer
@@ -194,6 +195,17 @@ export function useApp() {
     }
     return nextWallet
   }, [tid])
+
+  const liveWalletAddr = useMemo(() => {
+    const raw = wallet?.account?.address || ''
+    if (!raw) return ''
+    try {
+      const isTestnet = (config.tonNetwork || TON_NETWORK) === 'testnet'
+      return toUserFriendlyAddress(raw, isTestnet)
+    } catch {
+      return raw
+    }
+  }, [wallet?.account?.address, config.tonNetwork])
 
   // ─── Load on mount ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -351,31 +363,29 @@ export function useApp() {
 
   // ─── Sync wallet address ───────────────────────────────────────────────────
   useEffect(() => {
-    if (wallet?.account?.address) {
-      let nextWallet = wallet.account.address
-      try {
-        const isTestnet = (config.tonNetwork || TON_NETWORK) === 'testnet'
-        nextWallet = toUserFriendlyAddress(wallet.account.address, isTestnet)
-        setUser(p => p.walletAddr === nextWallet ? p : { ...p, walletAddr: nextWallet })
-      } catch {
-        setUser(p => p.walletAddr === nextWallet ? p : { ...p, walletAddr: nextWallet })
+    const canonicalWallet = user?.walletAddr || ''
+    if (liveWalletAddr) {
+      const canClaimWallet = canonicalWallet === liveWalletAddr || walletConnectIntentRef.current
+      if (!canClaimWallet) {
+        lastWalletSyncRef.current = canonicalWallet
+        return
       }
-      if (tid && lastWalletSyncRef.current !== nextWallet) {
-        lastWalletSyncRef.current = nextWallet
-        syncWalletToDb(nextWallet).catch(e => {
+      walletConnectIntentRef.current = false
+      if (tid && lastWalletSyncRef.current !== liveWalletAddr) {
+        lastWalletSyncRef.current = liveWalletAddr
+        syncWalletToDb(liveWalletAddr).catch(e => {
           console.warn('[wallet sync]', e)
           lastWalletSyncRef.current = null
         })
       }
-    } else if (tid && lastWalletSyncRef.current) {
+    } else if (tid && lastWalletSyncRef.current && !canonicalWallet) {
       lastWalletSyncRef.current = ''
-      setUser(p => p.walletAddr ? { ...p, walletAddr: '' } : p)
       syncWalletToDb('').catch(e => {
         console.warn('[wallet disconnect sync]', e)
         lastWalletSyncRef.current = null
       })
     }
-  }, [wallet, config.tonNetwork, tid, syncWalletToDb])
+  }, [liveWalletAddr, user?.walletAddr, tid, syncWalletToDb])
 
   // ─── Referral display link ─────────────────────────────────────────────────
   useEffect(() => {
@@ -389,7 +399,17 @@ export function useApp() {
     setToast({msg,type}); setTimeout(()=>setToast(null), 2800)
   }, [])
 
-  const connectWallet    = useCallback(() => tonUI.openModal(), [tonUI])
+  const connectWallet    = useCallback(() => {
+    walletConnectIntentRef.current = true
+    if (liveWalletAddr && lastWalletSyncRef.current !== liveWalletAddr) {
+      lastWalletSyncRef.current = liveWalletAddr
+      syncWalletToDb(liveWalletAddr).catch(e => {
+        console.warn('[wallet sync]', e)
+        lastWalletSyncRef.current = null
+      })
+    }
+    return tonUI.openModal()
+  }, [tonUI, liveWalletAddr, syncWalletToDb])
   const disconnectWallet = useCallback(() => {
     tonUI.disconnect()
     setUser(p => ({ ...p, walletAddr:'' }))
@@ -822,7 +842,9 @@ export function useApp() {
     user, plans, investments:myInvestments, transactions, referral: referralDisplay, referralDetails,
     notifications, notificationUnread, markNotificationsSeen,
     isAdmin:adminMode, isAdminView, setIsAdmin:setIsAdminView,
-    walletConnected:!!wallet, wallet,
+    walletConnected:Boolean(liveWalletAddr && user?.walletAddr && liveWalletAddr === user.walletAddr),
+    walletLinked:Boolean(user?.walletAddr),
+    wallet,
     connectWallet, disconnectWallet, showToast,
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
     computeAdminStats, getAllUsers, getAllTransactions,
