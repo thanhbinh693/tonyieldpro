@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const TONCENTER_API_KEY = Deno.env.get('TONCENTER_API_KEY') || ''
 const BOT_TOKEN = normalizeBotToken(Deno.env.get('TELEGRAM_BOT_TOKEN') || '')
 const MINI_APP_URL = normalizeUrl(
   Deno.env.get('MINI_APP_URL')
@@ -118,6 +119,46 @@ async function recordDeposit(userId: number, tgUser: TelegramUser, payload: Reco
   const txId = safeId(payload.tx_id, `tx-${now}`)
   const invoiceId = safeId(payload.invoice_id, String((now % 900000) + 100000))
 
+  const { data: existingDeposit, error: existingDepositErr } = await supabase
+    .from('transactions')
+    .select('id')
+    .eq('type', 'deposit')
+    .eq('status', 'completed')
+    .eq('invoice_id', invoiceId)
+    .maybeSingle()
+  if (existingDepositErr) throw existingDepositErr
+  if (existingDeposit) return json({ ok: false, error: 'Deposit invoice already used' }, 409)
+
+  if (!fromBalance) {
+    const walletAddress = String(payload.wallet_address || '').trim()
+    if (!/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(walletAddress)) {
+      return json({ ok: false, error: 'Invalid source wallet' }, 400)
+    }
+
+    const { data: cfg, error: cfgErr } = await supabase
+      .from('admin_config')
+      .select('admin_wallet, admin_wallet_testnet, admin_wallet_mainnet, ton_network')
+      .eq('id', 1)
+      .maybeSingle()
+    if (cfgErr) throw cfgErr
+
+    const network = cfg?.ton_network === 'mainnet' ? 'mainnet' : 'testnet'
+    const adminWallet = network === 'mainnet'
+      ? String(cfg?.admin_wallet_mainnet || cfg?.admin_wallet || '').trim()
+      : String(cfg?.admin_wallet_testnet || cfg?.admin_wallet || '').trim()
+    if (!adminWallet) return json({ ok: false, error: 'Admin wallet not configured' }, 500)
+
+    const verified = await verifyTonDeposit({
+      adminWallet,
+      sourceWallet: walletAddress,
+      amount,
+      invoiceId,
+      network,
+      minUtime: Math.floor((now - 10 * 60_000) / 1000),
+    })
+    if (!verified.ok) return json({ ok: false, error: verified.error || 'Deposit transaction not verified yet' }, 402)
+  }
+
   const { data, error } = await supabase.rpc('record_deposit', {
     p_user_id: userId,
     p_username: tgUser.username || '',
@@ -231,31 +272,58 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
 
 async function updateWallet(userId: number, tgUser: TelegramUser, payload: Record<string, unknown>) {
   const wallet = String(payload.wallet_address || '').trim()
+  const expectedWallet = String(payload.expected_wallet || '').trim()
   if (wallet && !/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(wallet)) {
     return json({ ok: false, error: 'Invalid wallet' }, 400)
   }
-
-  const { data: existing, error: existingErr } = await supabase
-    .from('users')
-    .select('wallet_addr')
-    .eq('id', userId)
-    .maybeSingle()
-  if (existingErr) throw existingErr
-
-  const linkedWallet = String(existing?.wallet_addr || '').trim()
-  if (wallet && linkedWallet && linkedWallet !== wallet) {
-    return json({ ok: false, error: 'Disconnect wallet on all devices before linking a new wallet' }, 409)
+  if (expectedWallet && !/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(expectedWallet)) {
+    return json({ ok: false, error: 'Invalid expected wallet' }, 400)
   }
 
-  const { data, error } = await supabase.from('users').upsert({
+  const nowIso = new Date().toISOString()
+  const { error: ensureErr } = await supabase.from('users').upsert({
     id: userId,
     username: tgUser.username || '',
     first_name: tgUser.first_name || '',
     referral_code: String(userId),
-    wallet_addr: wallet,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' }).select('wallet_addr').maybeSingle()
+    updated_at: nowIso,
+  }, { onConflict: 'id' })
+  if (ensureErr) throw ensureErr
+
+  if (!wallet) {
+    const { data: current, error: currentErr } = await supabase
+      .from('users')
+      .select('wallet_addr')
+      .eq('id', userId)
+      .maybeSingle()
+    if (currentErr) throw currentErr
+
+    const linkedWallet = String(current?.wallet_addr || '').trim()
+    if (linkedWallet && linkedWallet !== expectedWallet) {
+      return json({ ok: false, error: 'Wallet changed on another device. Refresh before disconnecting.' }, 409)
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({ wallet_addr: '', updated_at: nowIso })
+      .eq('id', userId)
+      .select('wallet_addr')
+      .maybeSingle()
+    if (error) throw error
+    return json({ ok: true, wallet_addr: data?.wallet_addr || '' })
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ wallet_addr: wallet, updated_at: nowIso })
+    .eq('id', userId)
+    .or(`wallet_addr.is.null,wallet_addr.eq.,wallet_addr.eq.${wallet}`)
+    .select('wallet_addr')
+    .maybeSingle()
   if (error) throw error
+  if (!data) {
+    return json({ ok: false, error: 'Disconnect wallet on all devices before linking a new wallet' }, 409)
+  }
 
   return json({ ok: true, wallet_addr: data?.wallet_addr || wallet })
 }
@@ -553,6 +621,74 @@ function escapeHtml(value: string) {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function verifyTonDeposit(params: {
+  adminWallet: string
+  sourceWallet: string
+  amount: number
+  invoiceId: string
+  network: 'mainnet' | 'testnet'
+  minUtime: number
+}): Promise<{ ok: boolean; error?: string }> {
+  const endpoint = params.network === 'mainnet'
+    ? 'https://toncenter.com/api/v2/getTransactions'
+    : 'https://testnet.toncenter.com/api/v2/getTransactions'
+  const expectedNano = BigInt(Math.round(params.amount * 1e9))
+  const toleranceNano = 10_000_000n
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const url = new URL(endpoint)
+    url.searchParams.set('address', params.adminWallet)
+    url.searchParams.set('limit', '30')
+    url.searchParams.set('archival', 'true')
+
+    const headers: Record<string, string> = {}
+    if (TONCENTER_API_KEY) headers['X-API-Key'] = TONCENTER_API_KEY
+
+    try {
+      const res = await fetch(url, { headers })
+      const body = await res.json().catch(() => null)
+      if (res.ok && body?.ok && Array.isArray(body.result)) {
+        const found = body.result.some((tx: Record<string, unknown>) => {
+          const utime = Number(tx.utime || 0)
+          if (utime && utime < params.minUtime) return false
+
+          const msg = (tx.in_msg || {}) as Record<string, unknown>
+          const valueNano = BigInt(String(msg.value || '0'))
+          if (valueNano + toleranceNano < expectedNano) return false
+
+          return messageContainsInvoice(msg, params.invoiceId)
+        })
+        if (found) return { ok: true }
+      }
+    } catch (err) {
+      console.warn('[verifyTonDeposit]', err)
+    }
+
+    await sleep(1500)
+  }
+
+  return { ok: false, error: 'Deposit transaction not found on-chain. Please retry in a few seconds.' }
+}
+
+function messageContainsInvoice(msg: Record<string, unknown>, invoiceId: string) {
+  const message = String(msg.message || '')
+  if (message.includes(invoiceId)) return true
+
+  const msgData = (msg.msg_data || {}) as Record<string, unknown>
+  const text = String(msgData.text || '')
+  if (text.includes(invoiceId)) return true
+
+  const body = String(msgData.body || '')
+  if (body.includes(invoiceId)) return true
+
+  try {
+    const decoded = atob(body.replace(/-/g, '+').replace(/_/g, '/'))
+    return decoded.includes(invoiceId)
+  } catch {
+    return false
+  }
 }
 
 async function verifyTelegramInitData(initData: string, botToken: string): Promise<{ ok: boolean; user?: TelegramUser; error?: string }> {

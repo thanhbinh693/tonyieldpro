@@ -12,6 +12,7 @@ create table if not exists users (
   today_profit numeric(18,6) default 0,
   referrals int default 0,
   wallet_addr text default '',
+  wallet_session_id text default '',
   join_date text default '',
   status text default 'active',
   referral_code text default '',
@@ -115,6 +116,7 @@ create table if not exists notifications (
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';
 alter table users add column if not exists total_profit numeric(18,6) default 0;
+alter table users add column if not exists wallet_session_id text default '';
 alter table users add column if not exists bot_chat_id bigint;
 alter table users add column if not exists bot_started_at timestamptz;
 alter table users add column if not exists bot_blocked_at timestamptz;
@@ -823,6 +825,9 @@ select 'users.referral_commission',
 union all
 select 'users.referral_deposit_volume',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='referral_deposit_volume')
+union all
+select 'users.wallet_session_id',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='wallet_session_id')
 union all
 select 'users.bot_chat_id',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='bot_chat_id')

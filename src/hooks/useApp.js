@@ -183,8 +183,11 @@ export function useApp() {
     ]).finally(() => clearTimeout(timer))
   }, [])
 
-  const syncWalletToDb = useCallback(async (walletAddress) => {
-    const saved = await secureApi('update_wallet', { wallet_address: walletAddress })
+  const syncWalletToDb = useCallback(async (walletAddress, expectedWallet = '') => {
+    const saved = await secureApi('update_wallet', {
+      wallet_address: walletAddress,
+      expected_wallet: expectedWallet,
+    })
     const nextWallet = saved?.wallet_addr ?? walletAddress
     setUser(p => p.walletAddr === nextWallet ? p : { ...p, walletAddr: nextWallet })
     try {
@@ -401,10 +404,7 @@ export function useApp() {
 
   const connectWallet    = useCallback(() => {
     walletConnectIntentRef.current = true
-    if (liveWalletAddr && user?.walletAddr !== liveWalletAddr) {
-      return Promise.resolve(tonUI.disconnect()).finally(() => tonUI.openModal())
-    }
-    if (liveWalletAddr && lastWalletSyncRef.current !== liveWalletAddr) {
+    if (liveWalletAddr && (!user?.walletAddr || user.walletAddr === liveWalletAddr) && lastWalletSyncRef.current !== liveWalletAddr) {
       lastWalletSyncRef.current = liveWalletAddr
       syncWalletToDb(liveWalletAddr).catch(e => {
         console.warn('[wallet sync]', e)
@@ -414,17 +414,21 @@ export function useApp() {
     return tonUI.openModal()
   }, [tonUI, liveWalletAddr, user?.walletAddr, syncWalletToDb])
   const disconnectWallet = useCallback(() => {
+    const linkedWallet = user?.walletAddr || ''
     tonUI.disconnect()
-    setUser(p => ({ ...p, walletAddr:'' }))
     if (tid) {
       lastWalletSyncRef.current = ''
-      syncWalletToDb('').catch(e => {
-        console.warn('[wallet disconnect sync]', e)
-        lastWalletSyncRef.current = null
-      })
+      syncWalletToDb('', linkedWallet)
+        .then(() => showToast('Wallet disconnected.'))
+        .catch(e => {
+          console.warn('[wallet disconnect sync]', e)
+          lastWalletSyncRef.current = null
+          showToast('Wallet changed on another device. Please refresh.', 'err')
+        })
+    } else {
+      showToast('Wallet disconnected.')
     }
-    showToast('Wallet disconnected.')
-  }, [tonUI, showToast, tid, syncWalletToDb])
+  }, [tonUI, showToast, tid, syncWalletToDb, user?.walletAddr])
 
   // Investments active với computed display fields
   const myInvestments = investments
@@ -435,21 +439,18 @@ export function useApp() {
     return secureApi('record_deposit', {
       amount: amt,
       from_balance: !!fromBalance,
+      wallet_address: fromBalance ? '' : liveWalletAddr,
       tx_id: txId,
       inv_id: newInv.id,
       invoice_id: newInv.invoiceId,
       plan_id: plan.id,
     })
-  }, [])
+  }, [liveWalletAddr])
 
   // ─── DEPOSIT ───────────────────────────────────────────────────────────────
   const submitDeposit = useCallback(async (planId, amount, paymentMethod = 'wallet') => {
     const plan = plans.find(p => p.id===planId)
     if (!plan) return false
-    if (paymentMethod === 'wallet' && (!liveWalletAddr || !user.walletAddr || liveWalletAddr !== user.walletAddr)) {
-      showToast('Wallet mismatch. Disconnect all devices, then connect the linked wallet again.', 'err')
-      return false
-    }
     const now = Date.now()
     const iid = makeInvId(tid, planId)
     const activeNetwork = config.tonNetwork || TON_NETWORK
@@ -546,7 +547,7 @@ export function useApp() {
       else { console.error('[deposit]',e); showToast(`Transaction failed: ${m || 'please retry'}.`,'err') }
       return false
     }
-  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, user.walletAddr, liveWalletAddr, recordDeposit])
+  }, [plans, tid, tonUI, showToast, config.adminWallet, config.adminWalletTestnet, config.adminWalletMainnet, config.tonNetwork, user.balance, recordDeposit])
 
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
@@ -560,7 +561,7 @@ export function useApp() {
       showToast('Invalid destination address.', 'err')
       return false
     }
-    if (!liveWalletAddr || !user.walletAddr || liveWalletAddr !== user.walletAddr || destWallet !== user.walletAddr) {
+    if (!user.walletAddr || destWallet !== user.walletAddr) {
       showToast('Wallet mismatch. Disconnect all devices, then connect the linked wallet again.', 'err')
       return false
     }
@@ -594,7 +595,7 @@ export function useApp() {
       console.error('[withdraw]', e)
       return false
     }
-  }, [config.minWithdraw, user.balance, user.walletAddr, liveWalletAddr, tid, showToast])
+  }, [config.minWithdraw, user.balance, user.walletAddr, tid, showToast])
 
   // ─── ACTIVATE ─────────────────────────────────────────────────────────────
   //
@@ -855,6 +856,7 @@ export function useApp() {
     notifications, notificationUnread, markNotificationsSeen,
     isAdmin:adminMode, isAdminView, setIsAdmin:setIsAdminView,
     walletConnected:Boolean(liveWalletAddr && user?.walletAddr && liveWalletAddr === user.walletAddr),
+    walletLiveConnected:Boolean(liveWalletAddr),
     walletLinked:Boolean(user?.walletAddr),
     wallet,
     connectWallet, disconnectWallet, showToast,

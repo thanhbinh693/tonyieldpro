@@ -98,11 +98,9 @@ export default function ProfilePage({ user, referral, referralDetails = [], conf
 
   const menu = [
     { Icon: Users, iconColor: '#0098EA', color: 'blue', label: 'TEAM', sub: `${teamStats.friends} members - ${formatTon(teamStats.commission)}`, action: () => setShowReferralPage(true) },
-    walletConnected
-      ? { Icon: LogOut, iconColor: '#EF4444', color: 'red', label: 'DISCONNECT WALLET', sub: 'Unlink TON Connect', danger: true, action: () => setShowDisconnect(true) }
-      : hasLinkedWallet
-        ? { Icon: Wallet, iconColor: '#0098EA', color: 'blue', label: 'WALLET LINKED', sub: `${linkedShort} - connect this device to transact`, action: () => connectWallet && connectWallet() }
-        : { Icon: Wallet, iconColor: '#0098EA', color: 'blue', label: 'CONNECT WALLET', sub: 'Link your TON wallet', action: () => connectWallet && connectWallet() },
+    hasLinkedWallet
+      ? { Icon: LogOut, iconColor: '#EF4444', color: 'red', label: 'DISCONNECT WALLET', sub: `${linkedShort} linked`, danger: true, action: () => setShowDisconnect(true) }
+      : { Icon: Wallet, iconColor: '#0098EA', color: 'blue', label: 'CONNECT WALLET', sub: 'Link your TON wallet', action: () => connectWallet && connectWallet() },
   ]
 
   if (showReferralPage) {
