@@ -110,10 +110,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Invalid wallet' }), { status: 400, headers: cors })
     }
 
-    // ── 3. Verify user còn tồn tại & wallet khớp ──────────────────────
+    // ── 3. Verify user còn tồn tại ────────────────────────────────────
     const { data: userRow } = await supabase
       .from('users')
-      .select('balance, wallet_addr, status')
+      .select('balance, status')
       .eq('id', tx.user_id)
       .maybeSingle()
 
@@ -125,15 +125,6 @@ Deno.serve(async (req) => {
     if (userRow.status === 'banned') {
       await markFailed(supabase, tx, 'User is banned')
       return new Response(JSON.stringify({ error: 'User banned' }), { status: 403, headers: cors })
-    }
-
-    // Security: wallet trong tx phải khớp wallet đã lưu
-    if (userRow.wallet_addr) {
-      const storedNorm = parseToFriendly(userRow.wallet_addr) || userRow.wallet_addr
-      if (storedNorm !== toWallet) {
-        await markFailed(supabase, tx, `Wallet mismatch: stored=${storedNorm}, requested=${toWallet}`)
-        return new Response(JSON.stringify({ error: 'Wallet mismatch' }), { status: 400, headers: cors })
-      }
     }
 
     // ── 4. Khởi tạo admin wallet ───────────────────────────────────────

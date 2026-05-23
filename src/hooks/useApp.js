@@ -503,11 +503,6 @@ export function useApp() {
       showToast('Invalid destination address.', 'err')
       return false
     }
-    if (!user.walletAddr || destWallet !== user.walletAddr) {
-      showToast('Wallet mismatch. Disconnect all devices, then connect the linked wallet again.', 'err')
-      return false
-    }
-
     try {
       const now    = Date.now()
       const txId   = `tx-wd-${tid}-${now}-${Math.random().toString(36).slice(2,7)}`
@@ -532,12 +527,11 @@ export function useApp() {
       const msg = e?.message || ''
       if (/banned/i.test(msg))            showToast('Account restricted.', 'err')
       else if (/Insufficient/i.test(msg)) showToast('Insufficient balance.', 'err')
-      else if (/wallet mismatch/i.test(msg)) showToast('Wallet mismatch. Disconnect all devices, then connect the linked wallet again.', 'err')
       else                                showToast('Network error - please retry.', 'err')
       console.error('[withdraw]', e)
       return false
     }
-  }, [config.minWithdraw, user.balance, user.walletAddr, tid, showToast])
+  }, [config.minWithdraw, user.balance, tid, showToast])
 
   // ─── ACTIVATE ─────────────────────────────────────────────────────────────
   //
