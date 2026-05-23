@@ -172,6 +172,7 @@ export function useApp() {
 
   const adminMode   = checkIsAdmin(tid, config.adminIds)
   const inited      = useRef(false)
+  const lastWalletSyncRef = useRef(null)
 
   const withTimeout = useCallback((promise, ms, fallback) => {
     let timer
@@ -338,15 +339,30 @@ export function useApp() {
   // ─── Sync wallet address ───────────────────────────────────────────────────
   useEffect(() => {
     if (wallet?.account?.address) {
+      let nextWallet = wallet.account.address
       try {
         const isTestnet = (config.tonNetwork || TON_NETWORK) === 'testnet'
-        const friendly  = toUserFriendlyAddress(wallet.account.address, isTestnet)
-        setUser(p => p.walletAddr === friendly ? p : { ...p, walletAddr: friendly })
+        nextWallet = toUserFriendlyAddress(wallet.account.address, isTestnet)
+        setUser(p => p.walletAddr === nextWallet ? p : { ...p, walletAddr: nextWallet })
       } catch {
-        setUser(p => ({ ...p, walletAddr: wallet.account.address }))
+        setUser(p => p.walletAddr === nextWallet ? p : { ...p, walletAddr: nextWallet })
       }
+      if (tid && lastWalletSyncRef.current !== nextWallet) {
+        lastWalletSyncRef.current = nextWallet
+        secureApi('update_wallet', { wallet_address: nextWallet }).catch(e => {
+          console.warn('[wallet sync]', e)
+          lastWalletSyncRef.current = null
+        })
+      }
+    } else if (tid && lastWalletSyncRef.current) {
+      lastWalletSyncRef.current = ''
+      setUser(p => p.walletAddr ? { ...p, walletAddr: '' } : p)
+      secureApi('update_wallet', { wallet_address: '' }).catch(e => {
+        console.warn('[wallet disconnect sync]', e)
+        lastWalletSyncRef.current = null
+      })
     }
-  }, [wallet, config.tonNetwork])
+  }, [wallet, config.tonNetwork, tid])
 
   // ─── Referral display link ─────────────────────────────────────────────────
   useEffect(() => {
@@ -364,8 +380,15 @@ export function useApp() {
   const disconnectWallet = useCallback(() => {
     tonUI.disconnect()
     setUser(p => ({ ...p, walletAddr:'' }))
+    if (tid) {
+      lastWalletSyncRef.current = ''
+      secureApi('update_wallet', { wallet_address: '' }).catch(e => {
+        console.warn('[wallet disconnect sync]', e)
+        lastWalletSyncRef.current = null
+      })
+    }
     showToast('Wallet disconnected.')
-  }, [tonUI, showToast])
+  }, [tonUI, showToast, tid])
 
   // Investments active với computed display fields
   const myInvestments = investments
