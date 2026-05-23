@@ -58,7 +58,7 @@ function DisconnectModal({ walletAddr, onClose, onConfirm }) {
 }
 
 // ─── ProfilePage ──────────────────────────────────────────────────────────────
-export default function ProfilePage({ user, referral, referralDetails = [], config, showToast, setIsAdmin, isAdmin, walletConnected, walletLinked, disconnectWallet, connectWallet }) {
+export default function ProfilePage({ user, referral, referralDetails = [], config, showToast, setIsAdmin, isAdmin, walletConnected, disconnectWallet, connectWallet }) {
   const [showDisconnect, setShowDisconnect] = useState(false)
   const [showReferralPage, setShowReferralPage] = useState(false)
 
@@ -77,10 +77,6 @@ export default function ProfilePage({ user, referral, referralDetails = [], conf
   const refRate = config?.referralRate ?? 5
   const todayProfit = Number(user?.todayProfit) || 0
   const profitEarned = Number(user?.totalProfit) || 0
-  const linkedWallet = user?.walletAddr || ''
-  const linkedShort = linkedWallet ? `${linkedWallet.slice(0, 8)}...${linkedWallet.slice(-6)}` : ''
-  const hasLinkedWallet = Boolean(walletLinked || linkedWallet)
-
   const copyRef = () => {
     // referral.code is already a full https://t.me/... link when botUsername is configured
     // fallback: if bot not configured, show the raw Telegram ID for manual sharing
@@ -98,8 +94,8 @@ export default function ProfilePage({ user, referral, referralDetails = [], conf
 
   const menu = [
     { Icon: Users, iconColor: '#0098EA', color: 'blue', label: 'TEAM', sub: `${teamStats.friends} members - ${formatTon(teamStats.commission)}`, action: () => setShowReferralPage(true) },
-    hasLinkedWallet
-      ? { Icon: LogOut, iconColor: '#EF4444', color: 'red', label: 'DISCONNECT WALLET', sub: `${linkedShort} linked`, danger: true, action: () => setShowDisconnect(true) }
+    walletConnected
+      ? { Icon: LogOut, iconColor: '#EF4444', color: 'red', label: 'DISCONNECT WALLET', sub: 'Unlink TON Connect', danger: true, action: () => setShowDisconnect(true) }
       : { Icon: Wallet, iconColor: '#0098EA', color: 'blue', label: 'CONNECT WALLET', sub: 'Link your TON wallet', action: () => connectWallet && connectWallet() },
   ]
 

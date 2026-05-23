@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react'
+import { useTonWallet, toUserFriendlyAddress } from '@tonconnect/ui-react'
 import { CheckCircle2, Info, Send, ShieldCheck, Wallet, XCircle } from 'lucide-react'
 
 import './Modal.css'
 
 const formatTon = (value) => `${(Number(value) || 0).toFixed(3)} TON`
+
+function toFriendlyAddr(rawAddr, isTestnet) {
+  if (!rawAddr) return ''
+  try {
+    return toUserFriendlyAddress(rawAddr, isTestnet)
+  } catch {
+    return ''
+  }
+}
 
 function isValidTonAddress(addr) {
   if (!addr || typeof addr !== 'string') return false
@@ -28,7 +38,9 @@ export default function WithdrawModal({
   const [loading,   setLoading]   = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  const walletAddr = user?.walletAddr || ''
+  const tonWallet  = useTonWallet()
+  const isTestnet  = (config?.tonNetwork || 'testnet') === 'testnet'
+  const walletAddr = toFriendlyAddr(tonWallet?.account?.address || '', isTestnet)
 
   const minW     = config?.minWithdraw || 5
   const amt      = parseFloat(amount) || 0
@@ -53,7 +65,7 @@ export default function WithdrawModal({
     }
     // Check live wallet from TonConnect — do not use cached address
     if (!walletAddr) {
-      showToast('No linked wallet.', 'err')
+      showToast('No wallet connected.', 'err')
       setStep('connect')
       return
     }
@@ -108,10 +120,10 @@ export default function WithdrawModal({
             <div className="wc-icon"><Wallet size={32} color="var(--color-ton)" /></div>
             <h2 className="sheet-title" style={{ marginTop: 8 }}>WITHDRAWAL REQUEST</h2>
             <p className="wc-desc">
-              Connect your TON wallet to set the shared withdrawal address.
+              Connect your TON wallet to set the destination address.
             </p>
             <div className="wc-features">
-              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Destination syncs across all devices.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Destination is read from TON Connect.</div>
               <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> No private keys are stored.</div>
               <div className="wc-feat"><ShieldCheck size={16} color="var(--color-gold)" /> Payout is handled by the withdrawal system.</div>
             </div>

@@ -172,8 +172,6 @@ export function useApp() {
 
   const adminMode   = checkIsAdmin(tid, config.adminIds)
   const inited      = useRef(false)
-  const lastWalletSyncRef = useRef(null)
-  const walletConnectIntentRef = useRef(false)
 
   const withTimeout = useCallback((promise, ms, fallback) => {
     let timer
@@ -182,22 +180,6 @@ export function useApp() {
       new Promise(resolve => { timer = setTimeout(() => resolve(fallback), ms) }),
     ]).finally(() => clearTimeout(timer))
   }, [])
-
-  const syncWalletToDb = useCallback(async (walletAddress, expectedWallet = '') => {
-    const saved = await secureApi('update_wallet', {
-      wallet_address: walletAddress,
-      expected_wallet: expectedWallet,
-    })
-    const nextWallet = saved?.wallet_addr ?? walletAddress
-    setUser(p => p.walletAddr === nextWallet ? p : { ...p, walletAddr: nextWallet })
-    try {
-      const bundle = await getUserBundle(tid)
-      if (bundle?.user) setUser(p => ({ ...p, ...bundle.user }))
-    } catch (e) {
-      console.warn('[wallet sync refresh]', e)
-    }
-    return nextWallet
-  }, [tid])
 
   const liveWalletAddr = useMemo(() => {
     const raw = wallet?.account?.address || ''
@@ -366,29 +348,10 @@ export function useApp() {
 
   // ─── Sync wallet address ───────────────────────────────────────────────────
   useEffect(() => {
-    const canonicalWallet = user?.walletAddr || ''
     if (liveWalletAddr) {
-      const canClaimWallet = canonicalWallet === liveWalletAddr || walletConnectIntentRef.current
-      if (!canClaimWallet) {
-        lastWalletSyncRef.current = canonicalWallet
-        return
-      }
-      walletConnectIntentRef.current = false
-      if (tid && lastWalletSyncRef.current !== liveWalletAddr) {
-        lastWalletSyncRef.current = liveWalletAddr
-        syncWalletToDb(liveWalletAddr).catch(e => {
-          console.warn('[wallet sync]', e)
-          lastWalletSyncRef.current = null
-        })
-      }
-    } else if (tid && lastWalletSyncRef.current && !canonicalWallet) {
-      lastWalletSyncRef.current = ''
-      syncWalletToDb('').catch(e => {
-        console.warn('[wallet disconnect sync]', e)
-        lastWalletSyncRef.current = null
-      })
+      setUser(p => p.walletAddr === liveWalletAddr ? p : { ...p, walletAddr: liveWalletAddr })
     }
-  }, [liveWalletAddr, user?.walletAddr, tid, syncWalletToDb])
+  }, [liveWalletAddr])
 
   // ─── Referral display link ─────────────────────────────────────────────────
   useEffect(() => {
@@ -402,33 +365,12 @@ export function useApp() {
     setToast({msg,type}); setTimeout(()=>setToast(null), 2800)
   }, [])
 
-  const connectWallet    = useCallback(() => {
-    walletConnectIntentRef.current = true
-    if (liveWalletAddr && (!user?.walletAddr || user.walletAddr === liveWalletAddr) && lastWalletSyncRef.current !== liveWalletAddr) {
-      lastWalletSyncRef.current = liveWalletAddr
-      syncWalletToDb(liveWalletAddr).catch(e => {
-        console.warn('[wallet sync]', e)
-        lastWalletSyncRef.current = null
-      })
-    }
-    return tonUI.openModal()
-  }, [tonUI, liveWalletAddr, user?.walletAddr, syncWalletToDb])
+  const connectWallet    = useCallback(() => tonUI.openModal(), [tonUI])
   const disconnectWallet = useCallback(() => {
-    const linkedWallet = user?.walletAddr || ''
     tonUI.disconnect()
-    if (tid) {
-      lastWalletSyncRef.current = ''
-      syncWalletToDb('', linkedWallet)
-        .then(() => showToast('Wallet disconnected.'))
-        .catch(e => {
-          console.warn('[wallet disconnect sync]', e)
-          lastWalletSyncRef.current = null
-          showToast('Wallet changed on another device. Please refresh.', 'err')
-        })
-    } else {
-      showToast('Wallet disconnected.')
-    }
-  }, [tonUI, showToast, tid, syncWalletToDb, user?.walletAddr])
+    setUser(p => ({ ...p, walletAddr:'' }))
+    showToast('Wallet disconnected.')
+  }, [tonUI, showToast])
 
   // Investments active với computed display fields
   const myInvestments = investments
@@ -775,14 +717,34 @@ export function useApp() {
     showToast('Plan updated.','ok')
   }, [showToast])
 
-  const adminToggleMaintenance = useCallback(() => {
-    setConfig(prev => { const next = { ...prev, maintenanceMode:!prev.maintenanceMode }; saveAdminConfig(next); return next })
-  }, [])
+  const adminToggleMaintenance = useCallback(async () => {
+    const prevConfig = config
+    const next = { ...prevConfig, maintenanceMode: !prevConfig.maintenanceMode }
+    setConfig(next)
+    try {
+      await saveAdminConfig(next)
+    } catch (e) {
+      console.error('[adminToggleMaintenance]', e)
+      setConfig(prevConfig)
+      showToast(`Failed to update maintenance: ${e?.message || 'please retry'}.`, 'err')
+    }
+  }, [config, showToast])
 
-  const adminSaveSettings = useCallback((updates) => {
-    setConfig(prev => { const next = { ...prev, ...updates }; saveAdminConfig(next); return next })
-    showToast('Settings updated.','ok')
-  }, [showToast])
+  const adminSaveSettings = useCallback(async (updates) => {
+    const prevConfig = config
+    const next = { ...prevConfig, ...updates }
+    setConfig(next)
+    try {
+      await saveAdminConfig(next)
+      showToast('Settings updated.','ok')
+      return true
+    } catch(e) {
+      console.error('[adminSaveSettings]', e)
+      setConfig(prevConfig)
+      showToast(`Failed to save settings: ${e?.message || 'please retry'}.`, 'err')
+      return false
+    }
+  }, [config, showToast])
 
   const adminSendNotification = useCallback(async ({ title, body, audience = 'all', userId = null }) => {
     try {
@@ -855,9 +817,7 @@ export function useApp() {
     user, plans, investments:myInvestments, transactions, referral: referralDisplay, referralDetails,
     notifications, notificationUnread, markNotificationsSeen,
     isAdmin:adminMode, isAdminView, setIsAdmin:setIsAdminView,
-    walletConnected:Boolean(liveWalletAddr && user?.walletAddr && liveWalletAddr === user.walletAddr),
-    walletLiveConnected:Boolean(liveWalletAddr),
-    walletLinked:Boolean(user?.walletAddr),
+    walletConnected:!!wallet,
     wallet,
     connectWallet, disconnectWallet, showToast,
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,

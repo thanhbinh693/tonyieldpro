@@ -63,7 +63,7 @@ export default function App() {
           onClose={() => setDepositOpen(false)}
           showToast={appState.showToast}
           onSubmit={appState.submitDeposit}
-          walletConnected={appState.walletLiveConnected}
+          walletConnected={appState.walletConnected}
           onConnectWallet={appState.connectWallet}
           userBalance={appState.user?.balance || 0}
         />
@@ -76,7 +76,7 @@ export default function App() {
           onClose={() => setWithdrawOpen(false)}
           showToast={appState.showToast}
           onSubmit={appState.submitWithdraw}
-          walletConnected={appState.walletLinked}
+          walletConnected={appState.walletConnected}
           onConnectWallet={appState.connectWallet}
           user={appState.user}
         />

@@ -50,8 +50,6 @@ Deno.serve(async (req) => {
         return await recordDeposit(userId, verified.user, payload)
       case 'submit_withdraw':
         return await submitWithdraw(userId, payload)
-      case 'update_wallet':
-        return await updateWallet(userId, verified.user, payload)
       case 'activate_investment':
         return await activateInvestment(userId, payload)
       case 'admin_update_user':
@@ -231,14 +229,10 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   const minWithdraw = Number(cfg?.min_withdraw) || 5
   if (amount < minWithdraw) return json({ ok: false, error: `Amount below minimum (${minWithdraw} TON)` }, 400)
 
-  const { data: user } = await supabase.from('users').select('status, balance, wallet_addr').eq('id', userId).maybeSingle()
+  const { data: user } = await supabase.from('users').select('status, balance').eq('id', userId).maybeSingle()
   if (!user) return json({ ok: false, error: 'User not found' }, 404)
   if (user.status === 'banned') return json({ ok: false, error: 'Account restricted' }, 403)
   if (Number(user.balance) < amount) return json({ ok: false, error: 'Insufficient balance' }, 400)
-  const linkedWallet = String(user.wallet_addr || '').trim()
-  if (!linkedWallet || linkedWallet !== wallet) {
-    return json({ ok: false, error: 'Wallet mismatch. Disconnect all devices and connect the linked wallet again.' }, 409)
-  }
 
   const now = Date.now()
   const txId = safeId(payload.tx_id, `tx-wd-${userId}-${now}-${crypto.randomUUID().slice(0, 8)}`)
@@ -268,64 +262,6 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   }
 
   return json({ ok: true, tx_id: txId, balance: nextBalance, created_at: now })
-}
-
-async function updateWallet(userId: number, tgUser: TelegramUser, payload: Record<string, unknown>) {
-  const wallet = String(payload.wallet_address || '').trim()
-  const expectedWallet = String(payload.expected_wallet || '').trim()
-  if (wallet && !/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(wallet)) {
-    return json({ ok: false, error: 'Invalid wallet' }, 400)
-  }
-  if (expectedWallet && !/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(expectedWallet)) {
-    return json({ ok: false, error: 'Invalid expected wallet' }, 400)
-  }
-
-  const nowIso = new Date().toISOString()
-  const { error: ensureErr } = await supabase.from('users').upsert({
-    id: userId,
-    username: tgUser.username || '',
-    first_name: tgUser.first_name || '',
-    referral_code: String(userId),
-    updated_at: nowIso,
-  }, { onConflict: 'id' })
-  if (ensureErr) throw ensureErr
-
-  if (!wallet) {
-    const { data: current, error: currentErr } = await supabase
-      .from('users')
-      .select('wallet_addr')
-      .eq('id', userId)
-      .maybeSingle()
-    if (currentErr) throw currentErr
-
-    const linkedWallet = String(current?.wallet_addr || '').trim()
-    if (linkedWallet && linkedWallet !== expectedWallet) {
-      return json({ ok: false, error: 'Wallet changed on another device. Refresh before disconnecting.' }, 409)
-    }
-
-    const { data, error } = await supabase
-      .from('users')
-      .update({ wallet_addr: '', updated_at: nowIso })
-      .eq('id', userId)
-      .select('wallet_addr')
-      .maybeSingle()
-    if (error) throw error
-    return json({ ok: true, wallet_addr: data?.wallet_addr || '' })
-  }
-
-  const { data, error } = await supabase
-    .from('users')
-    .update({ wallet_addr: wallet, updated_at: nowIso })
-    .eq('id', userId)
-    .or(`wallet_addr.is.null,wallet_addr.eq.,wallet_addr.eq.${wallet}`)
-    .select('wallet_addr')
-    .maybeSingle()
-  if (error) throw error
-  if (!data) {
-    return json({ ok: false, error: 'Disconnect wallet on all devices before linking a new wallet' }, 409)
-  }
-
-  return json({ ok: true, wallet_addr: data?.wallet_addr || wallet })
 }
 
 async function activateInvestment(userId: number, payload: Record<string, unknown>) {

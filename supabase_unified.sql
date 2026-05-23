@@ -12,7 +12,6 @@ create table if not exists users (
   today_profit numeric(18,6) default 0,
   referrals int default 0,
   wallet_addr text default '',
-  wallet_session_id text default '',
   join_date text default '',
   status text default 'active',
   referral_code text default '',
@@ -116,17 +115,31 @@ create table if not exists notifications (
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';
 alter table users add column if not exists total_profit numeric(18,6) default 0;
-alter table users add column if not exists wallet_session_id text default '';
 alter table users add column if not exists bot_chat_id bigint;
 alter table users add column if not exists bot_started_at timestamptz;
 alter table users add column if not exists bot_blocked_at timestamptz;
+alter table users drop column if exists wallet_session_id;
 alter table admin_config add column if not exists admin_wallet_testnet text default '';
 alter table admin_config add column if not exists admin_wallet_mainnet text default '';
 alter table admin_config add column if not exists withdrawal_webhook_url text default '';
 alter table admin_config add column if not exists withdrawal_webhook_secret text default '';
+alter table admin_config add column if not exists ton_network text not null default 'testnet';
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';
 alter table transactions add column if not exists updated_at timestamptz default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'admin_config_ton_network_check'
+  ) then
+    alter table admin_config
+      add constraint admin_config_ton_network_check
+      check (ton_network in ('mainnet', 'testnet'));
+  end if;
+end $$;
 
 update users u
 set total_profit = coalesce(p.profit_amount, 0),
@@ -826,9 +839,6 @@ union all
 select 'users.referral_deposit_volume',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='referral_deposit_volume')
 union all
-select 'users.wallet_session_id',
-       exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='wallet_session_id')
-union all
 select 'users.bot_chat_id',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='bot_chat_id')
 union all
@@ -840,6 +850,9 @@ select 'admin_config.admin_wallet_mainnet',
 union all
 select 'admin_config.withdrawal_webhook_url',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='withdrawal_webhook_url')
+union all
+select 'admin_config.ton_network',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='ton_network')
 union all
 select 'function.trigger_withdrawal_webhook',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='trigger_withdrawal_webhook')
