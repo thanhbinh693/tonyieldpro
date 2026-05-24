@@ -399,8 +399,8 @@ export default function AdminPage({
           )}
           {allTx.filter(t=>t.type==='withdraw').length === 0 && <div className="adm-empty">No withdrawals.</div>}
           {allTxSorted.filter(t=>t.type==='withdraw').map(tx => {
-            const retrying = retryingWithdrawIds.has(tx.id) || tx.status === 'processing'
-            const showRetry = tx.status === 'pending' || retrying
+            const retrying = retryingWithdrawIds.has(tx.id)
+            const showRetry = ['pending', 'processing'].includes(tx.status) || retrying
 
             return (
             <div key={tx.id} className="adm-tx-row">

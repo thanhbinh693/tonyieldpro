@@ -5,7 +5,7 @@
  * - claims pending rows with compare-and-set before sending
  * - never retries rows marked sent/completed
  * - refunds user balance if failure happens before broadcast
- * - marks sent if broadcast happened but confirmation is not observed in time
+ * - marks sent immediately after broadcast so admin retry never waits on confirmation
  * - pending retries are explicit admin actions
  */
 
@@ -22,14 +22,11 @@ const TON_API_KEY = Deno.env.get('TON_API_KEY') || ''
 const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') || ''
 
 const NETWORK_FEE = 0.015
-const CONFIRM_TIMEOUT_MS = 90_000
 const cors = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 type SupabaseClient = ReturnType<typeof createClient>
 type WithdrawTx = {
@@ -59,31 +56,32 @@ Deno.serve(async (req) => {
     const payload = await req.json()
 
     const tx = payload?.record as WithdrawTx | undefined
-    if (!isPendingWithdraw(tx)) {
+    const force = Boolean(payload?.force)
+    if (!isProcessableWithdraw(tx, force)) {
       return json({ ok: true, skipped: true })
     }
 
-    return await processWithdrawal(supabase, tx)
+    return await processWithdrawal(supabase, tx, force)
   } catch (err) {
     console.error('[process-withdrawal]', err)
     return json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500)
   }
 })
 
-async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx) {
+async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force = false) {
   let transferSubmitted = false
 
-  const claim = await supabase
+  let claimQuery = supabase
     .from('transactions')
     .update({
       status: 'processing',
-      fail_reason: null,
+      fail_reason: 'Processing started; transfer has not been submitted yet',
       updated_at: new Date().toISOString(),
     })
     .eq('id', tx.id)
     .eq('type', 'withdraw')
-    .eq('status', 'pending')
-    .select('id', { count: 'exact', head: true })
+  claimQuery = force ? claimQuery.in('status', ['pending', 'processing']) : claimQuery.eq('status', 'pending')
+  const claim = await claimQuery.select('id', { count: 'exact', head: true })
 
   if (claim.error) throw claim.error
   if (!claim.count) return json({ ok: true, skipped: true, reason: 'already claimed' })
@@ -135,6 +133,12 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx) {
     }
 
     const seqno = await wallet.getSeqno()
+    await supabase.from('transactions').update({
+      status: 'processing',
+      fail_reason: 'Submitting transfer to TON network',
+      updated_at: new Date().toISOString(),
+    }).eq('id', tx.id)
+
     await wallet.sendTransfer({
       secretKey: keyPair.secretKey,
       seqno,
@@ -148,18 +152,14 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx) {
     })
     transferSubmitted = true
 
-    const confirmed = await waitForSeqno(wallet, seqno)
-    if (!confirmed) {
-      await supabase.from('transactions').update({
-        status: 'sent',
-        fail_reason: 'Sent but awaiting blockchain confirmation',
-        updated_at: new Date().toISOString(),
-      }).eq('id', tx.id)
-      return json({ ok: true, confirmed: false, status: 'sent' })
-    }
+    await supabase.from('transactions').update({
+      status: 'sent',
+      fail_reason: 'Submitted to network; awaiting blockchain confirmation',
+      updated_at: new Date().toISOString(),
+    }).eq('id', tx.id)
 
-    await markCompleted(supabase, tx, amount)
-    return json({ ok: true, confirmed: true, status: 'completed' })
+    await markWithdrawSent(supabase, tx, amount)
+    return json({ ok: true, status: 'sent' })
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err)
     console.error('[processWithdrawal]', tx.id, reason)
@@ -178,13 +178,7 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx) {
   }
 }
 
-async function markCompleted(supabase: SupabaseClient, tx: WithdrawTx, amount: number) {
-  await supabase.from('transactions').update({
-    status: 'completed',
-    fail_reason: null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', tx.id)
-
+async function markWithdrawSent(supabase: SupabaseClient, tx: WithdrawTx, amount: number) {
   const { data: userRow } = await supabase
     .from('users')
     .select('total_withdraw')
@@ -218,19 +212,6 @@ async function failAndRefund(supabase: SupabaseClient, tx: WithdrawTx, reason: s
   }
 }
 
-async function waitForSeqno(wallet: { getSeqno: () => Promise<number> }, seqno: number) {
-  const checks = Math.ceil(CONFIRM_TIMEOUT_MS / 5000)
-  for (let i = 0; i < checks; i++) {
-    await sleep(5000)
-    try {
-      if (await wallet.getSeqno() > seqno) return true
-    } catch {
-      // retry
-    }
-  }
-  return false
-}
-
 async function getActiveNetwork(supabase: SupabaseClient) {
   const { data } = await supabase
     .from('admin_config')
@@ -259,8 +240,8 @@ function parseToFriendly(raw: string, network: string) {
   }
 }
 
-function isPendingWithdraw(tx: WithdrawTx | undefined): tx is WithdrawTx {
-  return !!tx && tx.type === 'withdraw' && tx.status === 'pending'
+function isProcessableWithdraw(tx: WithdrawTx | undefined, force = false): tx is WithdrawTx {
+  return !!tx && tx.type === 'withdraw' && (tx.status === 'pending' || (force && tx.status === 'processing'))
 }
 
 function json(body: unknown, status = 200) {

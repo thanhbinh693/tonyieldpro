@@ -246,7 +246,7 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   }
   const saved = data?.[0] || {}
 
-  triggerWithdrawalProcessor({
+  const processorRequest = triggerWithdrawalProcessor({
     id: txId,
     user_id: userId,
     type: 'withdraw',
@@ -257,6 +257,7 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
     created_at: now,
     updated_at: new Date().toISOString(),
   }, cfg)
+  waitUntil(processorRequest)
 
   return json({ ok: true, tx_id: txId, balance: Number(saved.balance), created_at: Number(saved.created_at || now) })
 }
@@ -320,7 +321,9 @@ async function adminRetryWithdrawal(adminId: number, payload: Record<string, unk
     .maybeSingle()
   if (txErr) throw txErr
   if (!tx) return json({ ok: false, error: 'Withdrawal not found' }, 404)
-  if (tx.status !== 'pending') return json({ ok: false, error: `Only pending withdrawals can be retried (current: ${tx.status})` }, 400)
+  if (!['pending', 'processing'].includes(String(tx.status))) {
+    return json({ ok: false, error: `Only pending or processing withdrawals can be retried (current: ${tx.status})` }, 400)
+  }
 
   const { data: cfg } = await supabase
     .from('admin_config')
@@ -328,8 +331,12 @@ async function adminRetryWithdrawal(adminId: number, payload: Record<string, unk
     .eq('id', 1)
     .maybeSingle()
 
-  triggerWithdrawalProcessor(tx, cfg)
-  return json({ ok: true })
+  const result = await triggerWithdrawalProcessor(tx, cfg, true)
+  if (!result.ok) {
+    return json({ ok: false, error: result.error || 'Withdrawal processor failed' }, 502)
+  }
+
+  return json({ ok: true, processor: result.body || null })
 }
 
 async function adminSaveConfig(adminId: number, payload: Record<string, unknown>) {
@@ -577,39 +584,53 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;')
 }
 
-function triggerWithdrawalProcessor(tx: Record<string, unknown>, cfg?: Record<string, unknown> | null) {
-  const configuredUrl = String(cfg?.withdrawal_webhook_url || '').trim()
-  const url = configuredUrl || `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/process-withdrawal`
+async function triggerWithdrawalProcessor(tx: Record<string, unknown>, cfg?: Record<string, unknown> | null, force = false) {
+  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/process-withdrawal`
   const secret = String(WEBHOOK_SECRET || cfg?.withdrawal_webhook_secret || '').trim()
 
-  const request = fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SERVICE_KEY}`,
-      'apikey': SERVICE_KEY,
-      ...(secret ? { 'x-webhook-secret': secret } : {}),
-    },
-    body: JSON.stringify({
-      type: 'INSERT',
-      table: 'transactions',
-      schema: 'public',
-      record: tx,
-    }),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.error('[triggerWithdrawalProcessor]', res.status, body)
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'apikey': SERVICE_KEY,
+        ...(secret ? { 'x-webhook-secret': secret } : {}),
+      },
+      body: JSON.stringify({
+        type: 'INSERT',
+        table: 'transactions',
+        schema: 'public',
+        record: tx,
+        force,
+      }),
+    })
+    const text = await res.text().catch(() => '')
+    let body: unknown = null
+    try {
+      body = text ? JSON.parse(text) : null
+    } catch {
+      body = text
     }
-  }).catch((err) => {
-    console.error('[triggerWithdrawalProcessor]', err)
-  })
 
+    if (!res.ok) {
+      console.error('[triggerWithdrawalProcessor]', res.status, body)
+      return { ok: false, status: res.status, error: typeof body === 'string' ? body : JSON.stringify(body), body }
+    }
+
+    return { ok: true, status: res.status, body }
+  } catch (err) {
+    console.error('[triggerWithdrawalProcessor]', err)
+    return { ok: false, status: 0, error: err instanceof Error ? err.message : String(err), body: null }
+  }
+}
+
+function waitUntil(promise: Promise<unknown>) {
   try {
     const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime
-    runtime?.waitUntil?.(request)
+    runtime?.waitUntil?.(promise)
   } catch {
-    // Best-effort fire-and-forget. Database webhook can still pick it up.
+    // Best-effort background processor call.
   }
 }
 

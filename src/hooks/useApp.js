@@ -719,7 +719,7 @@ export function useApp() {
   const adminRetryWithdrawal = useCallback(async (txId) => {
     try {
       await secureApi('admin_retry_withdrawal', { tx_id: txId })
-      showToast('Withdrawal retry started.', 'ok')
+      showToast('Withdrawal retry sent.', 'ok')
       return true
     } catch(e) {
       console.error('[adminRetryWithdrawal]', e)
