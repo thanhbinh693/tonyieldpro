@@ -13,7 +13,6 @@ const MINI_APP_URL = normalizeUrl(
 )
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
-let lastWithdrawRetryAt = 0
 
 const cors = {
   'Content-Type': 'application/json',
@@ -42,7 +41,6 @@ Deno.serve(async (req) => {
 
   const userId = Number(verified.user.id)
   const payload = body.payload || {}
-  triggerPendingWithdrawalRetry()
 
   try {
     switch (body.action) {
@@ -606,37 +604,6 @@ function triggerWithdrawalProcessor(tx: Record<string, unknown>, cfg?: Record<st
     runtime?.waitUntil?.(request)
   } catch {
     // Best-effort fire-and-forget. Database webhook can still pick it up.
-  }
-}
-
-function triggerPendingWithdrawalRetry() {
-  const now = Date.now()
-  if (now - lastWithdrawRetryAt < 60_000) return
-  lastWithdrawRetryAt = now
-
-  const request = fetch(`${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/process-withdrawal`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SERVICE_KEY}`,
-      'apikey': SERVICE_KEY,
-      ...(WEBHOOK_SECRET ? { 'x-webhook-secret': WEBHOOK_SECRET } : {}),
-    },
-    body: JSON.stringify({ action: 'retry_pending' }),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.error('[triggerPendingWithdrawalRetry]', res.status, body)
-    }
-  }).catch((err) => {
-    console.error('[triggerPendingWithdrawalRetry]', err)
-  })
-
-  try {
-    const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime
-    runtime?.waitUntil?.(request)
-  } catch {
-    // Best-effort background retry.
   }
 }
 
