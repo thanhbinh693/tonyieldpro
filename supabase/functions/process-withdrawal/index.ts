@@ -42,13 +42,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   if (req.method !== 'POST') return json({ ok: false, error: 'Method Not Allowed' }, 405)
 
-  if (WEBHOOK_SECRET) {
-    const headerSecret = req.headers.get('x-webhook-secret') || ''
-    if (headerSecret !== WEBHOOK_SECRET) return json({ ok: false, error: 'Unauthorized' }, 401)
-  }
-
   if (!SUPABASE_SERVICE_KEY) return json({ ok: false, error: 'Missing service role key' }, 500)
   if (!ADMIN_MNEMONIC.trim()) return json({ ok: false, error: 'Missing ADMIN_MNEMONIC' }, 500)
+
+  if (!isAuthorizedProcessorRequest(req)) {
+    return json({ ok: false, error: 'Unauthorized' }, 401)
+  }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
@@ -242,6 +241,18 @@ function parseToFriendly(raw: string, network: string) {
 
 function isProcessableWithdraw(tx: WithdrawTx | undefined, force = false): tx is WithdrawTx {
   return !!tx && tx.type === 'withdraw' && (tx.status === 'pending' || (force && tx.status === 'processing'))
+}
+
+function isAuthorizedProcessorRequest(req: Request) {
+  const auth = req.headers.get('authorization') || ''
+  const apikey = req.headers.get('apikey') || ''
+  const headerSecret = req.headers.get('x-webhook-secret') || ''
+  const bearer = auth.replace(/^Bearer\s+/i, '').trim()
+
+  if (bearer && bearer === SUPABASE_SERVICE_KEY) return true
+  if (apikey && apikey === SUPABASE_SERVICE_KEY) return true
+  if (WEBHOOK_SECRET && headerSecret === WEBHOOK_SECRET) return true
+  return !WEBHOOK_SECRET && !headerSecret
 }
 
 function json(body: unknown, status = 200) {
