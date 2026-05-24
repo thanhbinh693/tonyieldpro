@@ -38,7 +38,20 @@ export async function secureApi(action, payload = {}) {
     const fallback = res.status === 401
       ? 'Telegram authorization expired. Close and reopen the Mini App, then retry.'
       : `Secure API failed (${res.status})`
-    throw new Error(data?.error || text || fallback)
+    throw new Error(formatApiError(data?.error || text || fallback))
   }
   return data
+}
+
+function formatApiError(error) {
+  if (!error) return 'Unknown error'
+  if (typeof error === 'string') return error
+  if (error.message && typeof error.message === 'string') return error.message
+  if (error.details && typeof error.details === 'string') return error.details
+  if (error.hint && typeof error.hint === 'string') return error.hint
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
 }

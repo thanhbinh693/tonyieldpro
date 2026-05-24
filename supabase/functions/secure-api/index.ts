@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     }
   } catch (err) {
     console.error('[secure-api]', body.action, err)
-    return json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500)
+    return json({ ok: false, error: formatError(err) }, 500)
   }
 })
 
@@ -232,16 +232,85 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
     p_now: now,
   })
   if (error) {
-    const msg = error.message || 'Withdrawal request failed'
+    const msg = formatError(error)
     if (/minimum|invalid amount|invalid wallet/i.test(msg)) return json({ ok: false, error: msg }, 400)
     if (/insufficient/i.test(msg)) return json({ ok: false, error: 'Insufficient balance' }, 400)
     if (/restricted|banned|referrals/i.test(msg)) return json({ ok: false, error: msg }, 403)
     if (/not found/i.test(msg)) return json({ ok: false, error: msg }, 404)
-    throw error
+
+    const fallback = await submitWithdrawFallback(userId, amount, wallet, txId, now)
+    return json({ ok: true, ...fallback, fallback: true })
   }
   const saved = data?.[0] || {}
 
   return json({ ok: true, tx_id: txId, balance: Number(saved.balance), created_at: Number(saved.created_at || now) })
+}
+
+async function submitWithdrawFallback(userId: number, amount: number, wallet: string, txId: string, now: number) {
+  const { data: cfg, error: cfgErr } = await supabase
+    .from('admin_config')
+    .select('min_withdraw, withdraw_referral_gate_enabled, withdraw_min_referrals')
+    .eq('id', 1)
+    .maybeSingle()
+  if (cfgErr) throw cfgErr
+
+  const minWithdraw = Number(cfg?.min_withdraw) || 5
+  if (amount < minWithdraw) throw new Error(`Amount below minimum (${minWithdraw} TON)`)
+
+  const { data: userRow, error: userErr } = await supabase
+    .from('users')
+    .select('id, status, balance, referrals, referral_friends')
+    .eq('id', userId)
+    .maybeSingle()
+  if (userErr) throw userErr
+  if (!userRow) throw new Error('User not found')
+  if (userRow.status === 'banned') throw new Error('Account restricted')
+
+  const userRefs = Math.max(Number(userRow.referrals) || 0, Number(userRow.referral_friends) || 0)
+  const minRefs = Math.max(0, Number(cfg?.withdraw_min_referrals) || 0)
+  if (cfg?.withdraw_referral_gate_enabled && userRefs <= minRefs) {
+    throw new Error(`Withdrawal requires more than ${minRefs} referrals`)
+  }
+
+  const currentBalance = Number(userRow.balance) || 0
+  if (currentBalance < amount) throw new Error('Insufficient balance')
+  const nextBalance = Number((currentBalance - amount).toFixed(6))
+
+  const { data: updatedUser, error: updateErr } = await supabase
+    .from('users')
+    .update({
+      balance: nextBalance,
+      wallet_addr: wallet,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .gte('balance', amount)
+    .select('balance')
+    .maybeSingle()
+  if (updateErr) throw updateErr
+  if (!updatedUser) throw new Error('Insufficient balance')
+
+  const { error: insertErr } = await supabase.from('transactions').insert({
+    id: txId,
+    user_id: userId,
+    type: 'withdraw',
+    label: `Withdrawal -> ${wallet.slice(0, 8)}...`,
+    amount,
+    status: 'pending',
+    to_wallet: wallet,
+    created_at: now,
+    updated_at: new Date().toISOString(),
+  })
+
+  if (insertErr) {
+    await supabase.from('users').update({
+      balance: currentBalance,
+      updated_at: new Date().toISOString(),
+    }).eq('id', userId)
+    throw insertErr
+  }
+
+  return { tx_id: txId, balance: Number(updatedUser.balance), created_at: now }
 }
 
 async function activateInvestment(userId: number, payload: Record<string, unknown>) {
@@ -693,6 +762,24 @@ function toHex(bytes: Uint8Array) {
 function safeId(value: unknown, fallback: string) {
   const s = String(value || '').trim()
   return /^[A-Za-z0-9_.:-]{1,120}$/.test(s) ? s : fallback
+}
+
+function formatError(error: unknown) {
+  if (!error) return 'Unknown error'
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  if (typeof error === 'object') {
+    const record = error as Record<string, unknown>
+    for (const key of ['message', 'details', 'hint', 'code']) {
+      if (typeof record[key] === 'string' && record[key]) return String(record[key])
+    }
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return String(error)
+    }
+  }
+  return String(error)
 }
 
 function json(data: unknown, status = 200) {
