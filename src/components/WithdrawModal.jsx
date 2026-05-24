@@ -128,12 +128,12 @@ export default function WithdrawModal({
             <div className="wc-icon"><Wallet size={32} color="var(--color-ton)" /></div>
             <h2 className="sheet-title" style={{ marginTop: 8 }}>WITHDRAWAL REQUEST</h2>
             <p className="wc-desc">
-              Connect your TON wallet to set the destination address.
+              Connect your TON wallet to choose the payout destination.
             </p>
             <div className="wc-features">
-              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Destination is read from TON Connect.</div>
-              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> No private keys are stored.</div>
-              <div className="wc-feat"><ShieldCheck size={16} color="var(--color-gold)" /> Payout is handled by the withdrawal system.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Destination is verified through TON Connect.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Your private keys never leave your wallet.</div>
+              <div className="wc-feat"><ShieldCheck size={16} color="var(--color-gold)" /> Approved requests are processed by the payout system.</div>
             </div>
             <button
               className={`sheet-btn main ${loading ? 'btn-loading' : ''}`}

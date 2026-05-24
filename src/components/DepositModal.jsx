@@ -105,12 +105,12 @@ export default function DepositModal({ plans, defaultPlan, onClose, showToast, o
             <div className="wc-icon"><Wallet size={32} color="var(--color-ton)" /></div>
             <h2 className="sheet-title" style={{marginTop:8}}>NEW POSITION</h2>
             <p className="wc-desc">
-              Connect your TON wallet to open a position from an external wallet.
+              Connect your TON wallet to fund this position securely.
             </p>
             <div className="wc-features">
-              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Secured by TON Connect.</div>
-              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> No private keys are stored.</div>
-              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> You confirm the transaction in your wallet.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Authorized through TON Connect.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Your keys stay inside your wallet.</div>
+              <div className="wc-feat"><CheckCircle2 size={16} color="var(--color-gold)" /> Final approval happens in your wallet app.</div>
             </div>
             <button className={`sheet-btn main ${loading ? 'btn-loading' : ''}`} style={{background:'linear-gradient(135deg,#0098EA,#00C2FF)',color:'#fff',marginTop:24}}
               onClick={handleConnectWallet} disabled={loading}>
