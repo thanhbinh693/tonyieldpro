@@ -21,7 +21,8 @@ const TON_NETWORK = Deno.env.get('TON_NETWORK') || 'testnet'
 const TON_API_KEY = Deno.env.get('TON_API_KEY') || ''
 const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') || ''
 
-const NETWORK_FEE = 0.015
+const SEQNO_TIMEOUT_MS = 7_000
+const SEND_TIMEOUT_MS = 10_000
 const cors = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +38,10 @@ type WithdrawTx = {
   status: string
   to_wallet: string
 }
+
+class ProcessorTimeoutError extends Error {}
+class RetryableProcessorError extends Error {}
+class SubmittedUnknownError extends Error {}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
@@ -74,7 +79,7 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force
     .from('transactions')
     .update({
       status: 'processing',
-      fail_reason: 'Processing started; transfer has not been submitted yet',
+      fail_reason: 'Preparing TON transfer',
       updated_at: new Date().toISOString(),
     })
     .eq('id', tx.id)
@@ -120,55 +125,51 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force
     const contract = WalletContractV4.create({ publicKey: keyPair.publicKey, workchain: 0 })
     const wallet = ton.open(contract)
 
-    const adminBalance = Number(await wallet.getBalance()) / 1e9
-    const needed = amount + NETWORK_FEE + 0.05
-    if (adminBalance < needed) {
-      await supabase.from('transactions').update({
-        status: 'pending',
-        fail_reason: `Admin balance insufficient (have ${adminBalance.toFixed(3)}, need ${needed.toFixed(3)})`,
-        updated_at: new Date().toISOString(),
-      }).eq('id', tx.id)
-      return json({ ok: false, error: 'Admin balance insufficient' }, 503)
-    }
-
-    const seqno = await wallet.getSeqno()
+    const seqno = await withTimeout(wallet.getSeqno(), SEQNO_TIMEOUT_MS, 'TON seqno request timed out')
     await supabase.from('transactions').update({
       status: 'processing',
       fail_reason: 'Submitting transfer to TON network',
       updated_at: new Date().toISOString(),
     }).eq('id', tx.id)
 
-    await wallet.sendTransfer({
-      secretKey: keyPair.secretKey,
-      seqno,
-      messages: [internal({
-        to: Address.parse(toWallet),
-        value: BigInt(Math.round(amount * 1e9)),
-        body: `TonYield ${tx.id}`,
-        bounce: false,
-      })],
-      sendMode: 3,
-    })
-    transferSubmitted = true
+    try {
+      await withTimeout(
+        wallet.sendTransfer({
+          secretKey: keyPair.secretKey,
+          seqno,
+          messages: [internal({
+            to: Address.parse(toWallet),
+            value: BigInt(Math.round(amount * 1e9)),
+            body: `TonYield ${tx.id}`,
+            bounce: false,
+          })],
+          sendMode: 3,
+        }),
+        SEND_TIMEOUT_MS,
+        'TON transfer submit timed out',
+      )
+      transferSubmitted = true
+    } catch (err) {
+      if (err instanceof ProcessorTimeoutError) {
+        throw new SubmittedUnknownError(err.message)
+      }
+      throw new RetryableProcessorError(err instanceof Error ? err.message : String(err))
+    }
 
-    await supabase.from('transactions').update({
-      status: 'sent',
-      fail_reason: 'Submitted to network; awaiting blockchain confirmation',
-      updated_at: new Date().toISOString(),
-    }).eq('id', tx.id)
-
-    await markWithdrawSent(supabase, tx, amount)
+    await markSent(supabase, tx, amount, 'Submitted to TON network')
     return json({ ok: true, status: 'sent' })
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err)
     console.error('[processWithdrawal]', tx.id, reason)
 
-    if (transferSubmitted) {
-      await supabase.from('transactions').update({
-        status: 'sent',
-        fail_reason: `Submitted to network but confirmation failed: ${reason}`,
-        updated_at: new Date().toISOString(),
-      }).eq('id', tx.id)
+    if (transferSubmitted || err instanceof SubmittedUnknownError) {
+      await markSent(supabase, tx, Number(tx.amount), `Submit timed out; check TON network before retrying: ${reason}`)
+      return json({ ok: true, status: 'sent', warning: reason })
+    }
+
+    if (err instanceof ProcessorTimeoutError || err instanceof RetryableProcessorError) {
+      await resetToPending(supabase, tx, reason)
+      return json({ ok: false, retryable: true, error: reason }, 503)
     } else {
       await failAndRefund(supabase, tx, reason)
     }
@@ -177,7 +178,13 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force
   }
 }
 
-async function markWithdrawSent(supabase: SupabaseClient, tx: WithdrawTx, amount: number) {
+async function markSent(supabase: SupabaseClient, tx: WithdrawTx, amount: number, reason: string) {
+  await supabase.from('transactions').update({
+    status: 'sent',
+    fail_reason: reason,
+    updated_at: new Date().toISOString(),
+  }).eq('id', tx.id)
+
   const { data: userRow } = await supabase
     .from('users')
     .select('total_withdraw')
@@ -188,6 +195,14 @@ async function markWithdrawSent(supabase: SupabaseClient, tx: WithdrawTx, amount
     total_withdraw: (Number(userRow?.total_withdraw) || 0) + amount,
     updated_at: new Date().toISOString(),
   }).eq('id', tx.user_id)
+}
+
+async function resetToPending(supabase: SupabaseClient, tx: WithdrawTx, reason: string) {
+  await supabase.from('transactions').update({
+    status: 'pending',
+    fail_reason: `Retryable: ${reason}`,
+    updated_at: new Date().toISOString(),
+  }).eq('id', tx.id)
 }
 
 async function failAndRefund(supabase: SupabaseClient, tx: WithdrawTx, reason: string) {
@@ -253,6 +268,19 @@ function isAuthorizedProcessorRequest(req: Request) {
   if (apikey && apikey === SUPABASE_SERVICE_KEY) return true
   if (WEBHOOK_SECRET && headerSecret === WEBHOOK_SECRET) return true
   return !WEBHOOK_SECRET && !headerSecret
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timeoutId: number | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new ProcessorTimeoutError(message)), ms)
+  })
+
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
 }
 
 function json(body: unknown, status = 200) {
