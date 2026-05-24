@@ -70,6 +70,8 @@ create table if not exists admin_config (
   id int primary key default 1,
   min_withdraw numeric(18,6) default 5,
   referral_rate numeric(8,4) default 5,
+  withdraw_referral_gate_enabled boolean default false,
+  withdraw_min_referrals int default 3,
   maintenance_mode boolean default false,
   admin_wallet text default '',
   admin_wallet_testnet text default '',
@@ -121,6 +123,8 @@ alter table users add column if not exists bot_blocked_at timestamptz;
 alter table users drop column if exists wallet_session_id;
 alter table admin_config add column if not exists admin_wallet_testnet text default '';
 alter table admin_config add column if not exists admin_wallet_mainnet text default '';
+alter table admin_config add column if not exists withdraw_referral_gate_enabled boolean default false;
+alter table admin_config add column if not exists withdraw_min_referrals int default 3;
 alter table admin_config add column if not exists withdrawal_webhook_url text default '';
 alter table admin_config add column if not exists withdrawal_webhook_secret text default '';
 alter table admin_config add column if not exists ton_network text not null default 'testnet';
@@ -850,6 +854,12 @@ select 'admin_config.admin_wallet_mainnet',
 union all
 select 'admin_config.withdrawal_webhook_url',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='withdrawal_webhook_url')
+union all
+select 'admin_config.withdraw_referral_gate_enabled',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='withdraw_referral_gate_enabled')
+union all
+select 'admin_config.withdraw_min_referrals',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='withdraw_min_referrals')
 union all
 select 'admin_config.ton_network',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='ton_network')

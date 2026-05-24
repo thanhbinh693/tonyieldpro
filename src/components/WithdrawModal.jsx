@@ -43,8 +43,12 @@ export default function WithdrawModal({
   const walletAddr = toFriendlyAddr(tonWallet?.account?.address || '', isTestnet)
 
   const minW     = config?.minWithdraw || 5
+  const refGateEnabled = !!config?.withdrawReferralGateEnabled
+  const minRefs = Math.max(0, Number(config?.withdrawMinReferrals) || 0)
+  const userRefs = Math.max(Number(user?.referrals) || 0, Number(user?.referralFriends) || 0)
   const amt      = parseFloat(amount) || 0
   const validAmt = amt >= minW && amt <= balance
+  const validRefs = !refGateEnabled || userRefs > minRefs
 
   // Auto-advance when wallet just connected
   useEffect(() => {
@@ -61,6 +65,10 @@ export default function WithdrawModal({
   const handleSubmit = async () => {
     if (!validAmt) {
       showToast(amt < minW ? `Amount below minimum (${formatTon(minW)}).` : 'Amount exceeds available balance.', 'err')
+      return
+    }
+    if (!validRefs) {
+      showToast(`Withdrawal requires more than ${minRefs} referrals.`, 'err')
       return
     }
     // Check live wallet from TonConnect — do not use cached address
@@ -180,6 +188,12 @@ export default function WithdrawModal({
             <div className="info-bar" style={{ marginBottom: 14 }}>
               <Info size={16} color="var(--color-ton)" /> Minimum: <b>{formatTon(minW)}</b>. Processing time: up to 24 hours.
             </div>
+            {refGateEnabled && (
+              <div className="info-bar" style={{ marginBottom: 14, borderColor: validRefs ? 'rgba(34,209,122,0.25)' : 'rgba(239,68,68,0.28)' }}>
+                <ShieldCheck size={16} color={validRefs ? 'var(--color-gold)' : 'var(--color-loss)'} />
+                Referrals required: <b>{userRefs}/{minRefs + 1}</b>
+              </div>
+            )}
 
             {/* Amount input */}
             <div className="sheet-field">
@@ -222,8 +236,8 @@ export default function WithdrawModal({
 
             <button
               className={`sheet-btn main ${loading ? 'btn-loading' : ''}`}
-              style={{ background: validAmt ? 'var(--blue)' : 'var(--card)',
-                       color: validAmt ? '#fff' : 'var(--muted)' }}
+              style={{ background: validAmt && validRefs ? 'var(--blue)' : 'var(--card)',
+                       color: validAmt && validRefs ? '#fff' : 'var(--muted)' }}
               onClick={handleSubmit}
               disabled={!amt || loading}
             >

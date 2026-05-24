@@ -78,7 +78,7 @@ export default function App() {
           onSubmit={appState.submitWithdraw}
           walletConnected={appState.walletConnected}
           onConnectWallet={appState.connectWallet}
-          user={appState.user}
+          user={{ ...appState.user, referralFriends: appState.referral?.friends || 0 }}
         />
       )}
 

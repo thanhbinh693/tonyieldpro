@@ -277,6 +277,19 @@
 
 /* ─── Row with unit ────────────────────────────────────────────────── */
 .sg-row { display: flex; align-items: center; gap: 10px; }
+.sg-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 12px;
+  color: var(--text, #fff);
+  font-size: 13px;
+}
+.sg-check-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue, #0098EA);
+}
 .sg-unit { font-size: 13px; color: var(--text-muted, #8899aa); font-weight: 600; }
 
 /* ─── Save button ──────────────────────────────────────────────────── */

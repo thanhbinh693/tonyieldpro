@@ -217,14 +217,25 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   if (!amount || amount <= 0) return json({ ok: false, error: 'Invalid amount' }, 400)
   if (!/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(wallet)) return json({ ok: false, error: 'Invalid wallet' }, 400)
 
-  const { data: cfg } = await supabase.from('admin_config').select('min_withdraw').eq('id', 1).maybeSingle()
+  const { data: cfg } = await supabase
+    .from('admin_config')
+    .select('min_withdraw, withdraw_referral_gate_enabled, withdraw_min_referrals')
+    .eq('id', 1)
+    .maybeSingle()
   const minWithdraw = Number(cfg?.min_withdraw) || 5
   if (amount < minWithdraw) return json({ ok: false, error: `Amount below minimum (${minWithdraw} TON)` }, 400)
 
-  const { data: user } = await supabase.from('users').select('status, balance').eq('id', userId).maybeSingle()
+  const { data: user } = await supabase.from('users').select('status, balance, referrals, referral_friends').eq('id', userId).maybeSingle()
   if (!user) return json({ ok: false, error: 'User not found' }, 404)
   if (user.status === 'banned') return json({ ok: false, error: 'Account restricted' }, 403)
   if (Number(user.balance) < amount) return json({ ok: false, error: 'Insufficient balance' }, 400)
+  if (cfg?.withdraw_referral_gate_enabled) {
+    const minRefs = Math.max(0, Number(cfg.withdraw_min_referrals) || 0)
+    const userRefs = Math.max(Number(user.referrals) || 0, Number(user.referral_friends) || 0)
+    if (userRefs <= minRefs) {
+      return json({ ok: false, error: `Withdrawal requires more than ${minRefs} referrals` }, 403)
+    }
+  }
 
   const now = Date.now()
   const txId = safeId(payload.tx_id, `tx-wd-${userId}-${now}-${crypto.randomUUID().slice(0, 8)}`)

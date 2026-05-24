@@ -113,6 +113,8 @@ function mkDefaultRef(tid) {
 const DEFAULT_CONFIG = {
   minWithdraw: MIN_WITHDRAW,
   referralRate: 5,
+  withdrawReferralGateEnabled: false,
+  withdrawMinReferrals: 3,
   maintenanceMode: false,
   adminWallet: ADMIN_WALLET,
   adminWalletTestnet: ADMIN_WALLET,
@@ -494,8 +496,15 @@ export function useApp() {
   // ─── WITHDRAW ─────────────────────────────────────────────────────────────
   const submitWithdraw = useCallback(async (amount, walletAddress) => {
     const minWd = Number(config.minWithdraw) || MIN_WITHDRAW
+    const gateEnabled = !!config.withdrawReferralGateEnabled
+    const minRefs = Math.max(0, Number(config.withdrawMinReferrals) || 0)
+    const userRefs = Math.max(Number(user.referrals) || 0, Number(referral.friends) || 0)
     if (amount < minWd)        { showToast(`Amount below minimum (${Number(minWd).toFixed(3)} TON).`, 'err'); return false }
     if (amount > user.balance) { showToast('Amount exceeds available balance.', 'err'); return false }
+    if (gateEnabled && userRefs <= minRefs) {
+      showToast(`Withdrawal requires more than ${minRefs} referrals.`, 'err')
+      return false
+    }
 
     const destWallet = (walletAddress || '').trim()
     if (!destWallet) { showToast('No wallet connected.', 'err'); return false }
@@ -527,11 +536,12 @@ export function useApp() {
       const msg = e?.message || ''
       if (/banned/i.test(msg))            showToast('Account restricted.', 'err')
       else if (/Insufficient/i.test(msg)) showToast('Insufficient balance.', 'err')
+      else if (/referrals/i.test(msg))    showToast(msg, 'err')
       else                                showToast('Network error - please retry.', 'err')
       console.error('[withdraw]', e)
       return false
     }
-  }, [config.minWithdraw, user.balance, tid, showToast])
+  }, [config.minWithdraw, config.withdrawReferralGateEnabled, config.withdrawMinReferrals, user.balance, user.referrals, referral.friends, tid, showToast])
 
   // ─── ACTIVATE ─────────────────────────────────────────────────────────────
   //

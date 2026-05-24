@@ -702,6 +702,8 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [withdrawalWebhookSecret, setWithdrawalWebhookSecret] = useState(config.withdrawalWebhookSecret || '')
   const [referralRate, setReferralRate] = useState(config.referralRate || 5)
   const [minWithdraw,  setMinWithdraw]  = useState(config.minWithdraw  || 5)
+  const [withdrawReferralGateEnabled, setWithdrawReferralGateEnabled] = useState(!!config.withdrawReferralGateEnabled)
+  const [withdrawMinReferrals, setWithdrawMinReferrals] = useState(config.withdrawMinReferrals ?? 3)
   const [tonNetwork,   setTonNetwork]   = useState(config.tonNetwork   || 'testnet')
   const [showNetConfirm, setShowNetConfirm] = useState(false)
   const [pendingNetwork, setPendingNetwork] = useState(null)
@@ -715,6 +717,8 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     setWithdrawalWebhookSecret(config.withdrawalWebhookSecret || '')
     setReferralRate(config.referralRate || 5)
     setMinWithdraw(config.minWithdraw || 5)
+    setWithdrawReferralGateEnabled(!!config.withdrawReferralGateEnabled)
+    setWithdrawMinReferrals(config.withdrawMinReferrals ?? 3)
     setTonNetwork(config.tonNetwork || 'testnet')
   }, [config, currentUserId])
 
@@ -741,6 +745,8 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       withdrawalWebhookSecret: withdrawalWebhookSecret.trim(),
       referralRate: +referralRate,
       minWithdraw: +minWithdraw,
+      withdrawReferralGateEnabled,
+      withdrawMinReferrals: Math.max(0, Number(withdrawMinReferrals) || 0),
       tonNetwork,
     })
   }
@@ -820,6 +826,27 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
         <div className="sg-row">
           <input className="sg-input sg-input-sm" type="number" min="1" step="0.5" value={minWithdraw} onChange={e=>setMinWithdraw(+e.target.value)}/>
           <span className="sg-unit">TON</span>
+        </div>
+      </div>
+
+      <div className="setting-group">
+        <div className="sg-label"><Users size={16} color="#0098EA" />Withdrawal Referral Requirement</div>
+        <div className="sg-desc">When enabled, users must have more referrals than this number before they can submit a withdrawal request.</div>
+        <label className="sg-check-row">
+          <input type="checkbox" checked={withdrawReferralGateEnabled} onChange={e=>setWithdrawReferralGateEnabled(e.target.checked)} />
+          <span>Enable referral gate for withdrawals</span>
+        </label>
+        <div className="sg-row">
+          <input
+            className="sg-input sg-input-sm"
+            type="number"
+            min="0"
+            step="1"
+            value={withdrawMinReferrals}
+            onChange={e=>setWithdrawMinReferrals(+e.target.value)}
+            disabled={!withdrawReferralGateEnabled}
+          />
+          <span className="sg-unit">threshold</span>
         </div>
       </div>
 

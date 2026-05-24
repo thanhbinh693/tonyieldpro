@@ -351,6 +351,8 @@ export async function getAdminConfig(fallback = null) {
   return {
     minWithdraw:      data.min_withdraw,
     referralRate:     data.referral_rate,
+    withdrawReferralGateEnabled: !!data.withdraw_referral_gate_enabled,
+    withdrawMinReferrals: Number(data.withdraw_min_referrals) || 3,
     maintenanceMode:  data.maintenance_mode,
     adminWallet:      data.admin_wallet,
     adminWalletTestnet: data.admin_wallet_testnet || data.admin_wallet || '',
@@ -368,6 +370,8 @@ export async function saveAdminConfig(cfg) {
       id:               1,
       min_withdraw:     cfg.minWithdraw,
       referral_rate:    cfg.referralRate,
+      withdraw_referral_gate_enabled: !!cfg.withdrawReferralGateEnabled,
+      withdraw_min_referrals: Math.max(0, Number(cfg.withdrawMinReferrals) || 0),
       maintenance_mode: cfg.maintenanceMode,
       admin_wallet:     cfg.adminWallet,
       admin_wallet_testnet: cfg.adminWalletTestnet || cfg.adminWallet || '',
