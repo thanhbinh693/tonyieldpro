@@ -239,11 +239,33 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
     if (/not found/i.test(msg)) return json({ ok: false, error: msg }, 404)
 
     const fallback = await submitWithdrawFallback(userId, amount, wallet, txId, now)
-    return json({ ok: true, ...fallback, fallback: true })
+    startWithdrawalProcessor(userId, amount, wallet, txId, now)
+    return json({ ok: true, ...fallback, fallback: true, auto_process: true })
   }
   const saved = data?.[0] || {}
 
-  return json({ ok: true, tx_id: txId, balance: Number(saved.balance), created_at: Number(saved.created_at || now) })
+  startWithdrawalProcessor(userId, amount, wallet, txId, now)
+  return json({ ok: true, tx_id: txId, balance: Number(saved.balance), created_at: Number(saved.created_at || now), auto_process: true })
+}
+
+function startWithdrawalProcessor(userId: number, amount: number, wallet: string, txId: string, now: number) {
+  const request = triggerWithdrawalProcessor({
+    id: txId,
+    user_id: userId,
+    type: 'withdraw',
+    label: `Withdrawal -> ${wallet.slice(0, 8)}...`,
+    amount,
+    status: 'pending',
+    to_wallet: wallet,
+    created_at: now,
+    updated_at: new Date().toISOString(),
+  }).then((result) => {
+    if (!result.ok) console.error('[startWithdrawalProcessor]', txId, result.error || result.body)
+  }).catch((err) => {
+    console.error('[startWithdrawalProcessor]', txId, err)
+  })
+
+  waitUntil(request)
 }
 
 async function submitWithdrawFallback(userId: number, amount: number, wallet: string, txId: string, now: number) {
