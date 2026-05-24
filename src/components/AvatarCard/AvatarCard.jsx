@@ -25,6 +25,11 @@ export function AvatarCard({ user, balance, todayProfit, profitEarned, referredU
 
   return (
     <div className="avatar-card">
+      <div className="oc-orbit" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
       <div className="avatar-card-identity">
         <Avatar src={user?.photoUrl} name={user?.firstName} username={user?.username} size={56} glowing showStatus />
         <div className="avatar-card-info">

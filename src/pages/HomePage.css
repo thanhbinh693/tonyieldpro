@@ -330,6 +330,53 @@
   border-color: rgba(0, 194, 255, .35);
 }
 
+.bal-hero .oc-orbit {
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 176px;
+  height: 176px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 194, 255, .15);
+  box-shadow: inset 0 0 30px rgba(0, 194, 255, .08);
+  pointer-events: none;
+  z-index: 0;
+}
+.bal-hero .oc-orbit span {
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(0, 194, 255, .15);
+  border-radius: 50%;
+  animation: userOrbitRotate 18s linear infinite;
+}
+.bal-hero .oc-orbit span:nth-child(2) {
+  inset: 42px;
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+.bal-hero .oc-orbit span:nth-child(3) {
+  inset: 68px;
+  background: radial-gradient(circle, rgba(0, 194, 255, .8), rgba(0, 152, 234, .18) 44%, transparent 68%);
+  border: 0;
+  filter: blur(0.2px);
+  animation-duration: 9s;
+}
+.bal-hero .oc-orbit span::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #00d4ff;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.9);
+}
+
+@keyframes userOrbitRotate {
+  to { transform: rotate(360deg); }
+}
+
 .status-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -83,6 +83,11 @@ export default function PlansPage({ plans, onDeposit, config }) {
 
       {/* Calculator */}
       <div className="calc-box">
+        <div className="oc-orbit" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="calc-header">
           <span className="calc-icon"><Zap size={18} color="#0098EA" /></span>
           <span className="calc-title">RETURN CALCULATOR</span>

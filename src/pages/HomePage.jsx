@@ -447,6 +447,11 @@ export default function HomePage({ user, investments, transactions, plans, confi
 
       {/* Balance Hero */}
       <div className="bal-hero">
+        <div className="oc-orbit" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="bal-tag">PORTFOLIO VALUE</div>
         <div className="bal-num">{formatTon(user?.balance).replace(' TON','')} <span>TON</span></div>
         <div className="bal-profit">
@@ -494,19 +499,6 @@ export default function HomePage({ user, investments, transactions, plans, confi
           </div>
         </div>
       </div>
-
-      {/* Inactive day banner */}
-      {hasInactiveToday && (
-        <div className="inactive-day-banner">
-          <span className="idb-icon"><Pause size={18} color="#FFD600" /></span>
-          <div className="idb-text">
-            <div className="idb-title">{todayLabel} - Some positions paused</div>
-            <div className="idb-sub">
-              {inactivePlans.map(p => p.name).join(', ')} paused today. Distributions resume on the next active day.
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Investments with plan rings */}
       <div className="sec">
