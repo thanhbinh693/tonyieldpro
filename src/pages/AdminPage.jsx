@@ -32,6 +32,16 @@ const adminIconColor = {
 const txIconMap = { deposit: ArrowDownCircle, withdraw: ArrowUpCircle, profit: Coins, referral: Users }
 const txIconColor = { deposit: '#0098EA', withdraw: '#EF4444', profit: '#FFD600', referral: '#0098EA' }
 const displayTxStatus = (status) => status === 'sent' ? 'completed' : status
+const sectionIconMap = {
+  overview: BarChart2,
+  users: Users,
+  deposits: ArrowDownCircle,
+  withdraws: ArrowUpCircle,
+  history: Database,
+  notifications: Bell,
+  plans: Zap,
+  settings: SettingsIcon,
+}
 
 function AdminTxIcon({ type, size = 16 }) {
   const Icon = txIconMap[type] || BarChart2
@@ -202,12 +212,16 @@ export default function AdminPage({
       </div>
 
       <div className="admin-tabs">
-        {sections.map(s => (
-          <div key={s.id} className={`adm-tab ${section===s.id?'on':''}`} onClick={() => setSection(s.id)}>
-            {s.label}
-            {s.badge > 0 && <span className={`adm-badge ${s.badgeColor||''}`}>{s.badge}</span>}
-          </div>
-        ))}
+        {sections.map(s => {
+          const Icon = sectionIconMap[s.id] || BarChart2
+          return (
+            <div key={s.id} className={`adm-tab ${section===s.id?'on':''}`} onClick={() => setSection(s.id)}>
+              <Icon size={14} />
+              {s.label}
+              {s.badge > 0 && <span className={`adm-badge ${s.badgeColor||''}`}>{s.badge}</span>}
+            </div>
+          )
+        })}
       </div>
 
       {/* ─── OVERVIEW ──────────────────────────────────────────────────────── */}
