@@ -4,6 +4,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') || ''
 const BOT_TOKEN = normalizeBotToken(Deno.env.get('TELEGRAM_BOT_TOKEN') || '')
+const INIT_DATA_MAX_AGE_SECONDS = Number(Deno.env.get('TELEGRAM_INITDATA_MAX_AGE_SECONDS') || 604800)
 const MINI_APP_URL = normalizeUrl(
   Deno.env.get('MINI_APP_URL')
     || Deno.env.get('WEBAPP_URL')
@@ -642,7 +643,9 @@ async function verifyTelegramInitData(initData: string, botToken: string): Promi
   params.delete('hash')
   const authDate = Number(params.get('auth_date') || 0)
   if (!hash || !authDate) return { ok: false, error: 'Invalid initData' }
-  if (Math.abs(Date.now() / 1000 - authDate) > 86400) return { ok: false, error: 'Expired initData' }
+  if (INIT_DATA_MAX_AGE_SECONDS > 0 && Math.abs(Date.now() / 1000 - authDate) > INIT_DATA_MAX_AGE_SECONDS) {
+    return { ok: false, error: 'Expired initData. Close and reopen the Mini App, then retry.' }
+  }
 
   const buildDataCheckString = (source: URLSearchParams) => [...source.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
