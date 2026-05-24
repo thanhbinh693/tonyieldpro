@@ -215,7 +215,13 @@ export default function AdminPage({
         {sections.map(s => {
           const Icon = sectionIconMap[s.id] || BarChart2
           return (
-            <div key={s.id} className={`adm-tab ${section===s.id?'on':''}`} onClick={() => setSection(s.id)}>
+            <div
+              key={s.id}
+              className={`adm-tab ${section===s.id?'on':''}`}
+              onClick={() => setSection(s.id)}
+              title={s.label}
+              aria-label={s.label}
+            >
               <Icon size={14} />
               <span className="adm-tab-label">{s.label}</span>
               {s.badge > 0 && <span className={`adm-badge ${s.badgeColor||''}`}>{s.badge}</span>}
@@ -234,9 +240,9 @@ export default function AdminPage({
                 <span className="oc-live-dot" />
                 Live Control Layer
               </div>
-              <div className="oc-title">TonYield Network Operations</div>
+              <div className="oc-title">Network Ops</div>
               <div className="oc-sub">
-                Realtime capital flow, reserve pressure, active markets, and payout queue telemetry.
+                Realtime custody, reserve, markets, and payout telemetry.
               </div>
             </div>
             <div className="oc-orbit" aria-hidden="true">
