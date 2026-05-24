@@ -537,7 +537,8 @@ export function useApp() {
       if (/banned/i.test(msg))            showToast('Account restricted.', 'err')
       else if (/Insufficient/i.test(msg)) showToast('Insufficient balance.', 'err')
       else if (/referrals/i.test(msg))    showToast(msg, 'err')
-      else                                showToast('Network error - please retry.', 'err')
+      else if (isFetchFailure(e))         showToast('Network error - please retry.', 'err')
+      else                                showToast(`Withdrawal failed: ${msg || 'please retry'}.`, 'err')
       console.error('[withdraw]', e)
       return false
     }

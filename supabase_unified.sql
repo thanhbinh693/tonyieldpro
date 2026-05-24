@@ -877,10 +877,7 @@ begin
   where id = p_tx_id
     and type = 'withdraw'
     and withdrawal_sent_at is null
-    and (
-      status = 'pending'
-      or (p_force and status = 'processing')
-    );
+    and status = 'pending';
 
   get diagnostics updated_count = row_count;
   return updated_count > 0;

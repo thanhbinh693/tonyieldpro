@@ -221,12 +221,6 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   if (!amount || amount <= 0) return json({ ok: false, error: 'Invalid amount' }, 400)
   if (!/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(wallet)) return json({ ok: false, error: 'Invalid wallet' }, 400)
 
-  const { data: cfg } = await supabase
-    .from('admin_config')
-    .select('withdrawal_webhook_url, withdrawal_webhook_secret')
-    .eq('id', 1)
-    .maybeSingle()
-
   const now = Date.now()
   const txId = safeId(payload.tx_id, `tx-wd-${userId}-${now}-${crypto.randomUUID().slice(0, 8)}`)
 
@@ -246,19 +240,6 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
     throw error
   }
   const saved = data?.[0] || {}
-
-  const processorRequest = triggerWithdrawalProcessor({
-    id: txId,
-    user_id: userId,
-    type: 'withdraw',
-    label: `Withdrawal -> ${wallet.slice(0, 8)}...`,
-    amount,
-    status: 'pending',
-    to_wallet: wallet,
-    created_at: now,
-    updated_at: new Date().toISOString(),
-  }, cfg)
-  waitUntil(processorRequest)
 
   return json({ ok: true, tx_id: txId, balance: Number(saved.balance), created_at: Number(saved.created_at || now) })
 }
