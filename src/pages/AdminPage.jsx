@@ -223,7 +223,6 @@ export default function AdminPage({
               aria-label={s.label}
             >
               <Icon size={14} />
-              <span className="adm-tab-label">{s.label}</span>
               {s.badge > 0 && <span className={`adm-badge ${s.badgeColor||''}`}>{s.badge}</span>}
             </div>
           )

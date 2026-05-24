@@ -1523,11 +1523,6 @@
   border-radius: 9px;
 }
 
-.admin-page .adm-tab .adm-tab-label,
-.admin-page .adm-tab.on .adm-tab-label {
-  display: none;
-}
-
 .admin-page .adm-tab svg {
   width: 17px;
   height: 17px;
@@ -1733,28 +1728,21 @@
 
 /* Compact command navigation + Web3 overview */
 .admin-page .admin-tabs {
-  justify-content: flex-start;
-  gap: 7px;
-}
-
-.admin-page .adm-tab {
-  width: 38px;
-  padding: 0;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  justify-content: stretch;
+  gap: 6px;
   overflow: visible;
 }
 
-.admin-page .adm-tab .adm-tab-label {
-  display: none;
-}
-
+.admin-page .adm-tab,
 .admin-page .adm-tab.on {
-  width: auto;
-  padding: 0 12px;
-}
-
-.admin-page .adm-tab.on .adm-tab-label {
-  display: inline;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  justify-content: center;
+  overflow: visible;
 }
 
 .admin-page .adm-tab svg {
