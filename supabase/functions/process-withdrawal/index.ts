@@ -30,6 +30,7 @@ const TON_API_KEY          = Deno.env.get('TON_API_KEY') || ''
 const WEBHOOK_SECRET       = Deno.env.get('WEBHOOK_SECRET') || ''
 
 const NETWORK_FEE    = 0.015
+const RETRY_LIMIT = 10
 const CONFIRM_TIMEOUT = 90_000   // 90s chờ seqno tăng
 
 const cors = {
@@ -63,6 +64,38 @@ function parseToFriendly(raw: string, network: string): string | null {
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
+function triggerSelf(tx: Record<string, unknown>) {
+  const request = fetch(`${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/process-withdrawal`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+      'apikey': SUPABASE_SERVICE_KEY,
+      ...(WEBHOOK_SECRET ? { 'x-webhook-secret': WEBHOOK_SECRET } : {}),
+    },
+    body: JSON.stringify({
+      type: 'RETRY',
+      table: 'transactions',
+      schema: 'public',
+      record: tx,
+    }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error('[retry-pending]', res.status, body)
+    }
+  }).catch((err) => {
+    console.error('[retry-pending]', err)
+  })
+
+  try {
+    const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime
+    runtime?.waitUntil?.(request)
+  } catch {
+    // Best-effort fire-and-forget.
+  }
+}
+
 Deno.serve(async (req) => {
   let supabase: ReturnType<typeof createClient> | null = null
   let claimedTx: Record<string, unknown> | null = null
@@ -85,6 +118,33 @@ Deno.serve(async (req) => {
     // ── Đọc payload từ Database Webhook ──────────────────────────────────
     // Supabase Webhook gửi: { type: 'INSERT', table: 'transactions', record: {...} }
     const payload = await req.json()
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    if (payload?.action === 'retry_pending') {
+      await supabase
+        .from('transactions')
+        .update({
+          status: 'pending',
+          fail_reason: 'Retrying stuck processing withdrawal',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('type', 'withdraw')
+        .eq('status', 'processing')
+        .lt('updated_at', new Date(Date.now() - 3 * 60_000).toISOString())
+
+      const { data: pending, error: pendingErr } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('type', 'withdraw')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(RETRY_LIMIT)
+
+      if (pendingErr) throw pendingErr
+      for (const item of pending || []) triggerSelf(item)
+      return new Response(JSON.stringify({ ok: true, retried: pending?.length || 0 }), { headers: cors })
+    }
+
     const tx = payload?.record
 
     if (!tx || tx.type !== 'withdraw' || tx.status !== 'pending') {
