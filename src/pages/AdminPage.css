@@ -117,18 +117,45 @@
 .adm-status.rejected,.adm-status.failed { background:#f04f5a18;color:var(--red); }
 .adm-status.processing { background:#0098ea20;color:var(--blue); }
 .adm-status.sent { background:#8b5cf620;color:#a78bfa; }
-.adm-icon-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(255,255,255,.12);
+.withdraw-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.adm-retry-btn {
+  min-width: 82px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(0,152,234,.36);
   border-radius: 8px;
-  background: rgba(0,152,234,.78);
+  background: rgba(0,152,234,.16);
+  color: var(--blue);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
   cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .12s ease;
+  white-space: nowrap;
 }
-.adm-icon-btn:hover { background: #0098EA; }
+.adm-retry-btn:hover { background: rgba(0,152,234,.26);border-color: var(--blue); }
+.adm-retry-btn:active { transform: scale(.97); }
+.adm-retry-btn.loading {
+  background: rgba(245,166,35,.14);
+  border-color: rgba(245,166,35,.42);
+  color: var(--gold);
+  cursor: progress;
+  transform: none;
+}
+.adm-retry-btn:disabled { opacity: 1; }
+.adm-retry-btn .spin { animation: adm-spin .85s linear infinite; }
+@keyframes adm-spin { to { transform: rotate(360deg); } }
 
 /* Plan interval select */
 .pe-select { background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;font-family:var(--font);width:160px;cursor:pointer; }

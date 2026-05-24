@@ -57,6 +57,7 @@ export default function AdminPage({
   const [allUsers,   setAllUsers]     = useState([])
   const [allTx,      setAllTx]        = useState([])
   const [dataLoading, setDataLoading] = useState(false)
+  const [retryingWithdrawIds, setRetryingWithdrawIds] = useState(() => new Set())
 
   const loadAdminData = async (silent = false) => {
     if (!silent) setDataLoading(true)
@@ -89,6 +90,46 @@ export default function AdminPage({
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, []) // eslint-disable-line
+
+  useEffect(() => {
+    setRetryingWithdrawIds(prev => {
+      if (prev.size === 0) return prev
+      const next = new Set(prev)
+
+      prev.forEach(txId => {
+        const tx = allTx.find(t => t.id === txId)
+        if (!tx || !['pending', 'processing'].includes(tx.status)) next.delete(txId)
+      })
+
+      return next.size === prev.size ? prev : next
+    })
+  }, [allTx])
+
+  const markWithdrawRetryDone = (txId) => {
+    setRetryingWithdrawIds(prev => {
+      if (!prev.has(txId)) return prev
+      const next = new Set(prev)
+      next.delete(txId)
+      return next
+    })
+  }
+
+  const handleRetryWithdrawal = async (txId) => {
+    setRetryingWithdrawIds(prev => {
+      const next = new Set(prev)
+      next.add(txId)
+      return next
+    })
+
+    const ok = await adminRetryWithdrawal?.(txId)
+    if (!ok) {
+      markWithdrawRetryDone(txId)
+      return
+    }
+
+    loadAdminData(true)
+    window.setTimeout(() => markWithdrawRetryDone(txId), 120000)
+  }
 
   const allTxSorted = [...allTx].sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
   const filteredTx  = txFilter === 'all' ? allTxSorted : allTxSorted.filter(t => t.type === txFilter)
@@ -357,7 +398,11 @@ export default function AdminPage({
             </div>
           )}
           {allTx.filter(t=>t.type==='withdraw').length === 0 && <div className="adm-empty">No withdrawals.</div>}
-          {allTxSorted.filter(t=>t.type==='withdraw').map(tx => (
+          {allTxSorted.filter(t=>t.type==='withdraw').map(tx => {
+            const retrying = retryingWithdrawIds.has(tx.id) || tx.status === 'processing'
+            const showRetry = tx.status === 'pending' || retrying
+
+            return (
             <div key={tx.id} className="adm-tx-row">
               <div className="atr-ico withdraw"><AdminTxIcon type="withdraw" /></div>
               <div className="atr-left">
@@ -380,16 +425,23 @@ export default function AdminPage({
                   </div>
                 )}
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                {tx.status === 'pending' && (
-                  <button className="adm-icon-btn" title="Retry withdrawal" onClick={() => adminRetryWithdrawal?.(tx.id)}>
-                    <RefreshCw size={14} color="#FFFFFF" />
+              <div className="withdraw-row-actions">
+                {showRetry && (
+                  <button
+                    className={`adm-retry-btn ${retrying ? 'loading' : ''}`}
+                    title={retrying ? 'Withdrawal is being sent' : 'Retry withdrawal'}
+                    disabled={retrying}
+                    onClick={() => handleRetryWithdrawal(tx.id)}
+                  >
+                    <RefreshCw className={retrying ? 'spin' : ''} size={13} />
+                    <span>{retrying ? 'Sending' : 'Retry'}</span>
                   </button>
                 )}
                 <span className={`adm-status ${tx.status}`}>{tx.status}</span>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
