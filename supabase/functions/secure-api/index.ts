@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
         return await adminUpdateUser(userId, payload)
       case 'admin_delete_user':
         return await adminDeleteUser(userId, payload)
+      case 'admin_retry_withdrawal':
+        return await adminRetryWithdrawal(userId, payload)
       case 'admin_save_config':
         return await adminSaveConfig(userId, payload)
       case 'admin_save_plans':
@@ -220,50 +222,29 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
 
   const { data: cfg } = await supabase
     .from('admin_config')
-    .select('min_withdraw, withdraw_referral_gate_enabled, withdraw_min_referrals, withdrawal_webhook_url, withdrawal_webhook_secret')
+    .select('withdrawal_webhook_url, withdrawal_webhook_secret')
     .eq('id', 1)
     .maybeSingle()
-  const minWithdraw = Number(cfg?.min_withdraw) || 5
-  if (amount < minWithdraw) return json({ ok: false, error: `Amount below minimum (${minWithdraw} TON)` }, 400)
-
-  const { data: user } = await supabase.from('users').select('status, balance, referrals, referral_friends').eq('id', userId).maybeSingle()
-  if (!user) return json({ ok: false, error: 'User not found' }, 404)
-  if (user.status === 'banned') return json({ ok: false, error: 'Account restricted' }, 403)
-  if (Number(user.balance) < amount) return json({ ok: false, error: 'Insufficient balance' }, 400)
-  if (cfg?.withdraw_referral_gate_enabled) {
-    const minRefs = Math.max(0, Number(cfg.withdraw_min_referrals) || 0)
-    const userRefs = Math.max(Number(user.referrals) || 0, Number(user.referral_friends) || 0)
-    if (userRefs <= minRefs) {
-      return json({ ok: false, error: `Withdrawal requires more than ${minRefs} referrals` }, 403)
-    }
-  }
 
   const now = Date.now()
   const txId = safeId(payload.tx_id, `tx-wd-${userId}-${now}-${crypto.randomUUID().slice(0, 8)}`)
-  const nextBalance = +((Number(user.balance) || 0) - amount).toFixed(6)
 
-  const { error: userErr } = await supabase.from('users').update({
-    balance: nextBalance,
-    wallet_addr: wallet,
-    updated_at: new Date().toISOString(),
-  }).eq('id', userId)
-  if (userErr) throw userErr
-
-  const { error: txErr } = await supabase.from('transactions').insert({
-    id: txId,
-    user_id: userId,
-    type: 'withdraw',
-    label: `Withdrawal -> ${wallet.slice(0, 8)}...`,
-    amount,
-    status: 'pending',
-    to_wallet: wallet,
-    created_at: now,
-    updated_at: new Date().toISOString(),
+  const { data, error } = await supabase.rpc('request_withdrawal', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_wallet: wallet,
+    p_tx_id: txId,
+    p_now: now,
   })
-  if (txErr) {
-    await supabase.from('users').update({ balance: user.balance, updated_at: new Date().toISOString() }).eq('id', userId)
-    throw txErr
+  if (error) {
+    const msg = error.message || 'Withdrawal request failed'
+    if (/minimum|invalid amount|invalid wallet/i.test(msg)) return json({ ok: false, error: msg }, 400)
+    if (/insufficient/i.test(msg)) return json({ ok: false, error: 'Insufficient balance' }, 400)
+    if (/restricted|banned|referrals/i.test(msg)) return json({ ok: false, error: msg }, 403)
+    if (/not found/i.test(msg)) return json({ ok: false, error: msg }, 404)
+    throw error
   }
+  const saved = data?.[0] || {}
 
   triggerWithdrawalProcessor({
     id: txId,
@@ -277,7 +258,7 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
     updated_at: new Date().toISOString(),
   }, cfg)
 
-  return json({ ok: true, tx_id: txId, balance: nextBalance, created_at: now })
+  return json({ ok: true, tx_id: txId, balance: Number(saved.balance), created_at: Number(saved.created_at || now) })
 }
 
 async function activateInvestment(userId: number, payload: Record<string, unknown>) {
@@ -323,6 +304,31 @@ async function adminDeleteUser(adminId: number, payload: Record<string, unknown>
   if (!userId || userId === adminId) return json({ ok: false, error: 'Invalid user_id' }, 400)
   const { error } = await supabase.rpc('delete_user_data', { p_user_id: userId })
   if (error) throw error
+  return json({ ok: true })
+}
+
+async function adminRetryWithdrawal(adminId: number, payload: Record<string, unknown>) {
+  await requireAdmin(adminId)
+  const txId = String(payload.tx_id || '').trim()
+  if (!txId) return json({ ok: false, error: 'Missing withdrawal id' }, 400)
+
+  const { data: tx, error: txErr } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', txId)
+    .eq('type', 'withdraw')
+    .maybeSingle()
+  if (txErr) throw txErr
+  if (!tx) return json({ ok: false, error: 'Withdrawal not found' }, 404)
+  if (tx.status !== 'pending') return json({ ok: false, error: `Only pending withdrawals can be retried (current: ${tx.status})` }, 400)
+
+  const { data: cfg } = await supabase
+    .from('admin_config')
+    .select('withdrawal_webhook_url, withdrawal_webhook_secret')
+    .eq('id', 1)
+    .maybeSingle()
+
+  triggerWithdrawalProcessor(tx, cfg)
   return json({ ok: true })
 }
 
@@ -574,7 +580,7 @@ function escapeHtml(value: string) {
 function triggerWithdrawalProcessor(tx: Record<string, unknown>, cfg?: Record<string, unknown> | null) {
   const configuredUrl = String(cfg?.withdrawal_webhook_url || '').trim()
   const url = configuredUrl || `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/process-withdrawal`
-  const secret = String(cfg?.withdrawal_webhook_secret || WEBHOOK_SECRET || '').trim()
+  const secret = String(WEBHOOK_SECRET || cfg?.withdrawal_webhook_secret || '').trim()
 
   const request = fetch(url, {
     method: 'POST',

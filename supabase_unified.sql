@@ -710,6 +710,94 @@ begin
 end;
 $$;
 
+create or replace function request_withdrawal(
+  p_user_id bigint,
+  p_amount numeric,
+  p_wallet text,
+  p_tx_id text,
+  p_now bigint
+) returns table(balance numeric, created_at bigint)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_row record;
+  cfg record;
+  min_refs int := 0;
+  user_refs int := 0;
+begin
+  if p_user_id is null or p_amount is null or p_amount <= 0 then
+    raise exception 'Invalid amount';
+  end if;
+
+  if coalesce(p_wallet, '') = '' then
+    raise exception 'Invalid wallet';
+  end if;
+
+  select min_withdraw, withdraw_referral_gate_enabled, withdraw_min_referrals
+  into cfg
+  from admin_config
+  where id = 1;
+
+  if p_amount < coalesce(cfg.min_withdraw, 5) then
+    raise exception 'Amount below minimum (% TON)', coalesce(cfg.min_withdraw, 5);
+  end if;
+
+  select id, status, balance, referrals, referral_friends
+  into current_user_row
+  from users
+  where id = p_user_id
+  for update;
+
+  if not found then
+    raise exception 'User not found';
+  end if;
+
+  if current_user_row.status = 'banned' then
+    raise exception 'Account restricted';
+  end if;
+
+  if coalesce(cfg.withdraw_referral_gate_enabled, false) then
+    min_refs := greatest(coalesce(cfg.withdraw_min_referrals, 0), 0);
+    user_refs := greatest(coalesce(current_user_row.referrals, 0), coalesce(current_user_row.referral_friends, 0));
+    if user_refs <= min_refs then
+      raise exception 'Withdrawal requires more than % referrals', min_refs;
+    end if;
+  end if;
+
+  if current_user_row.balance < p_amount then
+    raise exception 'Insufficient balance';
+  end if;
+
+  update users
+  set balance = users.balance - p_amount,
+      wallet_addr = p_wallet,
+      updated_at = now()
+  where id = p_user_id
+  returning users.balance
+  into balance;
+
+  insert into transactions (
+    id, user_id, type, label, amount, status, to_wallet, created_at, updated_at
+  )
+  values (
+    p_tx_id,
+    p_user_id,
+    'withdraw',
+    'Withdrawal -> ' || left(p_wallet, 8) || '...',
+    p_amount,
+    'pending',
+    p_wallet,
+    p_now,
+    now()
+  );
+
+  created_at := p_now;
+  return next;
+end;
+$$;
+
 alter table users enable row level security;
 alter table investments enable row level security;
 alter table transactions enable row level security;
@@ -888,6 +976,9 @@ union all
 select 'function.delete_user_data',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='delete_user_data')
 union all
+select 'function.request_withdrawal',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='request_withdrawal')
+union all
 select 'notifications.table',
        exists(select 1 from information_schema.tables where table_schema='public' and table_name='notifications')
 union all
@@ -969,6 +1060,8 @@ revoke execute on function delete_user_data(bigint)
   from anon, authenticated;
 revoke execute on function retry_stuck_withdrawals()
   from anon, authenticated;
+revoke execute on function request_withdrawal(bigint, numeric, text, text, bigint)
+  from anon, authenticated;
 
 grant execute on function credit_profit(bigint, text, numeric, numeric, bigint, bigint, text, text, bigint)
   to service_role;
@@ -987,4 +1080,6 @@ grant execute on function sync_referral_counts()
 grant execute on function delete_user_data(bigint)
   to service_role;
 grant execute on function retry_stuck_withdrawals()
+  to service_role;
+grant execute on function request_withdrawal(bigint, numeric, text, text, bigint)
   to service_role;

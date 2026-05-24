@@ -42,7 +42,7 @@ export default function AdminPage({
   computeAdminStats, getAllUsers, getAllTransactions,
   plans,
   adminToggleBan, adminUpdatePlan, adminToggleMaintenance,
-  adminUpdateUser, adminSaveSettings, adminSendNotification,
+  adminUpdateUser, adminRetryWithdrawal, adminSaveSettings, adminSendNotification,
   adminGetNotifications, adminDeleteNotification, adminTestBotNotification,
   config, showToast, setIsAdmin
 }) {
@@ -344,10 +344,10 @@ export default function AdminPage({
           {/* Status summary */}
           {allTx.filter(t=>t.type==='withdraw').length > 0 && (
             <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
-              {['pending','processing','completed','failed'].map(s => {
+              {['pending','processing','sent','completed','failed'].map(s => {
                 const count = allTx.filter(t=>t.type==='withdraw'&&t.status===s).length
                 if (!count) return null
-                const colors = { pending:'#f5a623', processing:'#3d9be9', completed:'#4cd964', failed:'#ff3b30' }
+                const colors = { pending:'#f5a623', processing:'#3d9be9', sent:'#8b5cf6', completed:'#4cd964', failed:'#ff3b30' }
                 return (
                   <div key={s} style={{ background:'var(--card)', borderRadius:8, padding:'4px 10px', fontSize:12, color:colors[s]||'var(--muted)', fontWeight:600, border:`1px solid ${colors[s]}33` }}>
                     {s}: {count}
@@ -380,7 +380,14 @@ export default function AdminPage({
                   </div>
                 )}
               </div>
-              <span className={`adm-status ${tx.status}`}>{tx.status}</span>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                {tx.status === 'pending' && (
+                  <button className="adm-icon-btn" title="Retry withdrawal" onClick={() => adminRetryWithdrawal?.(tx.id)}>
+                    <RefreshCw size={14} color="#FFFFFF" />
+                  </button>
+                )}
+                <span className={`adm-status ${tx.status}`}>{tx.status}</span>
+              </div>
             </div>
           ))}
         </div>

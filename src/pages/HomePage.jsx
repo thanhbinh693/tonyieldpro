@@ -240,7 +240,7 @@ const formatMarketIdLabel = (key, planName = '') => {
 
 const statusBadge = (s) => {
   const map = { completed:'badge-ok', approved:'badge-ok', done:'badge-ok', rejected:'badge-err', failed:'badge-err' }
-  const lbl = { completed:'COMPLETED', approved:'COMPLETED', done:'COMPLETED', pending:'PENDING', processing:'PENDING', rejected:'FAILED', failed:'FAILED' }
+  const lbl = { completed:'COMPLETED', approved:'COMPLETED', done:'COMPLETED', pending:'PENDING', processing:'PROCESSING', sent:'SENT', rejected:'FAILED', failed:'FAILED' }
   return <span className={`tx-badge ${map[s]||''}`}>{lbl[s] || String(s || '').toUpperCase()}</span>
 }
 

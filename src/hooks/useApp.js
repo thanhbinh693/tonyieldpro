@@ -716,6 +716,18 @@ export function useApp() {
     }
   }, [tid, showToast])
 
+  const adminRetryWithdrawal = useCallback(async (txId) => {
+    try {
+      await secureApi('admin_retry_withdrawal', { tx_id: txId })
+      showToast('Withdrawal retry started.', 'ok')
+      return true
+    } catch(e) {
+      console.error('[adminRetryWithdrawal]', e)
+      showToast(`Failed to retry withdrawal: ${e?.message || 'please retry'}.`, 'err')
+      return false
+    }
+  }, [showToast])
+
   const adminUpdatePlan = useCallback((planId, updates) => {
     setPlans(prev => { const next = prev.map(p => p.id===planId ? { ...p, ...updates } : p); saveAdminPlans(next); return next })
     showToast('Plan updated.','ok')
@@ -826,7 +838,7 @@ export function useApp() {
     connectWallet, disconnectWallet, showToast,
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
     computeAdminStats, getAllUsers, getAllTransactions,
-    adminToggleBan, adminUpdateUser, adminUpdatePlan, adminSendNotification,
+    adminToggleBan, adminUpdateUser, adminRetryWithdrawal, adminUpdatePlan, adminSendNotification,
     adminGetNotifications, adminDeleteNotification, adminTestBotNotification,
     adminToggleMaintenance, adminSaveSettings,
   }
