@@ -333,11 +333,14 @@ async function adminRetryWithdrawal(adminId: number, payload: Record<string, unk
     .maybeSingle()
 
   const result = await triggerWithdrawalProcessor(tx, cfg, true)
-  if (!result.ok) {
+  const latest = await getWithdrawalTx(txId)
+  const body = result.body as Record<string, unknown> | null
+
+  if (!result.ok && !body?.retryable) {
     return json({ ok: false, error: result.error || 'Withdrawal processor failed' }, 502)
   }
 
-  return json({ ok: true, processor: result.body || null })
+  return json({ ok: true, processor: result.body || null, tx: latest })
 }
 
 async function adminSaveConfig(adminId: number, payload: Record<string, unknown>) {
@@ -624,6 +627,17 @@ async function triggerWithdrawalProcessor(tx: Record<string, unknown>, cfg?: Rec
     console.error('[triggerWithdrawalProcessor]', err)
     return { ok: false, status: 0, error: err instanceof Error ? err.message : String(err), body: null }
   }
+}
+
+async function getWithdrawalTx(txId: string) {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', txId)
+    .eq('type', 'withdraw')
+    .maybeSingle()
+  if (error) throw error
+  return data || null
 }
 
 function waitUntil(promise: Promise<unknown>) {

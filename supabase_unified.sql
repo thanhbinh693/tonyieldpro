@@ -61,6 +61,10 @@ create table if not exists transactions (
   to_wallet text default '',
   plan_id int,
   fail_reason text default '',
+  blockchain_tx_hash text default '',
+  withdrawal_attempt_id text default '',
+  withdrawal_sent_at timestamptz,
+  withdrawal_confirmed_at timestamptz,
   created_at bigint,
   created_at_ts timestamptz default now(),
   updated_at timestamptz default now()
@@ -130,6 +134,10 @@ alter table admin_config add column if not exists withdrawal_webhook_secret text
 alter table admin_config add column if not exists ton_network text not null default 'testnet';
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';
+alter table transactions add column if not exists blockchain_tx_hash text default '';
+alter table transactions add column if not exists withdrawal_attempt_id text default '';
+alter table transactions add column if not exists withdrawal_sent_at timestamptz;
+alter table transactions add column if not exists withdrawal_confirmed_at timestamptz;
 alter table transactions add column if not exists updated_at timestamptz default now();
 
 do $$
@@ -798,6 +806,198 @@ begin
 end;
 $$;
 
+create or replace function mark_withdrawal_sent(
+  p_tx_id text,
+  p_attempt_id text,
+  p_reason text default 'Submitted to TON network'
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  tx_row record;
+  updated_count int := 0;
+begin
+  select id, user_id, amount
+  into tx_row
+  from transactions
+  where id = p_tx_id
+    and type = 'withdraw'
+    and status in ('processing', 'pending')
+    and withdrawal_sent_at is null
+  for update;
+
+  if not found then
+    return false;
+  end if;
+
+  update transactions
+  set status = 'sent',
+      fail_reason = coalesce(nullif(p_reason, ''), 'Submitted to TON network'),
+      withdrawal_attempt_id = coalesce(nullif(p_attempt_id, ''), withdrawal_attempt_id),
+      withdrawal_sent_at = coalesce(withdrawal_sent_at, now()),
+      updated_at = now()
+  where id = p_tx_id;
+
+  get diagnostics updated_count = row_count;
+
+  if updated_count > 0 then
+    update users
+    set total_withdraw = total_withdraw + abs(tx_row.amount),
+        updated_at = now()
+    where id = tx_row.user_id;
+  end if;
+
+  return updated_count > 0;
+end;
+$$;
+
+create or replace function claim_withdrawal_attempt(
+  p_tx_id text,
+  p_attempt_id text,
+  p_force boolean default false
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  updated_count int := 0;
+begin
+  if coalesce(p_tx_id, '') = '' or coalesce(p_attempt_id, '') = '' then
+    raise exception 'Invalid withdrawal attempt';
+  end if;
+
+  update transactions
+  set status = 'processing',
+      fail_reason = 'Preparing TON transfer',
+      withdrawal_attempt_id = p_attempt_id,
+      updated_at = now()
+  where id = p_tx_id
+    and type = 'withdraw'
+    and withdrawal_sent_at is null
+    and (
+      status = 'pending'
+      or (p_force and status = 'processing')
+    );
+
+  get diagnostics updated_count = row_count;
+  return updated_count > 0;
+end;
+$$;
+
+create or replace function reset_withdrawal_pending(
+  p_tx_id text,
+  p_attempt_id text,
+  p_reason text
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  updated_count int := 0;
+begin
+  update transactions
+  set status = 'pending',
+      fail_reason = coalesce(nullif(p_reason, ''), 'Retryable transfer preparation error'),
+      updated_at = now()
+  where id = p_tx_id
+    and type = 'withdraw'
+    and status = 'processing'
+    and withdrawal_sent_at is null
+    and withdrawal_attempt_id = p_attempt_id;
+
+  get diagnostics updated_count = row_count;
+  return updated_count > 0;
+end;
+$$;
+
+create or replace function complete_withdrawal(
+  p_tx_id text,
+  p_blockchain_tx_hash text default '',
+  p_confirmed_at timestamptz default now()
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  tx_row record;
+begin
+  select id, user_id, amount, status
+  into tx_row
+  from transactions
+  where id = p_tx_id
+    and type = 'withdraw'
+  for update;
+
+  if not found then
+    raise exception 'Withdrawal not found';
+  end if;
+
+  if tx_row.status = 'completed' then
+    return false;
+  end if;
+
+  if tx_row.status <> 'sent' then
+    raise exception 'Withdrawal must be sent before completion';
+  end if;
+
+  update transactions
+  set status = 'completed',
+      fail_reason = '',
+      blockchain_tx_hash = coalesce(nullif(p_blockchain_tx_hash, ''), blockchain_tx_hash),
+      withdrawal_confirmed_at = coalesce(p_confirmed_at, now()),
+      updated_at = now()
+  where id = p_tx_id;
+
+  return true;
+end;
+$$;
+
+create or replace function fail_withdrawal_refund(
+  p_tx_id text,
+  p_reason text
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  tx_row record;
+begin
+  select id, user_id, amount, status
+  into tx_row
+  from transactions
+  where id = p_tx_id
+    and type = 'withdraw'
+  for update;
+
+  if not found then
+    raise exception 'Withdrawal not found';
+  end if;
+
+  if tx_row.status in ('failed', 'completed', 'sent') then
+    return false;
+  end if;
+
+  update transactions
+  set status = 'failed',
+      fail_reason = coalesce(nullif(p_reason, ''), 'Withdrawal failed before broadcast'),
+      updated_at = now()
+  where id = p_tx_id;
+
+  update users
+  set balance = balance + abs(tx_row.amount),
+      updated_at = now()
+  where id = tx_row.user_id;
+
+  return true;
+end;
+$$;
+
 alter table users enable row level security;
 alter table investments enable row level security;
 alter table transactions enable row level security;
@@ -1062,6 +1262,16 @@ revoke execute on function retry_stuck_withdrawals()
   from anon, authenticated;
 revoke execute on function request_withdrawal(bigint, numeric, text, text, bigint)
   from anon, authenticated;
+revoke execute on function claim_withdrawal_attempt(text, text, boolean)
+  from anon, authenticated;
+revoke execute on function mark_withdrawal_sent(text, text, text)
+  from anon, authenticated;
+revoke execute on function reset_withdrawal_pending(text, text, text)
+  from anon, authenticated;
+revoke execute on function complete_withdrawal(text, text, timestamptz)
+  from anon, authenticated;
+revoke execute on function fail_withdrawal_refund(text, text)
+  from anon, authenticated;
 
 grant execute on function credit_profit(bigint, text, numeric, numeric, bigint, bigint, text, text, bigint)
   to service_role;
@@ -1082,4 +1292,14 @@ grant execute on function delete_user_data(bigint)
 grant execute on function retry_stuck_withdrawals()
   to service_role;
 grant execute on function request_withdrawal(bigint, numeric, text, text, bigint)
+  to service_role;
+grant execute on function claim_withdrawal_attempt(text, text, boolean)
+  to service_role;
+grant execute on function mark_withdrawal_sent(text, text, text)
+  to service_role;
+grant execute on function reset_withdrawal_pending(text, text, text)
+  to service_role;
+grant execute on function complete_withdrawal(text, text, timestamptz)
+  to service_role;
+grant execute on function fail_withdrawal_refund(text, text)
   to service_role;

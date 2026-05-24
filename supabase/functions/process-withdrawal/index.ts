@@ -74,34 +74,28 @@ Deno.serve(async (req) => {
 
 async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force = false) {
   let transferSubmitted = false
+  const attemptId = crypto.randomUUID()
 
-  let claimQuery = supabase
-    .from('transactions')
-    .update({
-      status: 'processing',
-      fail_reason: 'Preparing TON transfer',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', tx.id)
-    .eq('type', 'withdraw')
-  claimQuery = force ? claimQuery.in('status', ['pending', 'processing']) : claimQuery.eq('status', 'pending')
-  const claim = await claimQuery.select('id', { count: 'exact', head: true })
+  const claimed = await rpcBoolean(supabase, 'claim_withdrawal_attempt', {
+    p_tx_id: tx.id,
+    p_attempt_id: attemptId,
+    p_force: force,
+  })
 
-  if (claim.error) throw claim.error
-  if (!claim.count) return json({ ok: true, skipped: true, reason: 'already claimed' })
+  if (!claimed) return json({ ok: true, skipped: true, reason: 'not claimable', attempt_id: attemptId })
 
   try {
     const network = await getActiveNetwork(supabase)
     const toWallet = parseToFriendly(String(tx.to_wallet || ''), network)
     if (!toWallet) {
-      await failAndRefund(supabase, tx, `Invalid wallet address: "${tx.to_wallet}"`)
-      return json({ ok: false, error: 'Invalid wallet' }, 400)
+      await failAndRefund(supabase, tx.id, `Invalid wallet address: "${tx.to_wallet}"`)
+      return json({ ok: false, error: 'Invalid wallet', attempt_id: attemptId }, 400)
     }
 
     const amount = Number(tx.amount)
     if (!amount || amount <= 0) {
-      await failAndRefund(supabase, tx, `Invalid withdrawal amount: "${tx.amount}"`)
-      return json({ ok: false, error: 'Invalid amount' }, 400)
+      await failAndRefund(supabase, tx.id, `Invalid withdrawal amount: "${tx.amount}"`)
+      return json({ ok: false, error: 'Invalid amount', attempt_id: attemptId }, 400)
     }
 
     const { data: userRow, error: userErr } = await supabase
@@ -111,12 +105,12 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force
       .maybeSingle()
     if (userErr) throw userErr
     if (!userRow) {
-      await failAndRefund(supabase, tx, `User ${tx.user_id} not found`)
-      return json({ ok: false, error: 'User not found' }, 404)
+      await failAndRefund(supabase, tx.id, `User ${tx.user_id} not found`)
+      return json({ ok: false, error: 'User not found', attempt_id: attemptId }, 404)
     }
     if (userRow.status === 'banned') {
-      await failAndRefund(supabase, tx, 'User is banned')
-      return json({ ok: false, error: 'User banned' }, 403)
+      await failAndRefund(supabase, tx.id, 'User is banned')
+      return json({ ok: false, error: 'User banned', attempt_id: attemptId }, 403)
     }
 
     const words = ADMIN_MNEMONIC.trim().split(/\s+/)
@@ -126,11 +120,7 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force
     const wallet = ton.open(contract)
 
     const seqno = await withTimeout(wallet.getSeqno(), SEQNO_TIMEOUT_MS, 'TON seqno request timed out')
-    await supabase.from('transactions').update({
-      status: 'processing',
-      fail_reason: 'Submitting transfer to TON network',
-      updated_at: new Date().toISOString(),
-    }).eq('id', tx.id)
+    await updateAttemptReason(supabase, tx.id, attemptId, 'Submitting transfer to TON network')
 
     try {
       await withTimeout(
@@ -156,74 +146,64 @@ async function processWithdrawal(supabase: SupabaseClient, tx: WithdrawTx, force
       throw new RetryableProcessorError(err instanceof Error ? err.message : String(err))
     }
 
-    await markSent(supabase, tx, amount, 'Submitted to TON network')
-    return json({ ok: true, status: 'sent' })
+    await markSent(supabase, tx.id, attemptId, 'Submitted to TON network')
+    return json({ ok: true, status: 'sent', attempt_id: attemptId, seqno })
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err)
     console.error('[processWithdrawal]', tx.id, reason)
 
     if (transferSubmitted || err instanceof SubmittedUnknownError) {
-      await markSent(supabase, tx, Number(tx.amount), `Submit timed out; check TON network before retrying: ${reason}`)
-      return json({ ok: true, status: 'sent', warning: reason })
+      await markSent(supabase, tx.id, attemptId, `Submit requested; verify TON network if needed: ${reason}`)
+      return json({ ok: true, status: 'sent', warning: reason, attempt_id: attemptId })
     }
 
     if (err instanceof ProcessorTimeoutError || err instanceof RetryableProcessorError) {
-      await resetToPending(supabase, tx, reason)
-      return json({ ok: false, retryable: true, error: reason }, 503)
+      await resetToPending(supabase, tx.id, attemptId, reason)
+      return json({ ok: false, retryable: true, error: reason, attempt_id: attemptId }, 503)
     } else {
-      await failAndRefund(supabase, tx, reason)
+      await failAndRefund(supabase, tx.id, reason)
     }
 
-    return json({ ok: false, error: reason }, 500)
+    return json({ ok: false, error: reason, attempt_id: attemptId }, 500)
   }
 }
 
-async function markSent(supabase: SupabaseClient, tx: WithdrawTx, amount: number, reason: string) {
-  await supabase.from('transactions').update({
-    status: 'sent',
-    fail_reason: reason,
-    updated_at: new Date().toISOString(),
-  }).eq('id', tx.id)
-
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('total_withdraw')
-    .eq('id', tx.user_id)
-    .maybeSingle()
-
-  await supabase.from('users').update({
-    total_withdraw: (Number(userRow?.total_withdraw) || 0) + amount,
-    updated_at: new Date().toISOString(),
-  }).eq('id', tx.user_id)
+async function markSent(supabase: SupabaseClient, txId: string, attemptId: string, reason: string) {
+  await rpcBoolean(supabase, 'mark_withdrawal_sent', {
+    p_tx_id: txId,
+    p_attempt_id: attemptId,
+    p_reason: reason,
+  })
 }
 
-async function resetToPending(supabase: SupabaseClient, tx: WithdrawTx, reason: string) {
-  await supabase.from('transactions').update({
-    status: 'pending',
-    fail_reason: `Retryable: ${reason}`,
-    updated_at: new Date().toISOString(),
-  }).eq('id', tx.id)
+async function resetToPending(supabase: SupabaseClient, txId: string, attemptId: string, reason: string) {
+  await rpcBoolean(supabase, 'reset_withdrawal_pending', {
+    p_tx_id: txId,
+    p_attempt_id: attemptId,
+    p_reason: `Retryable: ${reason}`,
+  })
 }
 
-async function failAndRefund(supabase: SupabaseClient, tx: WithdrawTx, reason: string) {
-  await supabase.from('transactions').update({
-    status: 'failed',
-    fail_reason: reason,
-    updated_at: new Date().toISOString(),
-  }).eq('id', tx.id)
+async function failAndRefund(supabase: SupabaseClient, txId: string, reason: string) {
+  await rpcBoolean(supabase, 'fail_withdrawal_refund', {
+    p_tx_id: txId,
+    p_reason: reason,
+  })
+}
 
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('balance')
-    .eq('id', tx.user_id)
-    .maybeSingle()
-
-  if (userRow) {
-    await supabase.from('users').update({
-      balance: (Number(userRow.balance) || 0) + Number(tx.amount),
+async function updateAttemptReason(supabase: SupabaseClient, txId: string, attemptId: string, reason: string) {
+  const { error } = await supabase
+    .from('transactions')
+    .update({
+      fail_reason: reason,
       updated_at: new Date().toISOString(),
-    }).eq('id', tx.user_id)
-  }
+    })
+    .eq('id', txId)
+    .eq('type', 'withdraw')
+    .eq('status', 'processing')
+    .eq('withdrawal_attempt_id', attemptId)
+
+  if (error) throw error
 }
 
 async function getActiveNetwork(supabase: SupabaseClient) {
@@ -234,6 +214,12 @@ async function getActiveNetwork(supabase: SupabaseClient) {
     .maybeSingle()
   if (data?.ton_network === 'mainnet') return 'mainnet'
   return TON_NETWORK === 'mainnet' ? 'mainnet' : 'testnet'
+}
+
+async function rpcBoolean(supabase: SupabaseClient, fn: string, args: Record<string, unknown>) {
+  const { data, error } = await supabase.rpc(fn, args)
+  if (error) throw error
+  return Boolean(data)
 }
 
 function getEndpoint(network: string) {

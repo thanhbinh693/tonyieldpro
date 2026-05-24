@@ -121,12 +121,15 @@ export default function AdminPage({
       return next
     })
 
-    const ok = await adminRetryWithdrawal?.(txId)
-    if (!ok) {
+    const result = await adminRetryWithdrawal?.(txId)
+    if (!result) {
       markWithdrawRetryDone(txId)
       return
     }
 
+    if (result?.tx?.status && result.tx.status !== 'processing') {
+      markWithdrawRetryDone(txId)
+    }
     loadAdminData(true)
     window.setTimeout(() => markWithdrawRetryDone(txId), 120000)
   }

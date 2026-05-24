@@ -718,9 +718,12 @@ export function useApp() {
 
   const adminRetryWithdrawal = useCallback(async (txId) => {
     try {
-      await secureApi('admin_retry_withdrawal', { tx_id: txId })
-      showToast('Withdrawal retry sent.', 'ok')
-      return true
+      const result = await secureApi('admin_retry_withdrawal', { tx_id: txId })
+      const status = result?.tx?.status || result?.processor?.status || ''
+      if (status === 'sent') showToast('Withdrawal submitted to TON network.', 'ok')
+      else if (status === 'pending') showToast('Withdrawal is still pending. Check the reason and retry when ready.', 'err')
+      else showToast('Withdrawal retry processed.', 'ok')
+      return result
     } catch(e) {
       console.error('[adminRetryWithdrawal]', e)
       showToast(`Failed to retry withdrawal: ${e?.message || 'please retry'}.`, 'err')
