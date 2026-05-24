@@ -239,9 +239,10 @@ const formatMarketIdLabel = (key, planName = '') => {
 }
 
 const statusBadge = (s) => {
+  const displayStatus = s === 'sent' ? 'completed' : s
   const map = { completed:'badge-ok', approved:'badge-ok', done:'badge-ok', rejected:'badge-err', failed:'badge-err' }
-  const lbl = { completed:'COMPLETED', approved:'COMPLETED', done:'COMPLETED', pending:'PENDING', processing:'PROCESSING', sent:'SENT', rejected:'FAILED', failed:'FAILED' }
-  return <span className={`tx-badge ${map[s]||''}`}>{lbl[s] || String(s || '').toUpperCase()}</span>
+  const lbl = { completed:'COMPLETED', approved:'COMPLETED', done:'COMPLETED', pending:'PENDING', processing:'PROCESSING', rejected:'FAILED', failed:'FAILED' }
+  return <span className={`tx-badge ${map[displayStatus]||''}`}>{lbl[displayStatus] || String(displayStatus || '').toUpperCase()}</span>
 }
 
 function getDayLabel(ts) {
@@ -667,7 +668,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                       <div className={`tx-ico ${txClass[tx.type]}`}><TxIconNode type={tx.type} /></div>
                       <div className="tx-inf">
                         <div className="tx-n">{tx.type === 'withdraw' ? 'Withdrawal' : formatYieldLabel(tx.label)}</div>
-                        {tx.invoiceId && <div className="tx-id">Market ID {tx.invoiceId}</div>}
+                        {tx.type !== 'withdraw' && tx.invoiceId && <div className="tx-id">Market ID {tx.invoiceId}</div>}
                       </div>
                       <div className="tx-right">
                         <div className={`tx-a ${shownAmount >= 0 ? 'pos' : 'neg'}`}>{formatTon(shownAmount, true)}</div>

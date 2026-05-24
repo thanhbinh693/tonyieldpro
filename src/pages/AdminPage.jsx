@@ -31,6 +31,7 @@ const adminIconColor = {
 }
 const txIconMap = { deposit: ArrowDownCircle, withdraw: ArrowUpCircle, profit: Coins, referral: Users }
 const txIconColor = { deposit: '#0098EA', withdraw: '#EF4444', profit: '#FFD600', referral: '#0098EA' }
+const displayTxStatus = (status) => status === 'sent' ? 'completed' : status
 
 function AdminTxIcon({ type, size = 16 }) {
   const Icon = txIconMap[type] || BarChart2
@@ -248,7 +249,7 @@ export default function AdminPage({
                   </div>
                   <div className="atr-right">
                     <span className={tx.amount>0?'pos':'neg'}>{tx.amount>0?'+':''}{(+tx.amount).toFixed(2)}</span>
-                    <span className={`adm-status ${tx.status}`}>{tx.status}</span>
+                    <span className={`adm-status ${displayTxStatus(tx.status)}`}>{displayTxStatus(tx.status)}</span>
                   </div>
                 </div>
               ))}
@@ -375,7 +376,7 @@ export default function AdminPage({
                 </div>
                 <div className="atr-date">{tx.label} · {fmtDate(tx.createdAt)}</div>
               </div>
-              <span className={`adm-status ${tx.status}`}>{tx.status}</span>
+              <span className={`adm-status ${displayTxStatus(tx.status)}`}>{displayTxStatus(tx.status)}</span>
             </div>
           ))}
         </div>
@@ -440,7 +441,7 @@ export default function AdminPage({
                     <span>{retrying ? 'Sending' : 'Retry'}</span>
                   </button>
                 )}
-                <span className={`adm-status ${tx.status}`}>{tx.status}</span>
+                <span className={`adm-status ${displayTxStatus(tx.status)}`}>{displayTxStatus(tx.status)}</span>
               </div>
             </div>
             )
@@ -477,7 +478,7 @@ export default function AdminPage({
               </div>
               <div className="atr-right">
                 <span className={tx.amount>0?'pos':'neg'}>{tx.amount>0?'+':''}{(+tx.amount).toFixed(2)}</span>
-                <span className={`adm-status ${tx.status}`}>{tx.status}</span>
+                <span className={`adm-status ${displayTxStatus(tx.status)}`}>{displayTxStatus(tx.status)}</span>
               </div>
             </div>
           ))}
@@ -623,7 +624,7 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
               </div>
               <div className="atr-right">
                 <span className={tx.amount>0?'pos':'neg'} style={{fontSize:13}}>{tx.amount>0?'+':''}{(+tx.amount).toFixed(2)}</span>
-                <span className={`adm-status ${tx.status}`}>{tx.status}</span>
+                <span className={`adm-status ${displayTxStatus(tx.status)}`}>{displayTxStatus(tx.status)}</span>
               </div>
             </div>
           ))}
