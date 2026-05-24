@@ -217,7 +217,7 @@ export default function AdminPage({
           return (
             <div key={s.id} className={`adm-tab ${section===s.id?'on':''}`} onClick={() => setSection(s.id)}>
               <Icon size={14} />
-              {s.label}
+              <span className="adm-tab-label">{s.label}</span>
               {s.badge > 0 && <span className={`adm-badge ${s.badgeColor||''}`}>{s.badge}</span>}
             </div>
           )
@@ -226,7 +226,39 @@ export default function AdminPage({
 
       {/* ─── OVERVIEW ──────────────────────────────────────────────────────── */}
       {section === 'overview' && (
-        <div className="adm-section">
+        <div className="adm-section overview-section">
+          <div className="overview-command">
+            <div className="oc-grid" />
+            <div className="oc-main">
+              <div className="oc-kicker">
+                <span className="oc-live-dot" />
+                Live Control Layer
+              </div>
+              <div className="oc-title">TonYield Network Operations</div>
+              <div className="oc-sub">
+                Realtime capital flow, reserve pressure, active markets, and payout queue telemetry.
+              </div>
+            </div>
+            <div className="oc-orbit" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="oc-metrics">
+              <div className="oc-metric">
+                <span>Custody</span>
+                <strong>{formatTon(adminStats?.netInCustody)}</strong>
+              </div>
+              <div className="oc-metric">
+                <span>Yield Reserve</span>
+                <strong>{formatTon(adminStats?.requiredYieldReserve)}</strong>
+              </div>
+              <div className="oc-metric danger">
+                <span>Payout Queue</span>
+                <strong>{adminStats?.pendingWithdraws || 0}</strong>
+              </div>
+            </div>
+          </div>
           <div className="stat-grid">
             {stats.map((s,i) => (
               <div key={i} className={`stat-box ${s.color}`}>
