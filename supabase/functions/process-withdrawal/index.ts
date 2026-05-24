@@ -31,9 +31,6 @@ const WEBHOOK_SECRET       = Deno.env.get('WEBHOOK_SECRET') || ''
 
 const NETWORK_FEE    = 0.015
 const CONFIRM_TIMEOUT = 90_000   // 90s chờ seqno tăng
-const ENDPOINT = TON_NETWORK === 'mainnet'
-  ? 'https://toncenter.com/api/v2/jsonRPC'
-  : 'https://testnet.toncenter.com/api/v2/jsonRPC'
 
 const cors = {
   'Content-Type': 'application/json',
@@ -47,12 +44,18 @@ if (!SUPABASE_SERVICE_KEY) {
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-function parseToFriendly(raw: string): string | null {
+function getEndpoint(network: string) {
+  return network === 'mainnet'
+    ? 'https://toncenter.com/api/v2/jsonRPC'
+    : 'https://testnet.toncenter.com/api/v2/jsonRPC'
+}
+
+function parseToFriendly(raw: string, network: string): string | null {
   try {
     return Address.parse(raw.trim()).toString({
       bounceable: false,
       urlSafe: true,
-      testOnly: TON_NETWORK === 'testnet',
+      testOnly: network !== 'mainnet',
     })
   } catch {
     return null
@@ -61,6 +64,10 @@ function parseToFriendly(raw: string): string | null {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
+  let supabase: ReturnType<typeof createClient> | null = null
+  let claimedTx: Record<string, unknown> | null = null
+  let transferSubmitted = false
+
   // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: cors })
@@ -85,7 +92,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, skipped: true }), { headers: cors })
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
     // ── 1. Claim transaction (tránh double-send nếu webhook fire 2 lần) ──
     const { error: claimErr, count } = await supabase
@@ -101,8 +108,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, skipped: true }), { headers: cors })
     }
 
+    claimedTx = tx
+
+    const { data: cfg } = await supabase
+      .from('admin_config')
+      .select('ton_network')
+      .eq('id', 1)
+      .maybeSingle()
+    const activeNetwork = cfg?.ton_network === 'mainnet' ? 'mainnet' : (TON_NETWORK === 'mainnet' ? 'mainnet' : 'testnet')
+
     const amount   = Number(tx.amount)
-    const toWallet = parseToFriendly(tx.to_wallet)
+    const toWallet = parseToFriendly(tx.to_wallet, activeNetwork)
 
     // ── 2. Validate địa chỉ ────────────────────────────────────────────
     if (!toWallet) {
@@ -129,7 +145,7 @@ Deno.serve(async (req) => {
 
     // ── 4. Khởi tạo admin wallet ───────────────────────────────────────
     const keyPair  = await mnemonicToWalletKey(ADMIN_MNEMONIC.trim().split(/\s+/))
-    const ton      = new TonClient({ endpoint: ENDPOINT, ...(TON_API_KEY ? { apiKey: TON_API_KEY } : {}) })
+    const ton      = new TonClient({ endpoint: getEndpoint(activeNetwork), ...(TON_API_KEY ? { apiKey: TON_API_KEY } : {}) })
     const contract = WalletContractV4.create({ publicKey: keyPair.publicKey, workchain: 0 })
     const wallet   = ton.open(contract)
 
@@ -162,6 +178,7 @@ Deno.serve(async (req) => {
       })],
       sendMode: 3,
     })
+    transferSubmitted = true
 
     console.log(`[Sent] ${amount} TON → ${toWallet} (tx=${tx.id})`)
 
@@ -211,6 +228,17 @@ Deno.serve(async (req) => {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[process-withdrawal]', msg)
+    if (supabase && claimedTx) {
+      if (transferSubmitted) {
+        await supabase.from('transactions').update({
+          status: 'sent',
+          fail_reason: `Submitted to network but confirmation failed: ${msg}`,
+          updated_at: new Date().toISOString(),
+        }).eq('id', claimedTx.id)
+      } else {
+        await markFailed(supabase, claimedTx, msg)
+      }
+    }
     return new Response(JSON.stringify({ error: msg }), { status: 500, headers: cors })
   }
 })

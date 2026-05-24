@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') || ''
 const BOT_TOKEN = normalizeBotToken(Deno.env.get('TELEGRAM_BOT_TOKEN') || '')
 const MINI_APP_URL = normalizeUrl(
   Deno.env.get('MINI_APP_URL')
@@ -219,7 +220,7 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
 
   const { data: cfg } = await supabase
     .from('admin_config')
-    .select('min_withdraw, withdraw_referral_gate_enabled, withdraw_min_referrals')
+    .select('min_withdraw, withdraw_referral_gate_enabled, withdraw_min_referrals, withdrawal_webhook_url, withdrawal_webhook_secret')
     .eq('id', 1)
     .maybeSingle()
   const minWithdraw = Number(cfg?.min_withdraw) || 5
@@ -263,6 +264,18 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
     await supabase.from('users').update({ balance: user.balance, updated_at: new Date().toISOString() }).eq('id', userId)
     throw txErr
   }
+
+  triggerWithdrawalProcessor({
+    id: txId,
+    user_id: userId,
+    type: 'withdraw',
+    label: `Withdrawal -> ${wallet.slice(0, 8)}...`,
+    amount,
+    status: 'pending',
+    to_wallet: wallet,
+    created_at: now,
+    updated_at: new Date().toISOString(),
+  }, cfg)
 
   return json({ ok: true, tx_id: txId, balance: nextBalance, created_at: now })
 }
@@ -556,6 +569,42 @@ function escapeHtml(value: string) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+function triggerWithdrawalProcessor(tx: Record<string, unknown>, cfg?: Record<string, unknown> | null) {
+  const configuredUrl = String(cfg?.withdrawal_webhook_url || '').trim()
+  const url = configuredUrl || `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/process-withdrawal`
+  const secret = String(cfg?.withdrawal_webhook_secret || WEBHOOK_SECRET || '').trim()
+
+  const request = fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SERVICE_KEY}`,
+      'apikey': SERVICE_KEY,
+      ...(secret ? { 'x-webhook-secret': secret } : {}),
+    },
+    body: JSON.stringify({
+      type: 'INSERT',
+      table: 'transactions',
+      schema: 'public',
+      record: tx,
+    }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error('[triggerWithdrawalProcessor]', res.status, body)
+    }
+  }).catch((err) => {
+    console.error('[triggerWithdrawalProcessor]', err)
+  })
+
+  try {
+    const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime
+    runtime?.waitUntil?.(request)
+  } catch {
+    // Best-effort fire-and-forget. Database webhook can still pick it up.
+  }
 }
 
 async function verifyTelegramInitData(initData: string, botToken: string): Promise<{ ok: boolean; user?: TelegramUser; error?: string }> {
