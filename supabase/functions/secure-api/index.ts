@@ -116,9 +116,9 @@ async function recordDeposit(userId: number, tgUser: TelegramUser, payload: Reco
     || 86_400_000
   const intervalMinutes = Number(plan.profit_interval_minutes) || Math.round(intervalMs / 60_000)
   const intervalHours = Number(plan.profit_interval_hours) || intervalMs / 3_600_000
-  const invId = safeId(payload.inv_id, `inv-${now}`)
-  const txId = safeId(payload.tx_id, `tx-${now}`)
-  const invoiceId = safeId(payload.invoice_id, String((now % 900000) + 100000))
+  const invId = safeId(payload.inv_id, publicId())
+  const txId = safeId(payload.tx_id, publicId())
+  const invoiceId = safeId(payload.invoice_id, publicId())
 
   const { data: existingDeposit, error: existingDepositErr } = await supabase
     .from('transactions')
@@ -222,7 +222,7 @@ async function submitWithdraw(userId: number, payload: Record<string, unknown>) 
   if (!/^[EUk0][Qg][A-Za-z0-9_-]{46}=?$/.test(wallet)) return json({ ok: false, error: 'Invalid wallet' }, 400)
 
   const now = Date.now()
-  const txId = safeId(payload.tx_id, `tx-wd-${userId}-${now}-${crypto.randomUUID().slice(0, 8)}`)
+  const txId = safeId(payload.tx_id, publicId())
 
   const { data, error } = await supabase.rpc('request_withdrawal', {
     p_user_id: userId,
@@ -784,6 +784,13 @@ function toHex(bytes: Uint8Array) {
 function safeId(value: unknown, fallback: string) {
   const s = String(value || '').trim()
   return /^[A-Za-z0-9_.:-]{1,120}$/.test(s) ? s : fallback
+}
+
+function publicId(length = 6) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+  return [...bytes].map((b) => alphabet[b % alphabet.length]).join('')
 }
 
 function formatError(error: unknown) {

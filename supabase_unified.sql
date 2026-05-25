@@ -523,6 +523,24 @@ $$;
 
 grant execute on function sync_referral_counts() to anon, authenticated;
 
+create or replace function public_random_id(
+  p_length int default 6
+) returns text
+language plpgsql
+as $$
+declare
+  alphabet text := 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  output text := '';
+  i int := 0;
+begin
+  while i < greatest(coalesce(p_length, 6), 1) loop
+    output := output || substr(alphabet, floor(random() * length(alphabet) + 1)::int, 1);
+    i := i + 1;
+  end loop;
+  return output;
+end;
+$$;
+
 create or replace function credit_referral_commission(
   p_user_id bigint,
   p_deposit_amount numeric,
@@ -539,6 +557,7 @@ declare
   referral_rate numeric;
   commission numeric;
   referral_tx_id text;
+  existing_referral_tx_id text;
   now_ms bigint;
   inserted_count int := 0;
 begin
@@ -576,7 +595,19 @@ begin
     return false;
   end if;
 
-  referral_tx_id := 'ref-' || referrer.id::text || '-' || p_user_id::text || '-' || coalesce(nullif(p_deposit_tx_id, ''), floor(extract(epoch from clock_timestamp()) * 1000)::text);
+  select id
+  into existing_referral_tx_id
+  from transactions
+  where type = 'referral'
+    and user_id = referrer.id
+    and invoice_id = coalesce(p_deposit_tx_id, '')
+  limit 1;
+
+  if existing_referral_tx_id is not null then
+    return false;
+  end if;
+
+  referral_tx_id := public_random_id();
   now_ms := coalesce(p_now, floor(extract(epoch from clock_timestamp()) * 1000)::bigint);
 
   insert into transactions (id, user_id, type, label, amount, status, invoice_id, created_at, updated_at)

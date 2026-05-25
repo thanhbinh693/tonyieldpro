@@ -115,7 +115,11 @@ const buildProfitGroups = (txs, allTx = []) => {
   return [...groups.values()].sort((a,b) => b.latest - a.latest)
 }
 const shortCode = (value) => {
-  const raw = String(value || '').replace(/^plan-/, '')
+  const raw = String(value || '')
+    .replace(/^plan-/i, '')
+    .replace(/^(tx-wd-|tx-|wd-|prf-|ref-|ret-|inv-)/i, '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .replace(/^(txwd|tx|wd|prf|ref|ret|inv)/i, '')
   if (!raw) return 'NA'
   return raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
 }

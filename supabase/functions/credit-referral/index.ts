@@ -83,12 +83,13 @@ Deno.serve(async (req) => {
     }
 
     const safeDepositTxId = deposit_tx_id
-    const refTxId = `ref-${referrer.id}-${user_id}-${safeDepositTxId}`
 
     const { data: existingTx } = await supabase
       .from('transactions')
       .select('id')
-      .eq('id', refTxId)
+      .eq('type', 'referral')
+      .eq('user_id', referrer.id)
+      .eq('invoice_id', safeDepositTxId)
       .maybeSingle()
 
     if (existingTx) {
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
     if (updateErr) throw updateErr
 
     const { error: txErr } = await supabase.from('transactions').insert({
-      id: refTxId,
+      id: publicId(),
       user_id: referrer.id,
       type: 'referral',
       label: `Referral - @${inviteeName} deposit ${deposit_amount} TON`,
@@ -138,6 +139,13 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: String(err) }, 500)
   }
 })
+
+function publicId(length = 6) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+  return [...bytes].map((b) => alphabet[b % alphabet.length]).join('')
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {

@@ -46,7 +46,13 @@ function buildPayload(text) {
   boc[bb.length]=(crc)&0xFF;boc[bb.length+1]=(crc>>>8)&0xFF;boc[bb.length+2]=(crc>>>16)&0xFF;boc[bb.length+3]=(crc>>>24)&0xFF
   let s=''; boc.forEach(b=>{s+=String.fromCharCode(b)}); return btoa(s)
 }
-function makeInvId(tid,pid){return String((Date.now()%900000)+100000+Number(pid))}
+function makePublicId(len = 6) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const bytes = new Uint8Array(len)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => alphabet[b % alphabet.length]).join('')
+}
+function makeInvId(){return makePublicId()}
 function toNano(a){return String(Math.round(parseFloat(a)*1e9))}
 function isNetworkWallet(addr, network) {
   const a = String(addr || '').trim()
@@ -419,7 +425,7 @@ export function useApp() {
     const endMs = now + (plan.durationMs || plan.duration*86_400_000)
 
     const newInv = {
-      id:'inv-'+now, plan:plan.name, planColor:plan.color, planId,
+      id:makePublicId(), plan:plan.name, planColor:plan.color, planId,
       amount, rate:plan.rate, earned:0, daysTotal:plan.duration,
       profitIntervalMs:rIms, profitIntervalMinutes:rMin, profitIntervalHours:rHr,
       activeDays: plan.activeDays || [0,1,2,3,4,5,6],
@@ -437,7 +443,7 @@ export function useApp() {
     if (paymentMethod === 'balance') {
       const amt = parseFloat(amount)
       if (amt > user.balance) { showToast('Insufficient balance.','err'); return false }
-      const txId = 'tx-'+now
+      const txId = makePublicId()
       try {
         const saved = await recordDeposit({ amt, txId, newInv, dbInv, plan, fromBalance:true })
         setUser(p => ({
@@ -467,7 +473,7 @@ export function useApp() {
       })
 
       const amt = parseFloat(amount)
-      const txId = 'tx-'+now
+      const txId = makePublicId()
       const saved = await recordDeposit({ amt, txId, newInv, dbInv, plan, fromBalance:false })
 
       setUser(p => ({
@@ -514,7 +520,7 @@ export function useApp() {
     }
     try {
       const now    = Date.now()
-      const txId   = `tx-wd-${tid}-${now}-${Math.random().toString(36).slice(2,7)}`
+      const txId   = makePublicId()
       const newBal = +(user.balance - amount).toFixed(6)
 
       const saved = await secureApi('submit_withdraw', {

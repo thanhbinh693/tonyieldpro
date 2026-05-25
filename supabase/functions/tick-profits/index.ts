@@ -23,6 +23,13 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+function publicId(length = 6) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+  return [...bytes].map((b) => alphabet[b % alphabet.length]).join('')
+}
+
 Deno.serve(async (req) => {
   // Allow GET (cron) or POST (webhook)
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -82,7 +89,7 @@ Deno.serve(async (req) => {
       if (now >= inv.end_time) {
         const finalProfit = +ip.toFixed(6)
         const principal   = parseFloat(inv.amount)
-        const txIdPrf     = `prf-${iid}-${now}`
+        const txIdPrf     = publicId()
 
         const { data: ok } = await supabase.rpc('credit_profit', {
           p_user_id:       inv.user_id,
@@ -117,7 +124,7 @@ Deno.serve(async (req) => {
             })(),
             supabase.from('transactions')
               .upsert({
-                id: `ret-${iid}-${now}`,
+                id: publicId(),
                 user_id:    inv.user_id,
                 type:       'deposit',
                 label:      `Principal returned · ${inv.plan}`,
@@ -135,7 +142,7 @@ Deno.serve(async (req) => {
 
       // ── Normal tick ────────────────────────────────────────────────────────
       const newEarned = +((Number(inv.earned) || 0) + ip).toFixed(6)
-      const txId      = `prf-${iid}-${now}`
+      const txId      = publicId()
 
       const { data: ok } = await supabase.rpc('credit_profit', {
         p_user_id:       inv.user_id,
