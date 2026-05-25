@@ -287,9 +287,9 @@ export default function AdminPage({
             </div>
           </div>
           {/* Recent transactions preview */}
-          {allTxSorted.slice(0,5).length > 0 && (
+          {false && allTxSorted.slice(0,5).length > 0 && (
             <div style={{marginTop:16}}>
-              <div className="adm-sec-title" style={{marginBottom:8}}>Recent Activity</div>
+              <div className="adm-sec-title" style={{marginBottom:8}} />
               {allTxSorted.slice(0,5).map(tx => (
                 <div key={tx.id} className="adm-tx-row">
                   <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} /></div>
@@ -472,7 +472,11 @@ export default function AdminPage({
                     <Send size={16} color="#0098EA" /> {shortWallet(tx.toWallet)}
                   </div>
                 )}
-                <div className="atr-date">{fmtDate(tx.createdAt)}</div>
+                <div className="admin-history-label">{tx.label}</div>
+                <div className="admin-history-meta">
+                  <span>{fmtDate(tx.createdAt)}</span>
+                  <span>{tx.type === 'withdraw' ? `Withdrawal ID ${tx.id}` : `TX ID ${tx.id}`}</span>
+                </div>
                 {tx.failReason && (
                   <div className="atr-date" style={{ fontSize:11, marginTop:2, color:'var(--red)' }}>
                     {tx.failReason}
@@ -502,7 +506,7 @@ export default function AdminPage({
       {/* ─── HISTORY ───────────────────────────────────────────────────────── */}
       {section === 'history' && (
         <div className="adm-section">
-          <div className="adm-sec-title">Transaction History ({filteredTx.length})</div>
+          <div className="adm-sec-title history-title">TRANSACTION HISTORY <span>{filteredTx.length}</span></div>
           {/* Filter pills */}
           <div className="tx-filter-row">
             {['all','deposit','withdraw','profit','referral'].map(f => (
@@ -513,8 +517,9 @@ export default function AdminPage({
             ))}
           </div>
           {filteredTx.length === 0 && <div className="adm-empty">No transactions</div>}
+          <div className="admin-history-list">
           {filteredTx.map(tx => (
-            <div key={tx.id} className="adm-tx-row">
+            <div key={tx.id} className={`adm-tx-row admin-history-row ${tx.type}`}>
               <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} /></div>
               <div className="atr-left">
                 <div className="atr-label">
@@ -522,16 +527,21 @@ export default function AdminPage({
                     const u = allUsers.find(u => Number(u.id)===Number(tx.userId))
                     return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User#${tx.userId}`
                   })()}
-                  <span style={{color:'var(--muted)',marginLeft:4}}>· {tx.label}</span>
+                  <span className="admin-history-type">{tx.type}</span>
                 </div>
-                <div className="atr-date">{fmtDate(tx.createdAt)}</div>
+                <div className="admin-history-label">{tx.label}</div>
+                <div className="admin-history-meta">
+                  <span>{fmtDate(tx.createdAt)}</span>
+                  <span>{tx.type === 'withdraw' ? `Withdrawal ID ${tx.id}` : `TX ID ${tx.id}`}</span>
+                </div>
               </div>
               <div className="atr-right">
-                <span className={tx.amount>0?'pos':'neg'}>{tx.amount>0?'+':''}{(+tx.amount).toFixed(2)}</span>
+                <span className={tx.amount>0?'pos':'neg'}>{tx.amount>0?'+':''}{formatTon(Math.abs(tx.amount))}</span>
                 <span className={`adm-status ${displayTxStatus(tx.status)}`}>{displayTxStatus(tx.status)}</span>
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 

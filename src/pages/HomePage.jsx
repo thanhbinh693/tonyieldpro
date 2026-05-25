@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { ArrowDownCircle, ArrowUpCircle, Bell, ChevronRight, Minus, Pause, Play, Plus, Shield, Target, TrendingUp, Users } from 'lucide-react'
-import { DAY_NAMES_FULL } from '../utils/config'
+import { ArrowDownCircle, ArrowUpCircle, Bell, ChevronRight, Clock, Hash, Minus, Play, Plus, Shield, Target, TrendingUp, Users } from 'lucide-react'
 import './HomePage.css'
 
 const TODAY_DOW = new Date().getDay()
@@ -8,14 +7,6 @@ const TODAY_DOW = new Date().getDay()
 function isPlanActiveToday(inv) {
   const days = inv.activeDays || [1,2,3,4,5]
   return days.includes(TODAY_DOW)
-}
-
-function getNextActiveDay(inv) {
-  const days = (inv.activeDays || [1,2,3,4,5]).slice().sort((a,b)=>a-b)
-  if (days.length === 0) return null
-  // find next day after TODAY_DOW
-  const next = days.find(d => d > TODAY_DOW) ?? days[0]
-  return DAY_NAMES_FULL[next]
 }
 
 // ─── Plan Progress Ring + Ripple Wave ────────────────────────────────────────
@@ -66,7 +57,6 @@ function PlanRing({ inv, onActivate, onCollect }) {
   const ringColorDim = '#00d4ff30'
   const ringColorMid = '#00aaff'
   const activeToday = isPlanActiveToday(inv)
-  const nextActiveDay = getNextActiveDay(inv)
 
   // Not yet activated → show Activate button (or waiting if inactive day)
   if (!inv.activated) {
@@ -518,9 +508,6 @@ export default function HomePage({ user, investments, transactions, plans, confi
           const activeToday = isPlanActiveToday(inv)
           return (
             <div key={inv.id} className={`inv-card ${inv.planColor} ${!activeToday ? 'inv-paused' : ''}`}>
-              {!activeToday && (
-                <div className="inv-pause-ribbon"><Pause size={16} color="#FFD600" /> Paused today. Resumes {getNextActiveDay(inv)}</div>
-              )}
               <div className="inv-main">
                 <div className="inv-left">
                   <div className="inv-badge-row">
@@ -608,7 +595,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                 ))}
               </div>
               {/* Transactions for selected day */}
-              <div className="tx-list card">
+                <div className="tx-list card">
                 {displayItems.map(item => {
                   if (item.kind === 'profitGroup') {
                     const opened = !!expandedProfitIds[item.key]
@@ -625,8 +612,14 @@ export default function HomePage({ user, investments, transactions, plans, confi
                             {opened ? <Minus size={16} color="#FFD600" /> : <Plus size={16} color="#FFD600" />}
                           </div>
                           <div className="tx-inf">
-                            <div className="tx-n">Profit - {planName}</div>
-                            <div className="tx-id">{formatMarketIdLabel(item.key, planName)}. {item.items.length} distributions.</div>
+                            <div className="tx-title-row">
+                              <div className="tx-n">Profit - {planName}</div>
+                              <span className="tx-kind">YIELD</span>
+                            </div>
+                            <div className="tx-meta-row">
+                              <span>{formatMarketIdLabel(item.key, planName)}</span>
+                              <span>{item.items.length} distributions</span>
+                            </div>
                           </div>
                           <div className="tx-right">
                             <div className="tx-a pos">{formatTon(total, true)}</div>
@@ -640,7 +633,10 @@ export default function HomePage({ user, investments, transactions, plans, confi
                                 <div className={`tx-ico ${txClass.profit}`}><TxIconNode type="profit" /></div>
                                 <div className="tx-inf">
                                   <div className="tx-n">{formatYieldLabel(tx.label)}</div>
-                                  <div className="tx-id">{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
+                                  <div className="tx-meta-row">
+                                    <Clock size={12} />
+                                    <span>{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                                  </div>
                                 </div>
                                 <div className="tx-right">
                                   <div className="tx-a pos">{formatTon(Math.abs(Number(tx.amount) || 0), true)}</div>
@@ -659,8 +655,28 @@ export default function HomePage({ user, investments, transactions, plans, confi
                     <div key={tx.id} className="tx-row">
                       <div className={`tx-ico ${txClass[tx.type]}`}><TxIconNode type={tx.type} /></div>
                       <div className="tx-inf">
-                        <div className="tx-n">{tx.type === 'withdraw' ? 'Withdrawal' : formatYieldLabel(tx.label)}</div>
-                        {tx.type !== 'withdraw' && tx.invoiceId && <div className="tx-id">Market ID {tx.invoiceId}</div>}
+                        <div className="tx-title-row">
+                          <div className="tx-n">{tx.type === 'withdraw' ? 'Withdrawal' : formatYieldLabel(tx.label)}</div>
+                          <span className={`tx-kind ${tx.type}`}>{tx.type}</span>
+                        </div>
+                        <div className="tx-meta-row">
+                          {tx.type === 'withdraw' ? (
+                            <>
+                              <Hash size={12} />
+                              <span>Withdrawal ID {tx.id}</span>
+                            </>
+                          ) : tx.invoiceId ? (
+                            <>
+                              <Hash size={12} />
+                              <span>Market ID {tx.invoiceId}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={12} />
+                              <span>{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="tx-right">
                         <div className={`tx-a ${shownAmount >= 0 ? 'pos' : 'neg'}`}>{formatTon(shownAmount, true)}</div>

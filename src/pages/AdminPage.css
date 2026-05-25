@@ -1346,6 +1346,96 @@
   gap: 2px;
 }
 
+.admin-page .history-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-page .history-title span {
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 152, 234, .14);
+  border: 1px solid rgba(0, 194, 255, .22);
+  color: var(--admin-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.admin-page .admin-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-page .admin-history-row {
+  min-height: 72px;
+  padding: 11px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(0, 152, 234, .08), rgba(8, 12, 18, .72) 38%),
+    rgba(15, 23, 34, .58);
+}
+
+.admin-page .admin-history-row.withdraw {
+  background:
+    linear-gradient(135deg, rgba(239, 68, 68, .08), rgba(8, 12, 18, .72) 38%),
+    rgba(15, 23, 34, .58);
+}
+
+.admin-page .admin-history-row .atr-label > span[style*="marginLeft"],
+.admin-page .admin-history-row .atr-label > span[style*="margin-left"] {
+  display: none;
+}
+
+.admin-page .admin-history-type {
+  margin-left: 8px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(0, 152, 234, .12);
+  border: 1px solid rgba(0, 194, 255, .2);
+  color: var(--admin-blue);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.admin-page .admin-history-label {
+  max-width: 100%;
+  margin-top: 4px;
+  color: #dbeafe;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-page .admin-history-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.admin-page .admin-history-meta span {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-page .pec-field {
   padding: 7px 0;
 }

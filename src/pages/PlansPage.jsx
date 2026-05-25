@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Coins, Pause, Send, Zap } from 'lucide-react'
+import { Coins, Send, Zap } from 'lucide-react'
 import { DAY_NAMES } from '../utils/config'
 const TODAY_DOW = new Date().getDay()
 import './PlansPage.css'
@@ -68,13 +68,6 @@ export default function PlansPage({ plans, onDeposit, config }) {
   return (
     <div className="page page-enter">
       <div style={{height:18}}/>
-      {plans.some(p => !(p.activeDays||[1,2,3,4,5]).includes(TODAY_DOW)) && (
-        <div className="weekend-bar">
-          <Pause size={18} color="#FFD600" />
-          <span>Some strategies are paused today. New positions activate on the next active day.</span>
-        </div>
-      )}
-
       <div className="pp-hero">
         <div className="pph-label">YIELD MARKETS</div>
         <div className="pph-title">TON Yield<br/><em>Strategies</em></div>
