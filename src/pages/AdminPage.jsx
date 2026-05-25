@@ -607,13 +607,13 @@ export default function AdminPage({
                   <div className="atr-left">
                     <div className="atr-label">
                       <strong>{planName}</strong>
-                      <span className={`admin-history-type ${group.capitalRelease ? 'release' : ''}`}>{group.capitalRelease ? 'settled' : 'yield'}</span>
+                      <span className={`admin-history-type ${group.capitalRelease ? 'release' : ''}`}>{group.capitalRelease ? 'released' : 'yield'}</span>
                     </div>
                     <div className="admin-history-label">{shortCode('MK', group.key)}</div>
                     <div className="admin-history-meta">
                       <span>{group.items.length} payouts</span>
                       {group.capitalRelease && <span>{shortCode('CR', group.capitalRelease.id)}</span>}
-                      <span>Latest {fmtDate(group.latest)}</span>
+                      <span>{fmtDate(group.latest)}</span>
                     </div>
                   </div>
                   <div className="atr-right">

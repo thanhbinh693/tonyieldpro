@@ -241,6 +241,14 @@ const txTitle = (tx) => {
   if (tx.type === 'withdraw') return 'Withdrawal'
   return formatYieldLabel(tx.label)
 }
+const txTime = (ts, opts = {}) =>
+  new Date(ts || Date.now()).toLocaleString('en-GB', {
+    day:'2-digit',
+    month:'short',
+    hour:'2-digit',
+    minute:'2-digit',
+    ...opts,
+  })
 
 const statusBadge = (s) => {
   const displayStatus = s === 'sent' ? 'completed' : s
@@ -650,11 +658,12 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           <div className="tx-inf">
                             <div className="tx-title-row">
                               <div className="tx-n">{planName}</div>
-                              {item.capitalRelease ? <span className="tx-kind release">SETTLED</span> : <span className="tx-kind profit">YIELD</span>}
+                              {item.capitalRelease ? <span className="tx-kind release">RELEASED</span> : <span className="tx-kind profit">YIELD</span>}
                             </div>
                             <div className="tx-meta-row">
                               <span>{shortCode('MK', item.key)}</span>
                               <span>{item.items.length} payouts</span>
+                              <span>{txTime(item.firstCreatedAt)}</span>
                               {item.capitalRelease && <span>{shortCode('CR', item.capitalRelease.id)}</span>}
                             </div>
                           </div>
@@ -672,7 +681,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                                   <div className="tx-n">Yield payout</div>
                                   <div className="tx-meta-row">
                                     <Clock size={12} />
-                                    <span>{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                                    <span>{txTime(tx.createdAt)}</span>
                                   </div>
                                 </div>
                                 <div className="tx-right">
@@ -701,16 +710,18 @@ export default function HomePage({ user, investments, transactions, plans, confi
                             <>
                               <Hash size={12} />
                               <span>{shortCode('WD', tx.id)}</span>
+                              <span>{txTime(tx.createdAt)}</span>
                             </>
                           ) : tx.invoiceId ? (
                             <>
                               <Hash size={12} />
                               <span>{shortCode('MK', tx.invoiceId)}</span>
+                              <span>{txTime(tx.createdAt)}</span>
                             </>
                           ) : (
                             <>
                               <Clock size={12} />
-                              <span>{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</span>
+                              <span>{txTime(tx.createdAt)}</span>
                             </>
                           )}
                         </div>
