@@ -94,6 +94,12 @@ const buildProfitGroups = (txs) => {
   })
   return [...groups.values()].sort((a,b) => b.latest - a.latest)
 }
+const shortCode = (prefix, value) => {
+  const raw = String(value || '').replace(/^plan-/, '')
+  if (!raw) return `${prefix}-NA`
+  const compact = raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
+  return `${prefix}-${compact}`
+}
 
 export default function AdminPage({
   user,
@@ -529,7 +535,7 @@ export default function AdminPage({
                 <div className="admin-history-label">{tx.label}</div>
                 <div className="admin-history-meta">
                   <span>{fmtDate(tx.createdAt)}</span>
-                  <span>{tx.type === 'withdraw' ? `Withdrawal ID ${tx.id}` : `TX ID ${tx.id}`}</span>
+                  <span>{shortCode('WD', tx.id)}</span>
                 </div>
                 {tx.failReason && (
                   <div className="atr-date" style={{ fontSize:11, marginTop:2, color:'var(--red)' }}>
@@ -565,7 +571,6 @@ export default function AdminPage({
           <div className="tx-filter-row">
             {TX_TYPE_FILTERS.map(f => (
               <button key={f.id} className={`tx-filter-pill ${activeTxFilter===f.id?'on':''} ${f.id}`} onClick={() => setTxFilter(f.id)}>
-                <AdminTxIcon type={f.id} size={14} />
                 {f.label}
                 <span className="tx-filter-count">{txCounts[f.id] || 0}</span>
               </button>
@@ -586,12 +591,12 @@ export default function AdminPage({
                   <div className="atr-ico profit">{opened ? <X size={14} color="#FFD600" /> : <Coins size={15} color="#FFD600" />}</div>
                   <div className="atr-left">
                     <div className="atr-label">
-                      <strong>Profit Return - {planName}</strong>
+                      <strong>{planName}</strong>
                       <span className="admin-history-type">return</span>
                     </div>
-                    <div className="admin-history-label">Market ID {group.key}</div>
+                    <div className="admin-history-label">{shortCode('MK', group.key)}</div>
                     <div className="admin-history-meta">
-                      <span>{group.items.length} returns</span>
+                      <span>{group.items.length}x returns</span>
                       <span>Latest {fmtDate(group.latest)}</span>
                     </div>
                   </div>
@@ -612,10 +617,10 @@ export default function AdminPage({
                               return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User#${tx.userId}`
                             })()}
                           </div>
-                          <div className="admin-history-label">{tx.label}</div>
+                          <div className="admin-history-label">Return credited</div>
                           <div className="admin-history-meta">
                             <span>{fmtDate(tx.createdAt)}</span>
-                            <span>TX ID {tx.id}</span>
+                            <span>{shortCode('TX', tx.id)}</span>
                           </div>
                         </div>
                         <div className="atr-right">
@@ -638,12 +643,12 @@ export default function AdminPage({
                     const u = allUsers.find(u => Number(u.id)===Number(tx.userId))
                     return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User#${tx.userId}`
                   })()}
-                  <span className="admin-history-type">{tx.type}</span>
+                  <span className="admin-history-type">{tx.type === 'withdraw' ? 'WD' : tx.type}</span>
                 </div>
                 <div className="admin-history-label">{tx.label}</div>
                 <div className="admin-history-meta">
                   <span>{fmtDate(tx.createdAt)}</span>
-                  <span>{tx.type === 'withdraw' ? `Withdrawal ID ${tx.id}` : `TX ID ${tx.id}`}</span>
+                  <span>{tx.type === 'withdraw' ? shortCode('WD', tx.id) : shortCode('TX', tx.id)}</span>
                 </div>
               </div>
               <div className="atr-right">

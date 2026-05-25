@@ -221,26 +221,26 @@
 .sec .tx-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 20px;
+  gap: 6px;
+  padding: 7px;
+  border-radius: 16px;
   background:
     linear-gradient(145deg, rgba(0, 152, 234, .12), rgba(15, 17, 21, .82) 42%, rgba(0, 194, 255, .06)),
     var(--glass);
 }
 
 .sec .tx-row {
-  min-height: 64px;
-  padding: 10px;
+  min-height: 52px;
+  padding: 8px;
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(8, 12, 18, .58);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 .sec .tx-profit-group {
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(8, 12, 18, .46);
   overflow: hidden;
 }
@@ -252,7 +252,31 @@
 }
 
 .sec .tx-profit-items {
-  padding: 0 10px 10px 48px;
+  padding: 0 8px 8px 38px;
+}
+
+.sec .tx-profit-child {
+  min-height: 44px;
+  padding: 7px 0;
+}
+
+.sec .tx-profit-child .tx-ico {
+  width: 24px;
+  height: 24px;
+}
+
+.sec .tx-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+
+.sec .tx-n {
+  font-size: 12px;
+}
+
+.sec .tx-a {
+  font-size: 12px;
 }
 
 .tx-title-row {
@@ -264,13 +288,13 @@
 
 .tx-kind {
   flex-shrink: 0;
-  padding: 3px 7px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: rgba(0, 152, 234, .14);
   border: 1px solid rgba(0, 194, 255, .18);
   color: var(--blue2);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 800;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -297,12 +321,12 @@
 .tx-meta-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
-  margin-top: 4px;
+  margin-top: 3px;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.25;
 }
 
@@ -316,25 +340,25 @@
 .tx-type-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
-  margin: 0 0 10px;
+  gap: 6px;
+  margin: 0 0 8px;
 }
 
 .tx-type-tab {
   min-width: 0;
-  min-height: 48px;
-  padding: 7px 6px;
-  border-radius: 14px;
+  min-height: 34px;
+  padding: 5px 6px;
+  border-radius: 11px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(15,17,21,.62);
   color: var(--muted);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 5px;
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   cursor: pointer;
   transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
@@ -348,9 +372,9 @@
 }
 
 .tx-type-tab b {
-  min-width: 20px;
-  height: 16px;
-  padding: 0 5px;
+  min-width: 18px;
+  height: 15px;
+  padding: 0 4px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -358,7 +382,7 @@
   background: rgba(255,255,255,.08);
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .tx-type-tab.active {
@@ -389,13 +413,13 @@
 }
 
 .tx-filter-empty {
-  min-height: 68px;
+  min-height: 48px;
   display: grid;
   place-items: center;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   border: 1px dashed rgba(0,194,255,.18);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(0,152,234,.06);
 }
 

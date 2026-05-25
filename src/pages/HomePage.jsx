@@ -228,6 +228,12 @@ const formatMarketIdLabel = (key, planName = '') => {
   }
   return `Market ID ${normalizedKey}`
 }
+const shortCode = (prefix, value) => {
+  const raw = String(value || '').replace(/^plan-/, '')
+  if (!raw) return `${prefix}-NA`
+  const compact = raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
+  return `${prefix}-${compact}`
+}
 
 const statusBadge = (s) => {
   const displayStatus = s === 'sent' ? 'completed' : s
@@ -603,7 +609,6 @@ export default function HomePage({ user, investments, transactions, plans, confi
                     className={`tx-type-tab ${activeType === f.id ? 'active' : ''} ${f.id}`}
                     onClick={() => setTxTypeFilter(f.id)}
                   >
-                    <TxIconNode type={f.id} size={14} />
                     <span>{f.label}</span>
                     <b>{counts[f.id] || 0}</b>
                   </button>
@@ -631,12 +636,12 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           </div>
                           <div className="tx-inf">
                             <div className="tx-title-row">
-                              <div className="tx-n">Profit Return - {planName}</div>
+                              <div className="tx-n">{planName}</div>
                               <span className="tx-kind profit">RETURN</span>
                             </div>
                             <div className="tx-meta-row">
-                              <span>{formatMarketIdLabel(item.key, planName)}</span>
-                              <span>{item.items.length} returns</span>
+                              <span>{shortCode('MK', item.key)}</span>
+                              <span>{item.items.length}x</span>
                             </div>
                           </div>
                           <div className="tx-right">
@@ -650,7 +655,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                               <div key={tx.id} className="tx-row tx-profit-child">
                                 <div className={`tx-ico ${txClass.profit}`}><TxIconNode type="profit" /></div>
                                 <div className="tx-inf">
-                                  <div className="tx-n">{formatYieldLabel(tx.label)}</div>
+                                  <div className="tx-n">Return</div>
                                   <div className="tx-meta-row">
                                     <Clock size={12} />
                                     <span>{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
@@ -681,12 +686,12 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           {tx.type === 'withdraw' ? (
                             <>
                               <Hash size={12} />
-                              <span>Withdrawal ID {tx.id}</span>
+                              <span>{shortCode('WD', tx.id)}</span>
                             </>
                           ) : tx.invoiceId ? (
                             <>
                               <Hash size={12} />
-                              <span>Market ID {tx.invoiceId}</span>
+                              <span>{shortCode('MK', tx.invoiceId)}</span>
                             </>
                           ) : (
                             <>
