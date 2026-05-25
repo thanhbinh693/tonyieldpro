@@ -313,6 +313,102 @@
   white-space: nowrap;
 }
 
+.tx-type-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0 0 10px;
+}
+
+.tx-type-tab {
+  min-width: 0;
+  min-height: 48px;
+  padding: 7px 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(15,17,21,.62);
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+
+.tx-type-tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-type-tab b {
+  min-width: 20px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.tx-type-tab.active {
+  color: #fff;
+  border-color: rgba(0,194,255,.42);
+  background: linear-gradient(135deg, rgba(0,152,234,.34), rgba(0,194,255,.13));
+  box-shadow: 0 0 22px rgba(0,152,234,.22);
+  transform: translateY(-1px);
+}
+
+.tx-type-tab.withdraw.active {
+  border-color: rgba(239,68,68,.34);
+  background: linear-gradient(135deg, rgba(239,68,68,.22), rgba(0,152,234,.08));
+}
+
+.tx-type-tab.profit.active {
+  border-color: rgba(255,214,0,.34);
+  background: linear-gradient(135deg, rgba(255,214,0,.18), rgba(0,152,234,.10));
+}
+
+.tx-list-animated {
+  animation: txListIn .24s ease both;
+}
+
+.tx-list-animated .tx-row,
+.tx-list-animated .tx-profit-group {
+  animation: txRowIn .26s ease both;
+}
+
+.tx-filter-empty {
+  min-height: 68px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  border: 1px dashed rgba(0,194,255,.18);
+  border-radius: 14px;
+  background: rgba(0,152,234,.06);
+}
+
+@keyframes txListIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes txRowIn {
+  from { opacity: 0; transform: translateY(7px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* User Live Control Layer */
 .bal-hero {
   isolation: isolate;

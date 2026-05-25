@@ -32,6 +32,12 @@ const adminIconColor = {
 const txIconMap = { deposit: ArrowDownCircle, withdraw: ArrowUpCircle, profit: Coins, referral: Users }
 const txIconColor = { deposit: '#0098EA', withdraw: '#EF4444', profit: '#FFD600', referral: '#0098EA' }
 const displayTxStatus = (status) => status === 'sent' ? 'completed' : status
+const TX_TYPE_FILTERS = [
+  { id:'deposit', label:'Deposit' },
+  { id:'withdraw', label:'Withdraw' },
+  { id:'profit', label:'Profit' },
+  { id:'referral', label:'Referral' },
+]
 const sectionIconMap = {
   overview: BarChart2,
   users: Users,
@@ -48,6 +54,47 @@ function AdminTxIcon({ type, size = 16 }) {
   return <Icon size={size} color={txIconColor[type] || '#94A3B8'} />
 }
 
+const yieldNameByMarketId = (id) => {
+  const marketId = Number(String(id || '').replace(/^plan-/, ''))
+  if (marketId === 1) return 'Starter Yield'
+  if (marketId === 2) return 'Pro Yield'
+  if (marketId === 3) return 'VIP Yield'
+  return ''
+}
+
+const getProfitPlanId = (tx) => {
+  if (tx.invoiceId) return String(tx.invoiceId)
+  const match = String(tx.id || '').match(/^prf-([^-]+)-/)
+  if (match?.[1]) return match[1]
+  if (tx.planId) return `plan-${tx.planId}`
+  return 'unknown'
+}
+
+const getProfitPlanName = (items) => {
+  const first = items[0] || {}
+  const key = getProfitPlanId(first)
+  const labelPlan = String(first.label || '')
+    .replace(/^Profit collected\s*[·-]\s*/i, '')
+    .replace(/^Profit\s*[·-]\s*/i, '')
+    .replace(/^Deposit\s*[·-]\s*/i, '')
+    .replace(/^Reinvest\s*[·-]\s*/i, '')
+    .trim()
+  return labelPlan || yieldNameByMarketId(key) || 'Yield Market'
+}
+
+const buildProfitGroups = (txs) => {
+  const groups = new Map()
+  txs.forEach(tx => {
+    const key = getProfitPlanId(tx)
+    if (!groups.has(key)) groups.set(key, { key, items:[], total:0, latest:0 })
+    const group = groups.get(key)
+    group.items.push(tx)
+    group.total += Math.abs(Number(tx.amount) || 0)
+    group.latest = Math.max(group.latest, Number(tx.createdAt) || 0)
+  })
+  return [...groups.values()].sort((a,b) => b.latest - a.latest)
+}
+
 export default function AdminPage({
   user,
   computeAdminStats, getAllUsers, getAllTransactions,
@@ -61,8 +108,9 @@ export default function AdminPage({
   const [editPlan, setEditPlan] = useState(null)
   const [editUser, setEditUser] = useState(null)
   const [userSearch, setUserSearch] = useState('')
-  const [txFilter, setTxFilter] = useState('all')
+  const [txFilter, setTxFilter] = useState('deposit')
   const [selectedUser, setSelectedUser] = useState(null)
+  const [expandedProfitIds, setExpandedProfitIds] = useState({})
 
   const [adminStats, setAdminStats]   = useState(null)
   const [allUsers,   setAllUsers]     = useState([])
@@ -146,7 +194,13 @@ export default function AdminPage({
   }
 
   const allTxSorted = [...allTx].sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
-  const filteredTx  = txFilter === 'all' ? allTxSorted : allTxSorted.filter(t => t.type === txFilter)
+  const txCounts = TX_TYPE_FILTERS.reduce((acc, f) => {
+    acc[f.id] = allTx.filter(t => t.type === f.id).length
+    return acc
+  }, {})
+  const activeTxFilter = txFilter
+  const filteredTx  = allTxSorted.filter(t => t.type === activeTxFilter)
+  const filteredProfitGroups = activeTxFilter === 'profit' ? buildProfitGroups(filteredTx) : []
 
   const filteredUsers = allUsers.filter(u => {
     if (!userSearch) return true
@@ -506,19 +560,76 @@ export default function AdminPage({
       {/* ─── HISTORY ───────────────────────────────────────────────────────── */}
       {section === 'history' && (
         <div className="adm-section">
-          <div className="adm-sec-title history-title">TRANSACTION HISTORY <span>{filteredTx.length}</span></div>
+          <div className="adm-sec-title history-title">TRANSACTION HISTORY <span>{activeTxFilter === 'profit' ? filteredProfitGroups.length : filteredTx.length}</span></div>
           {/* Filter pills */}
           <div className="tx-filter-row">
-            {['all','deposit','withdraw','profit','referral'].map(f => (
-              <button key={f} className={`tx-filter-pill ${txFilter===f?'on':''}`} onClick={() => setTxFilter(f)}>
-                {f === 'all' ? 'All' : f.charAt(0).toUpperCase()+f.slice(1)}
-                {f !== 'all' && <span className="tx-filter-count">{allTx.filter(t=>t.type===f).length}</span>}
+            {TX_TYPE_FILTERS.map(f => (
+              <button key={f.id} className={`tx-filter-pill ${activeTxFilter===f.id?'on':''} ${f.id}`} onClick={() => setTxFilter(f.id)}>
+                <AdminTxIcon type={f.id} size={14} />
+                {f.label}
+                <span className="tx-filter-count">{txCounts[f.id] || 0}</span>
               </button>
             ))}
           </div>
           {filteredTx.length === 0 && <div className="adm-empty">No transactions</div>}
           <div className="admin-history-list">
-          {filteredTx.map(tx => (
+          {activeTxFilter === 'profit' && filteredProfitGroups.map(group => {
+            const opened = !!expandedProfitIds[group.key]
+            const planName = getProfitPlanName(group.items)
+            return (
+              <div key={`admin-profit-${group.key}`} className={`admin-profit-group ${opened ? 'open' : ''}`}>
+                <button
+                  type="button"
+                  className="adm-tx-row admin-history-row profit admin-profit-head"
+                  onClick={() => setExpandedProfitIds(p => ({ ...p, [group.key]: !p[group.key] }))}
+                >
+                  <div className="atr-ico profit">{opened ? <X size={14} color="#FFD600" /> : <Coins size={15} color="#FFD600" />}</div>
+                  <div className="atr-left">
+                    <div className="atr-label">
+                      <strong>Profit Return - {planName}</strong>
+                      <span className="admin-history-type">return</span>
+                    </div>
+                    <div className="admin-history-label">Market ID {group.key}</div>
+                    <div className="admin-history-meta">
+                      <span>{group.items.length} returns</span>
+                      <span>Latest {fmtDate(group.latest)}</span>
+                    </div>
+                  </div>
+                  <div className="atr-right">
+                    <span className="pos">+{formatTon(group.total)}</span>
+                    <span className="adm-status completed">completed</span>
+                  </div>
+                </button>
+                {opened && (
+                  <div className="admin-profit-items">
+                    {group.items.map(tx => (
+                      <div key={tx.id} className="adm-tx-row admin-history-row profit admin-profit-child">
+                        <div className="atr-ico profit"><AdminTxIcon type="profit" size={14} /></div>
+                        <div className="atr-left">
+                          <div className="atr-label">
+                            {(() => {
+                              const u = allUsers.find(u => Number(u.id)===Number(tx.userId))
+                              return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User#${tx.userId}`
+                            })()}
+                          </div>
+                          <div className="admin-history-label">{tx.label}</div>
+                          <div className="admin-history-meta">
+                            <span>{fmtDate(tx.createdAt)}</span>
+                            <span>TX ID {tx.id}</span>
+                          </div>
+                        </div>
+                        <div className="atr-right">
+                          <span className="pos">+{formatTon(Math.abs(tx.amount))}</span>
+                          <span className={`adm-status ${displayTxStatus(tx.status)}`}>{displayTxStatus(tx.status)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {activeTxFilter !== 'profit' && filteredTx.map(tx => (
             <div key={tx.id} className={`adm-tx-row admin-history-row ${tx.type}`}>
               <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} /></div>
               <div className="atr-left">

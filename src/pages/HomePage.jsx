@@ -307,11 +307,18 @@ function buildTxDisplayItems(items, investments) {
   return output
 }
 
+const TX_TYPE_FILTERS = [
+  { id:'deposit', label:'Deposit' },
+  { id:'withdraw', label:'Withdraw' },
+  { id:'profit', label:'Profit' },
+  { id:'referral', label:'Referral' },
+]
+
 export default function HomePage({ user, investments, transactions, plans, config, referral, notifications = [], notificationUnread = 0, markNotificationsSeen, onDeposit, onWithdraw, setTab, setIsAdmin, isAdmin, isAdminView, activateInvestment, collectProfit }) {
   const logoRef = useRef(null)
   const pressRef = useRef(null)
   const [showAllTx, setShowAllTx] = useState(false)
-  const [selectedDay, setSelectedDay] = useState(null)
+  const [txTypeFilter, setTxTypeFilter] = useState('deposit')
   const [expandedProfitIds, setExpandedProfitIds] = useState({})
   const [showNotifications, setShowNotifications] = useState(false)
 
@@ -579,24 +586,34 @@ export default function HomePage({ user, investments, transactions, plans, confi
           <div className="tx-empty">NO TRANSACTIONS<br/>Your transaction history will appear here once you make your first deposit.</div>
         )}
         {transactions.length > 0 && (() => {
-          const groups = groupTxByDay(transactions)
-          const activeDay = selectedDay || groups[0]?.label
-          const activeItems = groups.find(g => g.label === activeDay)?.items || []
+          const counts = TX_TYPE_FILTERS.reduce((acc, f) => {
+            acc[f.id] = transactions.filter(tx => tx.type === f.id).length
+            return acc
+          }, {})
+          const activeType = txTypeFilter
+          const activeItems = transactions.filter(tx => tx.type === activeType)
           const displayItems = buildTxDisplayItems(activeItems, investments)
           return (
             <>
               {/* Day tab strip — swipe left/right */}
-              <div className="tx-day-strip">
-                {groups.map(g => (
+              <div className="tx-type-strip">
+                {TX_TYPE_FILTERS.map(f => (
                   <button
-                    key={g.label}
-                    className={`tx-day-tab ${activeDay === g.label ? 'active' : ''}`}
-                    onClick={() => setSelectedDay(g.label)}
-                  >{g.label}</button>
+                    key={f.id}
+                    className={`tx-type-tab ${activeType === f.id ? 'active' : ''} ${f.id}`}
+                    onClick={() => setTxTypeFilter(f.id)}
+                  >
+                    <TxIconNode type={f.id} size={14} />
+                    <span>{f.label}</span>
+                    <b>{counts[f.id] || 0}</b>
+                  </button>
                 ))}
               </div>
               {/* Transactions for selected day */}
-                <div className="tx-list card">
+              <div className="tx-list card tx-list-animated">
+                {displayItems.length === 0 && (
+                  <div className="tx-filter-empty">No {TX_TYPE_FILTERS.find(f => f.id === activeType)?.label.toLowerCase()} transactions.</div>
+                )}
                 {displayItems.map(item => {
                   if (item.kind === 'profitGroup') {
                     const opened = !!expandedProfitIds[item.key]
@@ -614,12 +631,12 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           </div>
                           <div className="tx-inf">
                             <div className="tx-title-row">
-                              <div className="tx-n">Profit - {planName}</div>
-                              <span className="tx-kind">YIELD</span>
+                              <div className="tx-n">Profit Return - {planName}</div>
+                              <span className="tx-kind profit">RETURN</span>
                             </div>
                             <div className="tx-meta-row">
                               <span>{formatMarketIdLabel(item.key, planName)}</span>
-                              <span>{item.items.length} distributions</span>
+                              <span>{item.items.length} returns</span>
                             </div>
                           </div>
                           <div className="tx-right">
