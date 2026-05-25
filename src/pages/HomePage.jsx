@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ArrowDownCircle, ArrowUpCircle, Bell, ChevronRight, Clock, Hash, Minus, Play, Plus, Shield, Target, TrendingUp, Users } from 'lucide-react'
+import { DAY_NAMES_FULL } from '../utils/config'
 import './HomePage.css'
 
 const TODAY_DOW = new Date().getDay()
