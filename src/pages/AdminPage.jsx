@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
-  ArrowDownCircle, ArrowUpCircle, Ban, BarChart2, Bell, Bot, CheckCircle2,
+  ArrowDownCircle, ArrowUpCircle, Ban, BarChart2, Bell, Bomb, Bot, CheckCircle2,
   Clock, Cloud, Coins, Database, Download, Globe2, IdCard,
   RefreshCw, Save, Search, Send, Settings as SettingsIcon, Shield, Trash2, User,
   Users, Wallet, X, XCircle, Zap
@@ -986,6 +986,11 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [minWithdraw,  setMinWithdraw]  = useState(config.minWithdraw  || 5)
   const [withdrawReferralGateEnabled, setWithdrawReferralGateEnabled] = useState(!!config.withdrawReferralGateEnabled)
   const [withdrawMinReferrals, setWithdrawMinReferrals] = useState(config.withdrawMinReferrals ?? 3)
+  const [mineEnabled, setMineEnabled] = useState(config.mine?.enabled ?? true)
+  const [mineMinBet, setMineMinBet] = useState(config.mine?.minBet ?? 0.01)
+  const [mineMaxBet, setMineMaxBet] = useState(config.mine?.maxBet ?? 1)
+  const [mineCount, setMineCount] = useState(config.mine?.mineCount ?? 3)
+  const [mineHouseEdge, setMineHouseEdge] = useState(config.mine?.houseEdge ?? 4)
   const [tonNetwork,   setTonNetwork]   = useState(config.tonNetwork   || 'testnet')
   const [showNetConfirm, setShowNetConfirm] = useState(false)
   const [pendingNetwork, setPendingNetwork] = useState(null)
@@ -1001,6 +1006,11 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     setMinWithdraw(config.minWithdraw || 5)
     setWithdrawReferralGateEnabled(!!config.withdrawReferralGateEnabled)
     setWithdrawMinReferrals(config.withdrawMinReferrals ?? 3)
+    setMineEnabled(config.mine?.enabled ?? true)
+    setMineMinBet(config.mine?.minBet ?? 0.01)
+    setMineMaxBet(config.mine?.maxBet ?? 1)
+    setMineCount(config.mine?.mineCount ?? 3)
+    setMineHouseEdge(config.mine?.houseEdge ?? 4)
     setTonNetwork(config.tonNetwork || 'testnet')
   }, [config, currentUserId])
 
@@ -1017,6 +1027,10 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     if (!activeAdminWallet) { showToast(`Admin ${tonNetwork} wallet cannot be empty`,'err'); return }
     if (parsedIds.length === 0) { showToast('Add at least one Admin Telegram ID','err'); return }
     if (cleanWebhookUrl && !/^https?:\/\//i.test(cleanWebhookUrl)) { showToast('Webhook URL must start with http:// or https://','err'); return }
+    const cleanMineMin = Math.max(0.001, Number(mineMinBet) || 0.01)
+    const cleanMineMax = Math.max(cleanMineMin, Number(mineMaxBet) || cleanMineMin)
+    const cleanMineCount = Math.min(24, Math.max(1, Math.round(Number(mineCount) || 3)))
+    const cleanMineHouseEdge = Math.min(30, Math.max(0, Number(mineHouseEdge) || 0))
     onSave({
       adminWallet: activeAdminWallet,
       adminWalletTestnet: adminWalletTestnet.trim(),
@@ -1029,6 +1043,13 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       minWithdraw: +minWithdraw,
       withdrawReferralGateEnabled,
       withdrawMinReferrals: Math.max(0, Number(withdrawMinReferrals) || 0),
+      mine: {
+        enabled: !!mineEnabled,
+        minBet: cleanMineMin,
+        maxBet: cleanMineMax,
+        mineCount: cleanMineCount,
+        houseEdge: cleanMineHouseEdge,
+      },
       tonNetwork,
     })
   }
@@ -1129,6 +1150,31 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
             disabled={!withdrawReferralGateEnabled}
           />
           <span className="sg-unit">threshold</span>
+        </div>
+      </div>
+
+      <div className="setting-group mine-admin-config">
+        <div className="sg-label"><Bomb size={16} color="#FFD600" />Mine Game</div>
+        <div className="sg-desc">Configure the Mine balance game without changing code. Bets use user balance and payouts are handled server-side.</div>
+        <label className="sg-check-row">
+          <input type="checkbox" checked={mineEnabled} onChange={e=>setMineEnabled(e.target.checked)} />
+          <span>Enable Mine page for users</span>
+        </label>
+        <div className="sg-row">
+          <input className="sg-input sg-input-sm" type="number" min="0.001" step="0.001" value={mineMinBet} onChange={e=>setMineMinBet(+e.target.value)} />
+          <span className="sg-unit">min bet</span>
+        </div>
+        <div className="sg-row">
+          <input className="sg-input sg-input-sm" type="number" min="0.001" step="0.001" value={mineMaxBet} onChange={e=>setMineMaxBet(+e.target.value)} />
+          <span className="sg-unit">max bet</span>
+        </div>
+        <div className="sg-row">
+          <input className="sg-input sg-input-sm" type="number" min="1" max="24" step="1" value={mineCount} onChange={e=>setMineCount(+e.target.value)} />
+          <span className="sg-unit">mines / 25 cells</span>
+        </div>
+        <div className="sg-row">
+          <input className="sg-input sg-input-sm" type="number" min="0" max="30" step="0.5" value={mineHouseEdge} onChange={e=>setMineHouseEdge(+e.target.value)} />
+          <span className="sg-unit">house edge %</span>
         </div>
       </div>
 

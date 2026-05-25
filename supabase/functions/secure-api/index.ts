@@ -53,6 +53,8 @@ Deno.serve(async (req) => {
         return await submitWithdraw(userId, payload)
       case 'activate_investment':
         return await activateInvestment(userId, payload)
+      case 'user_play_mine':
+        return await userPlayMine(userId, payload)
       case 'admin_update_user':
         return await adminUpdateUser(userId, payload)
       case 'admin_delete_user':
@@ -362,6 +364,125 @@ async function activateInvestment(userId: number, payload: Record<string, unknow
   return json({ ok: true, next_profit_time: nextProfitTime })
 }
 
+async function userPlayMine(userId: number, payload: Record<string, unknown>) {
+  const bet = roundMoney(Number(payload.bet))
+  const selectedCell = Math.trunc(Number(payload.selectedCell))
+  const requestedMineCount = Math.trunc(Number(payload.mineCount) || 3)
+
+  if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid bet' }, 400)
+  if (!Number.isInteger(selectedCell) || selectedCell < 0 || selectedCell > 24) {
+    return json({ ok: false, error: 'Invalid selected cell' }, 400)
+  }
+
+  const { data: cfg, error: cfgErr } = await supabase
+    .from('admin_config')
+    .select('mine_enabled, mine_min_bet, mine_max_bet, mine_count, mine_house_edge')
+    .eq('id', 1)
+    .maybeSingle()
+  if (cfgErr) throw cfgErr
+
+  const enabled = cfg?.mine_enabled !== false
+  const minBet = Math.max(0.001, Number(cfg?.mine_min_bet) || 0.01)
+  const maxBet = Math.max(minBet, Number(cfg?.mine_max_bet) || 1)
+  const mineCount = Math.min(24, Math.max(1, Number(cfg?.mine_count) || requestedMineCount || 3))
+  const houseEdge = Math.min(30, Math.max(0, Number(cfg?.mine_house_edge) || 0))
+
+  if (!enabled) return json({ ok: false, error: 'Mine game is disabled' }, 403)
+  if (bet < minBet) return json({ ok: false, error: `Minimum bet is ${minBet}` }, 400)
+  if (bet > maxBet) return json({ ok: false, error: `Maximum bet is ${maxBet}` }, 400)
+  if (requestedMineCount !== mineCount) return json({ ok: false, error: 'Mine settings changed, refresh and retry' }, 409)
+
+  const { data: currentUser, error: userErr } = await supabase
+    .from('users')
+    .select('id, balance, status, total_profit, today_profit')
+    .eq('id', userId)
+    .maybeSingle()
+  if (userErr) throw userErr
+  if (!currentUser) return json({ ok: false, error: 'User not found' }, 404)
+  if (String(currentUser.status || 'active') === 'banned') return json({ ok: false, error: 'Account restricted' }, 403)
+
+  const currentBalance = Number(currentUser.balance) || 0
+  if (currentBalance < bet) return json({ ok: false, error: 'Insufficient balance' }, 400)
+
+  const minePositions = generateMinePositions(mineCount, userId, selectedCell)
+  const win = !minePositions.includes(selectedCell)
+  const multiplier = mineMultiplier(mineCount, houseEdge)
+  const payout = win ? roundMoney(bet * multiplier) : 0
+  const netAmount = win ? roundMoney(payout - bet) : -bet
+  const nextBalance = roundMoney(currentBalance + netAmount)
+  const now = Date.now()
+  const txId = safeId(payload.tx_id, publicId())
+
+  const { data: updatedUser, error: updateErr } = await supabase
+    .from('users')
+    .update({
+      balance: nextBalance,
+      total_profit: win ? roundMoney(Number(currentUser.total_profit || 0) + netAmount) : undefined,
+      today_profit: win ? roundMoney(Number(currentUser.today_profit || 0) + netAmount) : undefined,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .gte('balance', bet)
+    .select('balance')
+    .maybeSingle()
+  if (updateErr) throw updateErr
+  if (!updatedUser) return json({ ok: false, error: 'Insufficient balance' }, 400)
+
+  const { error: txErr } = await supabase.from('transactions').insert({
+    id: txId,
+    user_id: userId,
+    type: win ? 'profit' : 'game',
+    label: win ? `Mine win ${multiplier.toFixed(2)}x` : 'Mine loss',
+    amount: netAmount,
+    status: 'completed',
+    created_at: now,
+    updated_at: new Date().toISOString(),
+  })
+
+  if (txErr) {
+    await supabase.from('users').update({
+      balance: currentBalance,
+      updated_at: new Date().toISOString(),
+    }).eq('id', userId)
+    throw txErr
+  }
+
+  return json({
+    ok: true,
+    win,
+    payout,
+    profit: netAmount,
+    multiplier,
+    minePositions,
+    balance: Number(updatedUser.balance),
+    tx_id: txId,
+  })
+}
+
+function roundMoney(value: number) {
+  return Math.round((Number(value) || 0) * 1_000_000) / 1_000_000
+}
+
+function mineMultiplier(mineCount: number, houseEdge: number) {
+  const safeCells = Math.max(1, 25 - mineCount)
+  const fair = 25 / safeCells
+  return Math.max(1.01, fair * (1 - houseEdge / 100))
+}
+
+function generateMinePositions(count: number, userId: number, selectedCell: number) {
+  const values = new Set<number>()
+  const cryptoObj = globalThis.crypto
+  while (values.size < count) {
+    const bytes = new Uint32Array(8)
+    cryptoObj.getRandomValues(bytes)
+    for (const value of bytes) {
+      values.add(Number(value % 25))
+      if (values.size >= count) break
+    }
+  }
+  return [...values].sort((a, b) => a - b)
+}
+
 async function adminUpdateUser(adminId: number, payload: Record<string, unknown>) {
   await requireAdmin(adminId)
   const userId = Number(payload.user_id)
@@ -655,9 +776,13 @@ function formatTelegramNotification(title: string, body: string) {
 
 function escapeHtml(value: string) {
   return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function triggerWithdrawalProcessor(tx: Record<string, unknown>, cfg?: Record<string, unknown> | null, force = false) {
@@ -773,7 +898,8 @@ function normalizeUrl(url: string) {
 }
 
 async function hmacSha256(key: Uint8Array, data: string) {
-  const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const rawKey = Uint8Array.from(key)
+  const cryptoKey = await crypto.subtle.importKey('raw', rawKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data)))
 }
 

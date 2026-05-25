@@ -838,6 +838,21 @@ export function useApp() {
     return ts > notificationsSeenAt
   }).length
 
+  const playMineRound = useCallback(async ({ bet, selectedCell, mineCount }) => {
+    try {
+      const result = await secureApi('user_play_mine', {
+        bet: Number(bet),
+        selectedCell: Number(selectedCell),
+        mineCount: Number(mineCount),
+      })
+      return result || { win: false, payout: 0, minePositions: [] }
+    } catch (e) {
+      console.error('[playMineRound]', e)
+      showToast(`Mine round error: ${e?.message || 'please retry'}.`, 'err')
+      throw e
+    }
+  }, [showToast])
+
   const referralDisplay = { ...referral, code: referralLink }
 
   return {
@@ -849,6 +864,7 @@ export function useApp() {
     wallet,
     connectWallet, disconnectWallet, showToast,
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
+    playMineRound,
     computeAdminStats, getAllUsers, getAllTransactions,
     adminToggleBan, adminUpdateUser, adminRetryWithdrawal, adminUpdatePlan, adminSendNotification,
     adminGetNotifications, adminDeleteNotification, adminTestBotNotification,

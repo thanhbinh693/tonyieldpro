@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import PlansPage from './pages/PlansPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import MinePage from './pages/MinePage'
 import BottomNav from './components/BottomNav'
 import DepositModal from './components/DepositModal'
 import LoadingScreen from './components/LoadingScreen'
@@ -48,11 +49,12 @@ export default function App() {
       <div className={`glow-top glow-blue  ${tab === 'plans' ? 'on' : ''}`} />
       <div className={`glow-top glow-purple${tab === 'profile' ? 'on' : ''}`} />
 
-      <div className="pages">
-        {tab === 'home' && <HomePage {...appState} onDeposit={openDeposit} onWithdraw={openWithdraw} />}
-        {tab === 'plans' && <PlansPage {...appState} onDeposit={openDeposit} />}
-        {tab === 'profile' && <ProfilePage {...appState} />}
-      </div>
+       <div className="pages">
+         {tab === 'home' && <HomePage {...appState} onDeposit={openDeposit} onWithdraw={openWithdraw} />}
+         {tab === 'plans' && <PlansPage {...appState} onDeposit={openDeposit} />}
+         {tab === 'mine' && <MinePage {...appState} />}
+         {tab === 'profile' && <ProfilePage {...appState} />}
+       </div>
 
       <BottomNav tab={tab} setTab={appState.setTab} />
 
