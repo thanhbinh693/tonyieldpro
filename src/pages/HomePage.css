@@ -357,6 +357,32 @@
   white-space: nowrap;
 }
 
+.tx-meta-row .copy-id-chip,
+.copy-id-chip {
+  min-width: 0;
+  max-width: 120px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 194, 255, .18);
+  background: rgba(0, 152, 234, .10);
+  color: var(--blue2);
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
+}
+
+.tx-meta-row .copy-id-chip:hover,
+.copy-id-chip:hover {
+  background: rgba(0, 152, 234, .18);
+  border-color: rgba(0, 194, 255, .36);
+  color: #e9fbff;
+}
+
+.tx-meta-row .copy-id-chip:active,
+.copy-id-chip:active {
+  transform: scale(.96);
+}
+
 .tx-type-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

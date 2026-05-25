@@ -1451,6 +1451,32 @@
   white-space: nowrap;
 }
 
+.admin-page .copy-id-chip {
+  min-width: 0;
+  max-width: 150px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 194, 255, .18);
+  background: rgba(0, 152, 234, .10);
+  color: var(--admin-blue);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
+}
+
+.admin-page .copy-id-chip:hover {
+  background: rgba(0, 152, 234, .18);
+  border-color: rgba(0, 194, 255, .34);
+  color: #e0f2fe;
+}
+
+.admin-page .copy-id-chip:active {
+  transform: scale(.96);
+}
+
 .admin-page .tx-filter-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

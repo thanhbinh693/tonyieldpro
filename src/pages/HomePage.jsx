@@ -242,13 +242,39 @@ const txTitle = (tx) => {
   return formatYieldLabel(tx.label)
 }
 const txTime = (ts, opts = {}) =>
-  new Date(ts || Date.now()).toLocaleString('en-GB', {
-    day:'2-digit',
-    month:'short',
-    hour:'2-digit',
-    minute:'2-digit',
-    ...opts,
-  })
+  (() => {
+    const d = new Date(ts || Date.now())
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mi = String(d.getMinutes()).padStart(2, '0')
+    return `${dd}/${mm}, ${hh}:${mi}`
+  })()
+const copyText = (value) => {
+  const text = String(value || '')
+  if (!text) return
+  navigator.clipboard?.writeText(text).catch(() => {})
+}
+function CopyIdChip({ label, value }) {
+  return (
+    <span
+      className="copy-id-chip"
+      title={`Copy ${label}`}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => { e.stopPropagation(); copyText(value) }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          e.stopPropagation()
+          copyText(value)
+        }
+      }}
+    >
+      {label}
+    </span>
+  )
+}
 
 const statusBadge = (s) => {
   const displayStatus = s === 'sent' ? 'completed' : s
@@ -661,10 +687,9 @@ export default function HomePage({ user, investments, transactions, plans, confi
                               {item.capitalRelease ? <span className="tx-kind release">RELEASED</span> : <span className="tx-kind profit">YIELD</span>}
                             </div>
                             <div className="tx-meta-row">
-                              <span>{shortCode('MK', item.key)}</span>
+                              <CopyIdChip label={shortCode('MK', item.key)} value={item.key} />
                               <span>{item.items.length} payouts</span>
-                              <span>{txTime(item.firstCreatedAt)}</span>
-                              {item.capitalRelease && <span>{shortCode('CR', item.capitalRelease.id)}</span>}
+                              {item.capitalRelease && <CopyIdChip label={shortCode('CR', item.capitalRelease.id)} value={item.capitalRelease.id} />}
                             </div>
                           </div>
                           <div className="tx-right">
@@ -682,6 +707,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                                   <div className="tx-meta-row">
                                     <Clock size={12} />
                                     <span>{txTime(tx.createdAt)}</span>
+                                    <CopyIdChip label={shortCode('TX', tx.id)} value={tx.id} />
                                   </div>
                                 </div>
                                 <div className="tx-right">
@@ -709,19 +735,20 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           {tx.type === 'withdraw' ? (
                             <>
                               <Hash size={12} />
-                              <span>{shortCode('WD', tx.id)}</span>
+                              <CopyIdChip label={shortCode('WD', tx.id)} value={tx.id} />
                               <span>{txTime(tx.createdAt)}</span>
                             </>
                           ) : tx.invoiceId ? (
                             <>
                               <Hash size={12} />
-                              <span>{shortCode('MK', tx.invoiceId)}</span>
+                              <CopyIdChip label={shortCode('MK', tx.invoiceId)} value={tx.invoiceId} />
                               <span>{txTime(tx.createdAt)}</span>
                             </>
                           ) : (
                             <>
                               <Clock size={12} />
                               <span>{txTime(tx.createdAt)}</span>
+                              <CopyIdChip label={shortCode('TX', tx.id)} value={tx.id} />
                             </>
                           )}
                         </div>

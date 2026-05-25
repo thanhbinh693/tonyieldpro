@@ -11,7 +11,12 @@ import './AdminPage.css'
 
 const fmtDate = (ts) => {
   if (!ts) return '—'
-  return new Date(Number(ts)).toLocaleString('en-US', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })
+  const d = new Date(Number(ts))
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}/${mm}, ${hh}:${mi}`
 }
 const fmtDateShort = (dateStr) => {
   if (!dateStr) return '—'
@@ -114,6 +119,31 @@ const shortCode = (prefix, value) => {
   if (!raw) return `${prefix}-NA`
   const compact = raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
   return `${prefix}-${compact}`
+}
+const copyText = (value) => {
+  const text = String(value || '')
+  if (!text) return
+  navigator.clipboard?.writeText(text).catch(() => {})
+}
+function CopyIdChip({ label, value }) {
+  return (
+    <span
+      className="copy-id-chip"
+      title={`Copy ${label}`}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => { e.stopPropagation(); copyText(value) }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          e.stopPropagation()
+          copyText(value)
+        }
+      }}
+    >
+      {label}
+    </span>
+  )
 }
 
 export default function AdminPage({
@@ -550,7 +580,7 @@ export default function AdminPage({
                 <div className="admin-history-label">{tx.label}</div>
                 <div className="admin-history-meta">
                   <span>{fmtDate(tx.createdAt)}</span>
-                  <span>{shortCode('WD', tx.id)}</span>
+                  <CopyIdChip label={shortCode('WD', tx.id)} value={tx.id} />
                 </div>
                 {tx.failReason && (
                   <div className="atr-date" style={{ fontSize:11, marginTop:2, color:'var(--red)' }}>
@@ -609,11 +639,10 @@ export default function AdminPage({
                       <strong>{planName}</strong>
                       <span className={`admin-history-type ${group.capitalRelease ? 'release' : ''}`}>{group.capitalRelease ? 'released' : 'yield'}</span>
                     </div>
-                    <div className="admin-history-label">{shortCode('MK', group.key)}</div>
+                    <div className="admin-history-label"><CopyIdChip label={shortCode('MK', group.key)} value={group.key} /></div>
                     <div className="admin-history-meta">
                       <span>{group.items.length} payouts</span>
-                      {group.capitalRelease && <span>{shortCode('CR', group.capitalRelease.id)}</span>}
-                      <span>{fmtDate(group.latest)}</span>
+                      {group.capitalRelease && <CopyIdChip label={shortCode('CR', group.capitalRelease.id)} value={group.capitalRelease.id} />}
                     </div>
                   </div>
                   <div className="atr-right">
@@ -636,7 +665,7 @@ export default function AdminPage({
                           <div className="admin-history-label">Yield payout</div>
                           <div className="admin-history-meta">
                             <span>{fmtDate(tx.createdAt)}</span>
-                            <span>{shortCode('TX', tx.id)}</span>
+                            <CopyIdChip label={shortCode('TX', tx.id)} value={tx.id} />
                           </div>
                         </div>
                         <div className="atr-right">
@@ -664,7 +693,7 @@ export default function AdminPage({
                 <div className="admin-history-label">{adminTxTitle(tx)}</div>
                 <div className="admin-history-meta">
                   <span>{fmtDate(tx.createdAt)}</span>
-                  <span>{tx.type === 'withdraw' ? shortCode('WD', tx.id) : shortCode('TX', tx.id)}</span>
+                  <CopyIdChip label={tx.type === 'withdraw' ? shortCode('WD', tx.id) : shortCode('TX', tx.id)} value={tx.id} />
                 </div>
               </div>
               <div className="atr-right">
