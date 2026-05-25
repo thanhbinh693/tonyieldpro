@@ -1408,6 +1408,21 @@
   text-transform: uppercase;
 }
 
+.admin-page .admin-history-type.release {
+  background: rgba(34, 197, 94, .14);
+  border-color: rgba(34, 197, 94, .26);
+  color: #86efac;
+  box-shadow: 0 0 12px rgba(34, 197, 94, .12);
+}
+
+.admin-page .admin-history-row.capital-release {
+  border-color: rgba(34, 197, 94, .24);
+  background:
+    linear-gradient(135deg, rgba(34, 197, 94, .12), rgba(8, 12, 18, .72) 38%),
+    rgba(15, 23, 34, .58);
+  box-shadow: 0 0 16px rgba(34, 197, 94, .10);
+}
+
 .admin-page .admin-history-label {
   max-width: 100%;
   margin-top: 3px;
@@ -1485,6 +1500,11 @@
 .admin-page .admin-profit-group {
   border-radius: 12px;
   overflow: hidden;
+}
+
+.admin-page .admin-profit-group.capital-settled .admin-profit-head {
+  border-color: rgba(34, 197, 94, .22);
+  box-shadow: 0 0 14px rgba(34, 197, 94, .08);
 }
 
 .admin-page .admin-profit-head {

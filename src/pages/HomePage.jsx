@@ -234,6 +234,13 @@ const shortCode = (prefix, value) => {
   const compact = raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
   return `${prefix}-${compact}`
 }
+const isCapitalReleaseTx = (tx) =>
+  tx?.type === 'deposit' && (/^principal returned\b/i.test(String(tx.label || '').trim()) || String(tx.id || '').startsWith('ret-'))
+const txTitle = (tx) => {
+  if (isCapitalReleaseTx(tx)) return 'Capital Release'
+  if (tx.type === 'withdraw') return 'Withdrawal'
+  return formatYieldLabel(tx.label)
+}
 
 const statusBadge = (s) => {
   const displayStatus = s === 'sent' ? 'completed' : s
@@ -290,7 +297,7 @@ function getProfitPlanName(items, investments) {
   return formatYieldName(labelPlan || yieldNameByMarketId(key) || 'Starter Yield')
 }
 
-function buildTxDisplayItems(items, investments) {
+function buildTxDisplayItems(items, investments, allTx = []) {
   const output = []
   const profitGroups = new Map()
 
@@ -301,7 +308,13 @@ function buildTxDisplayItems(items, investments) {
     }
     const key = getProfitPlanId(tx)
     if (!profitGroups.has(key)) {
-      const group = { kind:'profitGroup', key, items:[], firstCreatedAt:tx.createdAt || 0 }
+      const group = {
+        kind:'profitGroup',
+        key,
+        items:[],
+        firstCreatedAt:tx.createdAt || 0,
+        capitalRelease: allTx.find(t => isCapitalReleaseTx(t) && String(t.invoiceId || '') === String(key)),
+      }
       profitGroups.set(key, group)
       output.push(group)
     }
@@ -598,7 +611,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
           }, {})
           const activeType = txTypeFilter
           const activeItems = transactions.filter(tx => tx.type === activeType)
-          const displayItems = buildTxDisplayItems(activeItems, investments)
+          const displayItems = buildTxDisplayItems(activeItems, investments, transactions)
           return (
             <>
               {/* Day tab strip — swipe left/right */}
@@ -625,7 +638,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                     const total = item.items.reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0)
                     const planName = getProfitPlanName(item.items, investments)
                     return (
-                      <div key={`profit-${item.key}`} className={`tx-profit-group ${opened ? 'open' : ''}`}>
+                      <div key={`profit-${item.key}`} className={`tx-profit-group ${opened ? 'open' : ''} ${item.capitalRelease ? 'capital-settled' : ''}`}>
                         <button
                           type="button"
                           className="tx-row tx-profit-head"
@@ -637,11 +650,12 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           <div className="tx-inf">
                             <div className="tx-title-row">
                               <div className="tx-n">{planName}</div>
-                              <span className="tx-kind profit">RETURN</span>
+                              {item.capitalRelease ? <span className="tx-kind release">SETTLED</span> : <span className="tx-kind profit">YIELD</span>}
                             </div>
                             <div className="tx-meta-row">
                               <span>{shortCode('MK', item.key)}</span>
-                              <span>{item.items.length}x</span>
+                              <span>{item.items.length} payouts</span>
+                              {item.capitalRelease && <span>{shortCode('CR', item.capitalRelease.id)}</span>}
                             </div>
                           </div>
                           <div className="tx-right">
@@ -655,7 +669,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                               <div key={tx.id} className="tx-row tx-profit-child">
                                 <div className={`tx-ico ${txClass.profit}`}><TxIconNode type="profit" /></div>
                                 <div className="tx-inf">
-                                  <div className="tx-n">Return</div>
+                                  <div className="tx-n">Yield payout</div>
                                   <div className="tx-meta-row">
                                     <Clock size={12} />
                                     <span>{new Date(tx.createdAt || Date.now()).toLocaleString('en-GB', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
@@ -675,12 +689,12 @@ export default function HomePage({ user, investments, transactions, plans, confi
                   const tx = item.tx
                   const shownAmount = txDisplayAmount(tx)
                   return (
-                    <div key={tx.id} className="tx-row">
+                    <div key={tx.id} className={`tx-row ${isCapitalReleaseTx(tx) ? 'capital-release' : ''}`}>
                       <div className={`tx-ico ${txClass[tx.type]}`}><TxIconNode type={tx.type} /></div>
                       <div className="tx-inf">
                         <div className="tx-title-row">
-                          <div className="tx-n">{tx.type === 'withdraw' ? 'Withdrawal' : formatYieldLabel(tx.label)}</div>
-                          <span className={`tx-kind ${tx.type}`}>{tx.type}</span>
+                          <div className="tx-n">{txTitle(tx)}</div>
+                          <span className={`tx-kind ${isCapitalReleaseTx(tx) ? 'release' : tx.type}`}>{isCapitalReleaseTx(tx) ? 'RELEASE' : tx.type}</span>
                         </div>
                         <div className="tx-meta-row">
                           {tx.type === 'withdraw' ? (

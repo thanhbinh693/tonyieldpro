@@ -318,6 +318,26 @@
   color: var(--gold);
 }
 
+.tx-kind.release {
+  background: rgba(34, 209, 122, .15);
+  border-color: rgba(34, 209, 122, .28);
+  color: var(--green);
+  box-shadow: 0 0 12px rgba(34, 209, 122, .16);
+}
+
+.sec .tx-row.capital-release {
+  border-color: rgba(34, 209, 122, .28);
+  background:
+    linear-gradient(135deg, rgba(34, 209, 122, .13), rgba(8, 12, 18, .62) 42%),
+    rgba(8, 12, 18, .58);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 0 18px rgba(34, 209, 122, .12);
+}
+
+.sec .tx-profit-group.capital-settled {
+  border-color: rgba(34, 209, 122, .22);
+  box-shadow: 0 0 14px rgba(34, 209, 122, .10);
+}
+
 .tx-meta-row {
   display: flex;
   align-items: center;

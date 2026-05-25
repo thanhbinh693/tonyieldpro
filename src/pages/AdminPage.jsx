@@ -82,11 +82,26 @@ const getProfitPlanName = (items) => {
   return labelPlan || yieldNameByMarketId(key) || 'Yield Market'
 }
 
-const buildProfitGroups = (txs) => {
+const isCapitalReleaseTx = (tx) =>
+  tx?.type === 'deposit' && (/^principal returned\b/i.test(String(tx.label || '').trim()) || String(tx.id || '').startsWith('ret-'))
+const adminTxTitle = (tx) => {
+  if (isCapitalReleaseTx(tx)) return 'Capital Release'
+  return tx.label
+}
+
+const buildProfitGroups = (txs, allTx = []) => {
   const groups = new Map()
   txs.forEach(tx => {
     const key = getProfitPlanId(tx)
-    if (!groups.has(key)) groups.set(key, { key, items:[], total:0, latest:0 })
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        items:[],
+        total:0,
+        latest:0,
+        capitalRelease: allTx.find(t => isCapitalReleaseTx(t) && String(t.invoiceId || '') === String(key)),
+      })
+    }
     const group = groups.get(key)
     group.items.push(tx)
     group.total += Math.abs(Number(tx.amount) || 0)
@@ -206,7 +221,7 @@ export default function AdminPage({
   }, {})
   const activeTxFilter = txFilter
   const filteredTx  = allTxSorted.filter(t => t.type === activeTxFilter)
-  const filteredProfitGroups = activeTxFilter === 'profit' ? buildProfitGroups(filteredTx) : []
+  const filteredProfitGroups = activeTxFilter === 'profit' ? buildProfitGroups(filteredTx, allTx) : []
 
   const filteredUsers = allUsers.filter(u => {
     if (!userSearch) return true
@@ -582,7 +597,7 @@ export default function AdminPage({
             const opened = !!expandedProfitIds[group.key]
             const planName = getProfitPlanName(group.items)
             return (
-              <div key={`admin-profit-${group.key}`} className={`admin-profit-group ${opened ? 'open' : ''}`}>
+              <div key={`admin-profit-${group.key}`} className={`admin-profit-group ${opened ? 'open' : ''} ${group.capitalRelease ? 'capital-settled' : ''}`}>
                 <button
                   type="button"
                   className="adm-tx-row admin-history-row profit admin-profit-head"
@@ -592,11 +607,12 @@ export default function AdminPage({
                   <div className="atr-left">
                     <div className="atr-label">
                       <strong>{planName}</strong>
-                      <span className="admin-history-type">return</span>
+                      <span className={`admin-history-type ${group.capitalRelease ? 'release' : ''}`}>{group.capitalRelease ? 'settled' : 'yield'}</span>
                     </div>
                     <div className="admin-history-label">{shortCode('MK', group.key)}</div>
                     <div className="admin-history-meta">
-                      <span>{group.items.length}x returns</span>
+                      <span>{group.items.length} payouts</span>
+                      {group.capitalRelease && <span>{shortCode('CR', group.capitalRelease.id)}</span>}
                       <span>Latest {fmtDate(group.latest)}</span>
                     </div>
                   </div>
@@ -617,7 +633,7 @@ export default function AdminPage({
                               return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User#${tx.userId}`
                             })()}
                           </div>
-                          <div className="admin-history-label">Return credited</div>
+                          <div className="admin-history-label">Yield payout</div>
                           <div className="admin-history-meta">
                             <span>{fmtDate(tx.createdAt)}</span>
                             <span>{shortCode('TX', tx.id)}</span>
@@ -635,7 +651,7 @@ export default function AdminPage({
             )
           })}
           {activeTxFilter !== 'profit' && filteredTx.map(tx => (
-            <div key={tx.id} className={`adm-tx-row admin-history-row ${tx.type}`}>
+            <div key={tx.id} className={`adm-tx-row admin-history-row ${tx.type} ${isCapitalReleaseTx(tx) ? 'capital-release' : ''}`}>
               <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} /></div>
               <div className="atr-left">
                 <div className="atr-label">
@@ -643,9 +659,9 @@ export default function AdminPage({
                     const u = allUsers.find(u => Number(u.id)===Number(tx.userId))
                     return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User#${tx.userId}`
                   })()}
-                  <span className="admin-history-type">{tx.type === 'withdraw' ? 'WD' : tx.type}</span>
+                  <span className={`admin-history-type ${isCapitalReleaseTx(tx) ? 'release' : ''}`}>{isCapitalReleaseTx(tx) ? 'release' : (tx.type === 'withdraw' ? 'WD' : tx.type)}</span>
                 </div>
-                <div className="admin-history-label">{tx.label}</div>
+                <div className="admin-history-label">{adminTxTitle(tx)}</div>
                 <div className="admin-history-meta">
                   <span>{fmtDate(tx.createdAt)}</span>
                   <span>{tx.type === 'withdraw' ? shortCode('WD', tx.id) : shortCode('TX', tx.id)}</span>
