@@ -114,11 +114,10 @@ const buildProfitGroups = (txs, allTx = []) => {
   })
   return [...groups.values()].sort((a,b) => b.latest - a.latest)
 }
-const shortCode = (prefix, value) => {
+const shortCode = (value) => {
   const raw = String(value || '').replace(/^plan-/, '')
-  if (!raw) return `${prefix}-NA`
-  const compact = raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
-  return `${prefix}-${compact}`
+  if (!raw) return 'NA'
+  return raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
 }
 const copyText = (value) => {
   const text = String(value || '')
@@ -580,7 +579,7 @@ export default function AdminPage({
                 <div className="admin-history-label">{tx.label}</div>
                 <div className="admin-history-meta">
                   <span>{fmtDate(tx.createdAt)}</span>
-                  <CopyIdChip label={shortCode('WD', tx.id)} value={tx.id} />
+                  <CopyIdChip label={shortCode(tx.id)} value={tx.id} />
                 </div>
                 {tx.failReason && (
                   <div className="atr-date" style={{ fontSize:11, marginTop:2, color:'var(--red)' }}>
@@ -639,11 +638,6 @@ export default function AdminPage({
                       <strong>{planName}</strong>
                       <span className={`admin-history-type ${group.capitalRelease ? 'release' : ''}`}>{group.capitalRelease ? 'released' : 'yield'}</span>
                     </div>
-                    <div className="admin-history-label"><CopyIdChip label={shortCode('MK', group.key)} value={group.key} /></div>
-                    <div className="admin-history-meta">
-                      <span>{group.items.length} payouts</span>
-                      {group.capitalRelease && <CopyIdChip label={shortCode('CR', group.capitalRelease.id)} value={group.capitalRelease.id} />}
-                    </div>
                   </div>
                   <div className="atr-right">
                     <span className="pos">+{formatTon(group.total)}</span>
@@ -665,7 +659,7 @@ export default function AdminPage({
                           <div className="admin-history-label">Yield payout</div>
                           <div className="admin-history-meta">
                             <span>{fmtDate(tx.createdAt)}</span>
-                            <CopyIdChip label={shortCode('TX', tx.id)} value={tx.id} />
+                            <CopyIdChip label={shortCode(tx.id)} value={tx.id} />
                           </div>
                         </div>
                         <div className="atr-right">
@@ -693,7 +687,7 @@ export default function AdminPage({
                 <div className="admin-history-label">{adminTxTitle(tx)}</div>
                 <div className="admin-history-meta">
                   <span>{fmtDate(tx.createdAt)}</span>
-                  <CopyIdChip label={tx.type === 'withdraw' ? shortCode('WD', tx.id) : shortCode('TX', tx.id)} value={tx.id} />
+                  <CopyIdChip label={shortCode(tx.id)} value={tx.id} />
                 </div>
               </div>
               <div className="atr-right">

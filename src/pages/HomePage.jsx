@@ -228,11 +228,10 @@ const formatMarketIdLabel = (key, planName = '') => {
   }
   return `Market ID ${normalizedKey}`
 }
-const shortCode = (prefix, value) => {
+const shortCode = (value) => {
   const raw = String(value || '').replace(/^plan-/, '')
-  if (!raw) return `${prefix}-NA`
-  const compact = raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
-  return `${prefix}-${compact}`
+  if (!raw) return 'NA'
+  return raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
 }
 const isCapitalReleaseTx = (tx) =>
   tx?.type === 'deposit' && (/^principal returned\b/i.test(String(tx.label || '').trim()) || String(tx.id || '').startsWith('ret-'))
@@ -686,11 +685,6 @@ export default function HomePage({ user, investments, transactions, plans, confi
                               <div className="tx-n">{planName}</div>
                               {item.capitalRelease ? <span className="tx-kind release">RELEASED</span> : <span className="tx-kind profit">YIELD</span>}
                             </div>
-                            <div className="tx-meta-row">
-                              <CopyIdChip label={shortCode('MK', item.key)} value={item.key} />
-                              <span>{item.items.length} payouts</span>
-                              {item.capitalRelease && <CopyIdChip label={shortCode('CR', item.capitalRelease.id)} value={item.capitalRelease.id} />}
-                            </div>
                           </div>
                           <div className="tx-right">
                             <div className="tx-a pos">{formatTon(total, true)}</div>
@@ -707,7 +701,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
                                   <div className="tx-meta-row">
                                     <Clock size={12} />
                                     <span>{txTime(tx.createdAt)}</span>
-                                    <CopyIdChip label={shortCode('TX', tx.id)} value={tx.id} />
+                                    <CopyIdChip label={shortCode(tx.id)} value={tx.id} />
                                   </div>
                                 </div>
                                 <div className="tx-right">
@@ -735,20 +729,20 @@ export default function HomePage({ user, investments, transactions, plans, confi
                           {tx.type === 'withdraw' ? (
                             <>
                               <Hash size={12} />
-                              <CopyIdChip label={shortCode('WD', tx.id)} value={tx.id} />
+                              <CopyIdChip label={shortCode(tx.id)} value={tx.id} />
                               <span>{txTime(tx.createdAt)}</span>
                             </>
                           ) : tx.invoiceId ? (
                             <>
                               <Hash size={12} />
-                              <CopyIdChip label={shortCode('MK', tx.invoiceId)} value={tx.invoiceId} />
+                              <CopyIdChip label={shortCode(tx.invoiceId)} value={tx.invoiceId} />
                               <span>{txTime(tx.createdAt)}</span>
                             </>
                           ) : (
                             <>
                               <Clock size={12} />
                               <span>{txTime(tx.createdAt)}</span>
-                              <CopyIdChip label={shortCode('TX', tx.id)} value={tx.id} />
+                              <CopyIdChip label={shortCode(tx.id)} value={tx.id} />
                             </>
                           )}
                         </div>
