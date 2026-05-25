@@ -46,6 +46,8 @@ export default function WithdrawModal({
   const refGateEnabled = !!config?.withdrawReferralGateEnabled
   const minRefs = Math.max(0, Number(config?.withdrawMinReferrals) || 0)
   const userRefs = Math.max(Number(user?.referrals) || 0, Number(user?.referralFriends) || 0)
+  const unlockTarget = minRefs + 1
+  const refsRemaining = Math.max(0, unlockTarget - userRefs)
   const amt      = parseFloat(amount) || 0
   const validAmt = amt >= minW && amt <= balance
   const validRefs = !refGateEnabled || userRefs > minRefs
@@ -68,7 +70,7 @@ export default function WithdrawModal({
       return
     }
     if (!validRefs) {
-      showToast(`Withdrawal requires more than ${minRefs} referrals.`, 'err')
+      showToast(`Invite ${refsRemaining} more user${refsRemaining === 1 ? '' : 's'} to unlock withdrawals.`, 'err')
       return
     }
     // Check live wallet from TonConnect — do not use cached address
@@ -163,7 +165,7 @@ export default function WithdrawModal({
               background: 'var(--card)', borderRadius: 12, padding: '10px 14px',
               marginBottom: 14, border: '1px solid var(--border)',
             }}>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>
+              <div className="modal-icon-line" style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>
                 <Wallet size={16} color="var(--color-muted)" /> DESTINATION WALLET
               </div>
               {walletAddr ? (
@@ -173,13 +175,13 @@ export default function WithdrawModal({
                   </div>
                   {/* Warning if current wallet differs from previously saved address */}
                   {user?.walletAddr && user.walletAddr !== walletAddr && (
-                    <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 5 }}>
+                    <div className="modal-icon-line" style={{ fontSize: 11, color: 'var(--gold)', marginTop: 5 }}>
                       <XCircle size={16} color="var(--color-gold)" /> This address differs from the saved wallet.
                     </div>
                   )}
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: 'var(--red)' }}>
+                <div className="modal-icon-line" style={{ fontSize: 13, color: 'var(--red)' }}>
                   <XCircle size={16} color="var(--color-loss)" /> No wallet connected.
                 </div>
               )}
@@ -191,7 +193,10 @@ export default function WithdrawModal({
             {refGateEnabled && (
               <div className="info-bar" style={{ marginBottom: 14, borderColor: validRefs ? 'rgba(34,209,122,0.25)' : 'rgba(239,68,68,0.28)' }}>
                 <ShieldCheck size={16} color={validRefs ? 'var(--color-gold)' : 'var(--color-loss)'} />
-                Referrals required: <b>{userRefs}/{minRefs + 1}</b>
+                <span>
+                  {validRefs ? 'Withdrawals unlocked' : `Invite ${refsRemaining} more to unlock withdrawals`}
+                  {' '}<b>{userRefs}/{unlockTarget}</b>
+                </span>
               </div>
             )}
 

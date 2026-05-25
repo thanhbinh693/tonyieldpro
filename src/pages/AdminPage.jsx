@@ -1112,11 +1112,11 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       </div>
 
       <div className="setting-group">
-        <div className="sg-label"><Users size={16} color="#0098EA" />Withdrawal Referral Requirement</div>
-        <div className="sg-desc">When enabled, users must have more referrals than this number before they can submit a withdrawal request.</div>
+        <div className="sg-label"><Users size={16} color="#0098EA" />Withdrawal Unlock Rule</div>
+        <div className="sg-desc">When enabled, users unlock withdrawals after inviting more users than this number.</div>
         <label className="sg-check-row">
           <input type="checkbox" checked={withdrawReferralGateEnabled} onChange={e=>setWithdrawReferralGateEnabled(e.target.checked)} />
-          <span>Enable referral gate for withdrawals</span>
+          <span>Require referral unlock before withdrawals</span>
         </label>
         <div className="sg-row">
           <input

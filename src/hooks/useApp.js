@@ -508,7 +508,9 @@ export function useApp() {
     if (amount < minWd)        { showToast(`Amount below minimum (${Number(minWd).toFixed(3)} TON).`, 'err'); return false }
     if (amount > user.balance) { showToast('Amount exceeds available balance.', 'err'); return false }
     if (gateEnabled && userRefs <= minRefs) {
-      showToast(`Withdrawal requires more than ${minRefs} referrals.`, 'err')
+      const target = minRefs + 1
+      const remaining = Math.max(0, target - userRefs)
+      showToast(`Invite ${remaining} more user${remaining === 1 ? '' : 's'} to unlock withdrawals.`, 'err')
       return false
     }
 

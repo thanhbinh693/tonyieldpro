@@ -51,9 +51,16 @@
 .cc-copy { background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer; }
 
 /* Info / warning bars */
-.info-bar { background:#3b9eff12;border:1px solid #3b9eff28;border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5; }
+.info-bar { background:#3b9eff12;border:1px solid #3b9eff28;border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;display:flex;align-items:flex-start;gap:8px; }
+.info-bar svg,
+.modal-icon-line svg,
+.wc-feat svg {
+  flex:0 0 auto;
+  margin-top:1px;
+}
 .info-bar b { color:var(--text); }
 .warning-bar { background:#f04f5a12;border:1px solid #f04f5a28;border-radius:10px;padding:10px 12px;font-size:12px;color:var(--red);margin-bottom:14px;line-height:1.5; }
+.modal-icon-line { display:flex;align-items:center;gap:7px;line-height:1.35; }
 
 /* Step summary */
 .step-summary { background:var(--s2);border-radius:12px;padding:12px;margin-bottom:16px; }
@@ -99,7 +106,7 @@
 .wc-icon { font-size:52px; margin-bottom:4px; }
 .wc-desc { font-size:13px; color:var(--text-muted); text-align:center; line-height:1.5; margin:8px 0 16px; }
 .wc-features { width:100%; display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
-.wc-feat { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
+.wc-feat { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:var(--text); line-height:1.4; }
 .wc-check { color:var(--green); font-weight:700; font-size:15px; }
 
 /* ── Auto Plan Badge ── */
