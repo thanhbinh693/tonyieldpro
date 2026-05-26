@@ -13,9 +13,38 @@
 .glow-purple { background:radial-gradient(ellipse,rgba(0,194,255,.18) 0%,transparent 65%); }
 .glow-red    { background:radial-gradient(ellipse,#f04f5a14 0%,transparent 65%); }
 .pages { position:relative;z-index:5;height:calc(100vh - 72px);overflow:hidden; }
-.page { position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:0 16px 24px;scrollbar-width:none; }
+.page { position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:0 16px 24px;scrollbar-width:none;isolation:isolate; }
+.page::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(0,194,255,.10), transparent 34%),
+    radial-gradient(circle at 92% 18%, rgba(240,180,41,.055), transparent 28%),
+    linear-gradient(rgba(125,211,252,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125,211,252,.022) 1px, transparent 1px);
+  background-size:auto, auto, 28px 28px, 28px 28px;
+  opacity:.9;
+}
+.page::after {
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(125,211,252,.045), transparent);
+  transform:translateX(-120%);
+  animation:page-live-scan 7.5s ease-in-out infinite;
+}
 .page::-webkit-scrollbar { display:none; }
 .page-enter { animation:tab-enter .2s ease-out forwards; }
+@keyframes page-live-scan {
+  0%, 54% { opacity:0; transform:translateX(-120%); }
+  64% { opacity:1; }
+  86%, 100% { opacity:0; transform:translateX(120%); }
+}
 @keyframes tab-enter {
   from { opacity:0; transform:translateY(8px); }
   to { opacity:1; transform:translateY(0); }

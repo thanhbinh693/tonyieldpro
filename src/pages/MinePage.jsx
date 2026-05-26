@@ -191,7 +191,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
           </div>
         </div>
 
-        <div className="mine-field">
+        <div className="mine-field mine-cell-field">
           <label>Creator Cell (0 to 9)</label>
           <div className="mine-digit-grid">
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
