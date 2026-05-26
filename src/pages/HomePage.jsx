@@ -17,74 +17,58 @@ function isPlanActiveToday(inv) {
 // → component re-render với nextProfitTime mới → timer reset tự động.
 //
 function PlanRing({ inv, onActivate, onCollect }) {
-  // remaining được tính trực tiếp từ nextProfitTime — không lưu trong state
-  // để tránh drift khi nextProfitTime thay đổi từ Realtime update
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    // setInterval 1s chỉ để force re-render mỗi giây
-    // Giá trị thực tế luôn được tính từ inv.nextProfitTime live
     const id = setInterval(() => setTick(t => t + 1), 1000)
     return () => clearInterval(id)
-  }, []) // mount once — không depend on nextProfitTime
+  }, [])
 
   const remaining = Math.max(0, inv.nextProfitTime - Date.now())
-  const expired   = remaining === 0
-
+  const expired = remaining === 0
   const h = Math.floor(remaining / 3600000)
   const m = Math.floor((remaining % 3600000) / 60000)
   const s = Math.floor((remaining % 60000) / 1000)
   const fmt = n => String(n).padStart(2, '0')
 
-  const planPct = Math.min(1, (inv.progress || 0) / 100)
-  // Resolve intervalMs: priority profitIntervalMs > Minutes > Hours > default 24h
-  const intervalMs = inv.intervalMs  // pre-computed by myInvestments
+  const intervalMs = inv.intervalMs
     || inv.profitIntervalMs
     || (inv.profitIntervalMinutes ? inv.profitIntervalMinutes * 60_000 : 0)
-    || (inv.profitIntervalHours   ? inv.profitIntervalHours   * 3_600_000 : 0)
+    || (inv.profitIntervalHours ? inv.profitIntervalHours * 3_600_000 : 0)
     || 86_400_000
-  const dayPct = Math.min(1, 1 - remaining / intervalMs)
-
-  const R_outer = 42, R_mid = 34, R_inner = 26
-  const C = r => 2 * Math.PI * r
-  const arc = (r, pct) => {
-    const c = C(r)
-    const filled = Math.max(0.01, pct) * c
-    return `${filled.toFixed(2)} ${c.toFixed(2)}`
-  }
-
-  const colorMap = { gold: '#FFD600', blue: '#0098EA', purple: '#00C2FF' }
-  const ringColor = '#00d4ff'  // cosmic blue override for all plans
-  const ringColorDim = '#00d4ff30'
-  const ringColorMid = '#00aaff'
+  const timePct = Math.max(0, Math.min(1, 1 - remaining / intervalMs))
+  const timePercent = Math.round(timePct * 100)
   const activeToday = isPlanActiveToday(inv)
+  const radius = 40
+  const circumference = 2 * Math.PI * radius
+  const dash = circumference.toFixed(2)
+  const dashOffset = (pct) => (circumference * (1 - Math.max(0, Math.min(1, pct)))).toFixed(2)
 
-  // Not yet activated → show Activate button (or waiting if inactive day)
+  const renderRing = (pct, label, className = '') => (
+    <svg viewBox="0 0 100 100" className="rings-svg">
+      <circle cx="50" cy="50" r={radius} className="ring-track" strokeWidth="7" />
+      <circle
+        cx="50"
+        cy="50"
+        r={radius}
+        className={`ring-arc ${className}`}
+        stroke="#00d4ff"
+        strokeWidth="7"
+        strokeDasharray={dash}
+        strokeDashoffset={dashOffset(pct)}
+        transform="rotate(-90 50 50)"
+      />
+      <text x="50" y="53" className="ring-percent">{label}</text>
+    </svg>
+  )
+
   if (!inv.activated) {
     if (!activeToday) {
-      // Deposited on inactive day → show waiting state
-      return (
-        <div className="rings-wrap waiting">
-          <svg viewBox="0 0 100 100" className="rings-svg">
-            <circle cx="50" cy="50" r={R_outer} className="ring-track" strokeWidth="3.5"/>
-            <circle cx="50" cy="50" r={R_mid}   className="ring-track" strokeWidth="2.5"/>
-            <circle cx="50" cy="50" r={R_outer} fill="none" stroke={ringColor} strokeWidth="3.5"
-              strokeDasharray={arc(R_outer, 0.15)} strokeLinecap="round" opacity="0.2"
-              transform="rotate(-90 50 50)"/>
-          </svg>
-        </div>
-      )
+      return <div className="rings-wrap waiting">{renderRing(0, '0%', 'muted')}</div>
     }
     return (
       <div className="rings-wrap expired">
-        <svg viewBox="0 0 100 100" className="rings-svg">
-          <circle cx="50" cy="50" r={R_outer} className="ring-track" strokeWidth="3.5"/>
-          <circle cx="50" cy="50" r={R_mid}   className="ring-track" strokeWidth="2.5"/>
-          <circle cx="50" cy="50" r={R_inner} className="ring-track" strokeWidth="2"/>
-          <circle cx="50" cy="50" r={R_outer} fill="none" stroke={ringColor} strokeWidth="3.5"
-            strokeDasharray={arc(R_outer, 0.3)} strokeLinecap="round" opacity="0.25"
-            transform="rotate(-90 50 50)"/>
-        </svg>
+        {renderRing(0.08, '0%', 'muted')}
         <button className="activate-btn" onClick={() => onActivate(inv.id)}>
           <span className="activate-icon"><Play size={16} color="#FFFFFF" /></span>
           <span>Activate</span>
@@ -93,88 +77,19 @@ function PlanRing({ inv, onActivate, onCollect }) {
     )
   }
 
-  // Activated but today is inactive day → show paused state
   if (!activeToday) {
-    return (
-      <div className="rings-wrap paused">
-        <svg viewBox="0 0 100 100" className="rings-svg">
-          <circle cx="50" cy="50" r={R_outer} className="ring-track" strokeWidth="3.5"/>
-          <circle cx="50" cy="50" r={R_mid}   className="ring-track" strokeWidth="2.5"/>
-          <circle cx="50" cy="50" r={R_inner} className="ring-track" strokeWidth="2"/>
-          <circle cx="50" cy="50" r={R_outer} fill="none" stroke={ringColor} strokeWidth="3.5"
-            strokeDasharray={arc(R_outer, planPct)} strokeLinecap="round" opacity="0.35"
-            transform="rotate(-90 50 50)"/>
-        </svg>
-      </div>
-    )
+    return <div className="rings-wrap paused">{renderRing(timePct, `${timePercent}%`, 'paused')}</div>
   }
 
   if (expired) return null
 
   return (
     <>
-      <div className="rings-wrap">
-        <svg viewBox="0 0 100 100" className="rings-svg" style={{overflow:'visible'}}>
-        <defs>
-          <filter id="ringGlow" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur stdDeviation="2.5" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-          <filter id="ringGlowStrong" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="4" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        {/* Track rings - dark subtle */}
-        <circle cx="50" cy="50" r={R_outer} fill="none" stroke="#0d2a4a" strokeWidth="3.5"/>
-        <circle cx="50" cy="50" r={R_mid}   fill="none" stroke="#0d2a4a" strokeWidth="2.5"/>
-        <circle cx="50" cy="50" r={R_inner} fill="none" stroke="#0d2a4a" strokeWidth="2"/>
-        {/* Dim glow backdrop */}
-        <circle cx="50" cy="50" r={R_outer} fill="none" stroke="#00d4ff" strokeWidth="3.5"
-          strokeDasharray={arc(R_outer, 1)} strokeLinecap="round" opacity="0.07"/>
-        <circle cx="50" cy="50" r={R_mid}   fill="none" stroke="#00aaff" strokeWidth="2.5"
-          strokeDasharray={arc(R_mid, 1)}   strokeLinecap="round" opacity="0.07"/>
-        <circle cx="50" cy="50" r={R_inner} fill="none" stroke="#00d4ff" strokeWidth="2"
-          strokeDasharray={arc(R_inner, 1)} strokeLinecap="round" opacity="0.07"/>
-        {/* Outer ring — plan progress — bright cyan */}
-        <circle cx="50" cy="50" r={R_outer} fill="none" stroke="#00d4ff" strokeWidth="3.5"
-          strokeDasharray={arc(R_outer, planPct)} strokeLinecap="round"
-          filter="url(#ringGlow)" opacity="0.95">
-          <animateTransform attributeName="transform" type="rotate"
-            from="-90 50 50" to="270 50 50" dur="20s" repeatCount="indefinite"/>
-        </circle>
-        {/* Mid ring — day progress — electric blue */}
-        <circle cx="50" cy="50" r={R_mid} fill="none" stroke="#00aaff" strokeWidth="2.5"
-          strokeDasharray={arc(R_mid, dayPct)} strokeLinecap="round"
-          filter="url(#ringGlow)" opacity="0.85">
-          <animateTransform attributeName="transform" type="rotate"
-            from="-90 50 50" to="-450 50 50" dur="14s" repeatCount="indefinite"/>
-        </circle>
-        {/* Inner ring — spin accent — bright cyan */}
-        <circle cx="50" cy="50" r={R_inner} fill="none" stroke="#00eeff" strokeWidth="2"
-          strokeDasharray={arc(R_inner, 0.35)} strokeLinecap="round"
-          filter="url(#ringGlowStrong)" opacity="0.9">
-          <animateTransform attributeName="transform" type="rotate"
-            from="-90 50 50" to="270 50 50" dur="5s" repeatCount="indefinite"/>
-        </circle>
-        {/* Pulse ripples */}
-        <circle cx="50" cy="50" r="16" fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0">
-          <animate attributeName="r" values="16;50;16" dur="3.5s" begin="0s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.5;0;0.5" dur="3.5s" begin="0s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="50" cy="50" r="16" fill="none" stroke="#00aaff" strokeWidth="1" opacity="0">
-          <animate attributeName="r" values="16;50;16" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.3;0;0.3" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
-        </circle>
-          <text x="50" y="46" className="ring-time-h">{fmt(h)}:{fmt(m)}</text>
-          <text x="50" y="57" className="ring-time-s">{fmt(s)}s</text>
-        </svg>
-      </div>
+      <div className="rings-wrap">{renderRing(timePct, `${timePercent}%`)}</div>
       <div className="inv-countdown-label">{fmt(h)}:{fmt(m)}:{fmt(s)}</div>
     </>
   )
 }
-
 const txIcon  = { profit: TrendingUp, deposit: ArrowDownCircle, withdraw: ArrowUpCircle, referral: Users, mine: Bomb, game: Bomb }
 const txClass = { profit:'p',  deposit:'d', withdraw:'w', referral:'r', mine:'m', game:'m' }
 const txColor = { profit:'#FFD600', deposit:'#0098EA', withdraw:'#EF4444', referral:'#0098EA', mine:'#00C2FF', game:'#00C2FF' }
