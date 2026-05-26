@@ -568,6 +568,7 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
         max_players: MINE_MAX_PLAYERS,
         risk_multiplier: MINE_OPEN_RISK_MULTIPLIER,
         payout_cap: roundMoney(bet * (1 - cfg.feeRate / 100)),
+        payout_slots: randomMinePayoutSlots(roundMoney(bet * (1 - cfg.feeRate / 100)), MINE_MAX_PLAYERS),
         paid_out: 0,
       },
       updated_at: now,
@@ -624,11 +625,9 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const payoutCap = roundMoney(Number(oldResult.payout_cap ?? (bet - fee)))
   const paidOut = roundMoney(Number(oldResult.paid_out || 0))
   const remainingPool = roundMoney(Math.max(0, payoutCap - paidOut))
-  const remainingSlots = MINE_MAX_PLAYERS - players.length
-  const isFinalOpener = remainingSlots <= 1
-  const candidatePayout = remainingPool > 0
-    ? (isFinalOpener ? remainingPool : randomMinePayout(remainingPool, remainingSlots))
-    : 0
+  const payoutSlots = normalizeMinePayoutSlots(oldResult.payout_slots, payoutCap, MINE_MAX_PLAYERS)
+  const slotIndex = players.length
+  const candidatePayout = remainingPool > 0 ? roundMoney(Number(payoutSlots[slotIndex]) || 0) : 0
   const creatorCell = Math.trunc(Number(game.safe_cell))
   const gameCreatorWinRate = Number(game.creator_win_rate)
   const creatorWinRate = Math.min(90, Math.max(0, Number.isFinite(gameCreatorWinRate) ? gameCreatorWinRate : cfg.creatorWinRate))
@@ -639,7 +638,7 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const resultDigit = creatorWins ? creatorCell : randomDigitExcept(creatorCell)
   const win = remainingPool > 0 && !creatorWins
   const payout = win ? candidatePayout : 0
-  const nextPaidOut = roundMoney(paidOut + candidatePayout)
+  const nextPaidOut = roundMoney(payoutSlots.slice(0, slotIndex + 1).reduce((sum, amount) => sum + amount, 0))
   const playerNet = win ? payout : -riskAmount
 
   const nextUserBalance = roundMoney(user.balance + playerNet)
@@ -680,6 +679,7 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
       ...oldResult,
       winning_cell: Number(game.safe_cell),
       payout_cap: payoutCap,
+      payout_slots: payoutSlots,
       paid_out: nextPaidOut,
       remaining_pool: roundMoney(Math.max(0, payoutCap - nextPaidOut)),
       max_players: MINE_MAX_PLAYERS,
@@ -692,6 +692,7 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
       ...oldResult,
       winning_cell: Number(game.safe_cell),
       payout_cap: payoutCap,
+      payout_slots: payoutSlots,
       paid_out: nextPaidOut,
       remaining_pool: roundMoney(Math.max(0, payoutCap - nextPaidOut)),
       max_players: MINE_MAX_PLAYERS,
@@ -775,17 +776,35 @@ function randomDigitExcept(excluded: number) {
   return digits[bytes[0] % digits.length]
 }
 
-function randomMinePayout(remainingPool: number, remainingSlots: number) {
-  const pool = roundMoney(remainingPool)
-  if (pool <= 0) return 0
-  const slots = Math.max(1, remainingSlots)
-  const fairSlice = pool / slots
-  const min = Math.min(pool, Math.max(0.001, fairSlice * 0.35))
-  const max = Math.min(pool, Math.max(min, fairSlice * 1.65))
-  const bytes = new Uint32Array(1)
+function normalizeMinePayoutSlots(value: unknown, payoutCap: number, count: number) {
+  const slots = Array.isArray(value)
+    ? value.map((amount) => roundMoney(Number(amount))).filter((amount) => Number.isFinite(amount) && amount >= 0)
+    : []
+  if (slots.length === count && roundMoney(slots.reduce((sum, amount) => sum + amount, 0)) === roundMoney(payoutCap)) {
+    return slots
+  }
+  return randomMinePayoutSlots(payoutCap, count)
+}
+
+function randomMinePayoutSlots(payoutCap: number, count: number) {
+  const total = roundMoney(payoutCap)
+  const slots = Math.max(1, Math.trunc(count))
+  if (total <= 0) return Array.from({ length: slots }, () => 0)
+
+  const bytes = new Uint32Array(slots)
   globalThis.crypto.getRandomValues(bytes)
-  const ratio = bytes[0] / 0xFFFFFFFF
-  return roundMoney(min + (max - min) * ratio)
+  const weights = [...bytes].map((value) => Math.max(1, Number(value)))
+  const weightTotal = weights.reduce((sum, value) => sum + value, 0)
+
+  const payouts: number[] = []
+  let assigned = 0
+  for (let i = 0; i < slots - 1; i += 1) {
+    const amount = roundMoney(total * (weights[i] / weightTotal))
+    payouts.push(amount)
+    assigned = roundMoney(assigned + amount)
+  }
+  payouts.push(roundMoney(total - assigned))
+  return payouts
 }
 
 async function mineRevealCell(userId: number, payload: Record<string, unknown>) {
