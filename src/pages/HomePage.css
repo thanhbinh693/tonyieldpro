@@ -1217,6 +1217,26 @@
 .pbar-fill.gold { background:linear-gradient(90deg,var(--blue),var(--blue2));box-shadow:0 0 12px rgba(0,194,255,.65); }
 .activate-btn,
 .es-btn { min-height:44px;background:var(--btn-ton);color:#fff;border-radius:999px;box-shadow:var(--ton-glow); }
+.sec .rings-wrap.expired .activate-btn {
+  top: 50%;
+  left: 50%;
+  min-height: 0;
+  min-width: 0;
+  width: 62px;
+  height: 34px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  transform: translate(-50%, -50%);
+  transform-origin: center center;
+}
+
+.sec .rings-wrap.expired .activate-btn:active {
+  transform: translate(-50%, -50%) scale(.94);
+}
+
+.sec .rings-wrap.expired .activate-icon {
+  line-height: 0;
+}
 .tx-list { border-radius:20px;padding:4px 14px; }
 .tx-row,
 .tx-profit-group { border-color:rgba(255,255,255,.08); }
