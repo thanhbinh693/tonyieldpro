@@ -3,6 +3,9 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .mine-hero {
@@ -17,6 +20,8 @@
     radial-gradient(circle at top left, rgba(0, 152, 234, 0.22), transparent 42%),
     linear-gradient(145deg, rgba(13, 23, 42, 0.92), rgba(4, 10, 20, 0.96));
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .mine-hero .eyebrow {
@@ -77,6 +82,8 @@
   border: 1px solid rgba(148, 163, 184, 0.16);
   background: rgba(7, 14, 28, 0.82);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .mine-controls {
@@ -98,6 +105,7 @@
 
 .mine-input-wrap input {
   min-width: 0;
+  width: 100%;
   flex: 1;
   padding: 14px;
   color: var(--color-text);
@@ -225,6 +233,8 @@
     linear-gradient(135deg, rgba(0, 152, 234, 0.1), transparent 42%),
     rgba(2, 8, 18, 0.72);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .mine-game-main,
@@ -232,6 +242,16 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+}
+
+.mine-game-main {
+  flex: 1 1 auto;
+}
+
+.mine-game-side {
+  flex: 0 0 auto;
+  align-items: flex-end;
 }
 
 .mine-game-amount {
@@ -244,6 +264,9 @@
 .mine-game-amount strong {
   color: var(--color-text);
   font-size: 16px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mine-game-amount span {
@@ -257,6 +280,10 @@
   color: var(--color-muted);
   font-size: 12px;
   font-weight: 800;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mine-game-meta {
@@ -286,6 +313,7 @@
   font-weight: 900;
   letter-spacing: 0.08em;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .mine-open-pill:disabled {
@@ -299,7 +327,7 @@
   background: rgba(148, 163, 184, 0.08);
 }
 
-@media (max-width: 380px) {
+@media (max-width: 520px) {
   .mine-hero {
     flex-direction: column;
     align-items: stretch;
@@ -307,6 +335,8 @@
 
   .mine-balance {
     text-align: left;
+    width: 100%;
+    min-width: 0;
   }
 
   .mine-digit-grid {
@@ -314,7 +344,18 @@
   }
 
   .mine-game-row {
+    flex-direction: column;
     align-items: stretch;
+  }
+
+  .mine-game-side {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mine-open-pill {
+    align-self: auto;
   }
 }
 
@@ -403,6 +444,7 @@
   background-size: 24px 24px;
   opacity: .6;
   pointer-events: none;
+  z-index: 0;
 }
 
 .mine-controls,
