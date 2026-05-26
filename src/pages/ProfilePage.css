@@ -89,3 +89,130 @@
 .mi-icon.gold { background:rgba(0,152,234,.16);color:var(--blue2);box-shadow:0 0 16px rgba(0,152,234,.18); }
 .mi-icon.red { background:rgba(255,77,109,.14); }
 .admin-hint { background:rgba(0,152,234,.14);border-color:rgba(0,194,255,.32);color:var(--blue2);box-shadow:var(--ton-glow); }
+
+/* Premium profile and team layer */
+.ref-page-header {
+  position: relative;
+  padding: 12px;
+  border: 1px solid rgba(0, 194, 255, .18);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(0, 194, 255, .16), transparent 36%),
+    rgba(3, 10, 22, .58);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.ref-back-btn {
+  border: 1px solid rgba(0, 194, 255, .25);
+  background:
+    linear-gradient(145deg, rgba(0, 152, 234, .20), rgba(255,255,255,.04)),
+    rgba(2, 8, 18, .76);
+}
+
+.ref-page-title {
+  color: var(--text);
+  text-shadow: 0 0 24px rgba(0, 194, 255, .18);
+}
+
+.ref-full,
+.ref-detail,
+.menu-list {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(0, 194, 255, .24);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(0, 194, 255, .16), transparent 30%),
+    linear-gradient(145deg, rgba(7, 16, 32, .90), rgba(2, 8, 18, .94));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 22px 60px -46px rgba(0, 194, 255, .90);
+}
+
+.ref-full::after,
+.ref-detail::after,
+.menu-list::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(125, 211, 252, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, .035) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: .55;
+  pointer-events: none;
+}
+
+.rf-header,
+.rf-code-box,
+.rf-stats,
+.rd-header,
+.rd-list,
+.rd-empty,
+.menu-item {
+  position: relative;
+  z-index: 1;
+}
+
+.rf-badge,
+.rd-count {
+  border-color: rgba(0, 194, 255, .42);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(125, 211, 252, .34), transparent 60%),
+    rgba(0, 152, 234, .18);
+}
+
+.rf-code-box,
+.rfs-item,
+.rd-row,
+.rd-empty,
+.rd-metric {
+  border-color: rgba(255,255,255,.09);
+  background:
+    linear-gradient(145deg, rgba(0, 152, 234, .10), rgba(255,255,255,.025)),
+    rgba(1, 7, 18, .76);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.rfs-item,
+.rd-row,
+.menu-item {
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.rfs-item:hover,
+.rd-row:hover,
+.menu-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 194, 255, .34);
+  background:
+    linear-gradient(145deg, rgba(0, 152, 234, .14), rgba(255,255,255,.035)),
+    rgba(1, 7, 18, .80);
+}
+
+.copy-btn:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 24px rgba(0, 194, 255, .28);
+}
+
+.rd-avatar,
+.mi-icon {
+  border: 1px solid rgba(0, 194, 255, .22);
+}
+
+.menu-item {
+  min-height: 64px;
+}
+
+.menu-item::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 194, 255, .22), transparent);
+}
+
+.menu-item:last-child::after {
+  display: none;
+}
