@@ -1124,7 +1124,31 @@
   fill: #e9fbff;
   text-anchor: middle;
   dominant-baseline: middle;
-  filter: drop-shadow(0 0 7px rgba(0,194,255,.45));
+  animation: ringPercentGlow 2.2s ease-in-out infinite;
+  filter:
+    drop-shadow(0 0 5px rgba(0,194,255,.42))
+    drop-shadow(0 0 12px rgba(0,152,234,.24));
+}
+
+@keyframes ringPercentGlow {
+  0%, 100% {
+    fill: #dff8ff;
+    opacity: .88;
+    filter:
+      drop-shadow(0 0 4px rgba(0,194,255,.34))
+      drop-shadow(0 0 10px rgba(0,152,234,.18));
+  }
+  48% {
+    fill: #ffffff;
+    opacity: 1;
+    filter:
+      drop-shadow(0 0 8px rgba(125,211,252,.82))
+      drop-shadow(0 0 18px rgba(0,194,255,.44));
+  }
+  58% {
+    fill: #7dd3fc;
+    opacity: .96;
+  }
 }
 
 .sec .inv-countdown-label {
