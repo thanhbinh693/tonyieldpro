@@ -869,9 +869,9 @@ export function useApp() {
     }
   }, [showToast])
 
-  const mineJoin = useCallback(async ({ gameId, slot }) => {
+  const mineJoin = useCallback(async ({ gameId, slot, cell, selectedCell }) => {
     try {
-      return await mineJoinGame({ gameId, slot })
+      return await mineJoinGame({ gameId, slot, cell, selectedCell })
     } catch (e) {
       console.error('[mineJoin]', e)
       showToast(`Join game failed: ${e?.message || 'please retry'}.`, 'err')

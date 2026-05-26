@@ -20,7 +20,7 @@ function fmtAgo(dateStr) {
   return `${days}d ago`
 }
 
-export default function MinePage({ user, config, showToast, mineCreate, mineList }) {
+export default function MinePage({ user, config, showToast, mineCreate, mineJoin, mineList }) {
   const mineEnabled = config?.mineEnabled !== false
   const minBet = Number(config?.mineMinBet ?? 0.01)
   const configuredMaxBet = Number(config?.mineMaxBet)
@@ -92,6 +92,36 @@ export default function MinePage({ user, config, showToast, mineCreate, mineList
       await refreshGames(true)
     } catch (e) {
       console.error('[mine][create]', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openGame = async (game) => {
+    if (!mineEnabled || loading) return
+    const cell = Number(safeCell)
+    const requiredBalance = Number(game?.bet_amount) || 0
+    if (!Number.isInteger(cell) || cell < 0 || cell > 9) {
+      showToast?.('Please enter safe cell from 0 to 9 before opening a game.', 'err')
+      return
+    }
+    if (requiredBalance > balance) {
+      showToast?.(`Need ${formatTon(requiredBalance)} balance to open this game.`, 'err')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const result = await mineJoin?.({ gameId: game.id, cell })
+      showToast?.(
+        result?.win
+          ? `Opened. You won ${formatTon(result?.payout || 0)}.`
+          : 'Opened. No safe cell found.',
+        result?.win ? 'ok' : 'err'
+      )
+      await refreshGames(true)
+    } catch (e) {
+      console.error('[mine][open]', e)
     } finally {
       setLoading(false)
     }
@@ -182,10 +212,20 @@ export default function MinePage({ user, config, showToast, mineCreate, mineList
               >
                 <div className="mine-game-main">
                   <span className="mine-game-code">#{String(g.id).replace(/^mine-/, '').slice(0, 8)}</span>
-                  <strong>{formatTon(g.bet_amount || 0)}</strong>
+                  <div className="mine-game-amount">
+                    <strong>{formatTon(g.bet_amount || 0)}</strong>
+                    <span>Need {formatTon(g.bet_amount || 0)}</span>
+                  </div>
                 </div>
                 <div className="mine-game-side">
-                  <span className="mine-open-pill">OPEN</span>
+                  <button
+                    type="button"
+                    className="mine-open-pill"
+                    onClick={() => openGame(g)}
+                    disabled={loading || !mineEnabled}
+                  >
+                    OPEN
+                  </button>
                   <span>{fmtAgo(g.created_at)}</span>
                 </div>
               </div>
