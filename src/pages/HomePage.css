@@ -1136,6 +1136,8 @@
 
 .sec .countdown-active {
   border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sec .countdown-scan {
@@ -1148,9 +1150,7 @@
   justify-content: center;
   overflow: hidden;
   background: transparent;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.04),
-    inset 0 -14px 28px rgba(0,0,0,.18);
+  box-shadow: none;
 }
 
 .sec .countdown-scan::before,
@@ -1160,10 +1160,13 @@
 
 .sec .countdown-scan-line {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent, rgba(125,211,252,.34), rgba(255,255,255,.14), rgba(125,211,252,.34), transparent);
-  transform: translateY(-120%);
-  animation: countdownScan 2.8s ease-in-out infinite;
+  left: 0;
+  right: 0;
+  top: 34%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 194, 255, .72), transparent);
+  box-shadow: 0 0 16px rgba(0, 194, 255, .5);
+  animation: countdownScanline 4.6s ease-in-out infinite;
   pointer-events: none;
 }
 
@@ -1175,18 +1178,10 @@
   line-height: 1;
 }
 
-@keyframes countdownScan {
-  0%, 28% {
-    opacity: 0;
-    transform: translateY(-120%);
-  }
-  45% {
-    opacity: 1;
-  }
-  72%, 100% {
-    opacity: 0;
-    transform: translateY(120%);
-  }
+@keyframes countdownScanline {
+  0%, 100% { transform: translateY(-36px); opacity: .05; }
+  48% { opacity: .85; }
+  65% { transform: translateY(112px); opacity: .12; }
 }
 
 @keyframes ringPercentGlow {
