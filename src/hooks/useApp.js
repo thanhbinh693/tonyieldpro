@@ -26,6 +26,7 @@ import {
   getNotifications, getAllNotifications, createNotification, deleteNotification, testBotNotification,
   getAdminConfig, saveAdminConfig,
   getAdminPlans, saveAdminPlans,
+  mineCreateGame, mineJoinGame, mineRevealCell, mineListGames,
 } from '../utils/supabase'
 import { secureApi } from '../utils/secureApi'
 
@@ -130,6 +131,11 @@ const DEFAULT_CONFIG = {
   withdrawalWebhookUrl: '',
   withdrawalWebhookSecret: '',
   tonNetwork: TON_NETWORK,
+  mineEnabled: true,
+  mineMinBet: 0.01,
+  mineMaxBet: 1,
+  mineFeeRate: 5,
+  mineCreatorWinRate: 30,
 }
 
 // ─── Resolve profit interval ms từ investment object ─────────────────────────
@@ -853,6 +859,46 @@ export function useApp() {
     }
   }, [showToast])
 
+  const mineCreate = useCallback(async ({ betAmount, safeCell }) => {
+    try {
+      return await mineCreateGame({ betAmount, safeCell })
+    } catch (e) {
+      console.error('[mineCreate]', e)
+      showToast(`Create game failed: ${e?.message || 'please retry'}.`, 'err')
+      throw e
+    }
+  }, [showToast])
+
+  const mineJoin = useCallback(async ({ gameId, slot }) => {
+    try {
+      return await mineJoinGame({ gameId, slot })
+    } catch (e) {
+      console.error('[mineJoin]', e)
+      showToast(`Join game failed: ${e?.message || 'please retry'}.`, 'err')
+      throw e
+    }
+  }, [showToast])
+
+  const mineReveal = useCallback(async ({ gameId, slot, selectedCell }) => {
+    try {
+      return await mineRevealCell({ gameId, slot, selectedCell })
+    } catch (e) {
+      console.error('[mineReveal]', e)
+      showToast(`Reveal failed: ${e?.message || 'please retry'}.`, 'err')
+      throw e
+    }
+  }, [showToast])
+
+  const mineList = useCallback(async () => {
+    try {
+      return await mineListGames()
+    } catch (e) {
+      console.error('[mineList]', e)
+      showToast(`Load mine games failed: ${e?.message || 'please retry'}.`, 'err')
+      return { games: [] }
+    }
+  }, [showToast])
+
   const referralDisplay = { ...referral, code: referralLink }
 
   return {
@@ -864,7 +910,7 @@ export function useApp() {
     wallet,
     connectWallet, disconnectWallet, showToast,
     submitDeposit, submitWithdraw, activateInvestment, collectProfit,
-    playMineRound,
+    playMineRound, mineCreate, mineJoin, mineReveal, mineList,
     computeAdminStats, getAllUsers, getAllTransactions,
     adminToggleBan, adminUpdateUser, adminRetryWithdrawal, adminUpdatePlan, adminSendNotification,
     adminGetNotifications, adminDeleteNotification, adminTestBotNotification,

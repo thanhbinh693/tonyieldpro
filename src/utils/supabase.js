@@ -349,19 +349,24 @@ export async function getAdminConfig(fallback = null) {
   const { data } = await supabase.from('admin_config').select('*').eq('id', 1).maybeSingle()
   if (!data) return fallback
   return {
-    minWithdraw:      data.min_withdraw,
-    referralRate:     data.referral_rate,
+    minWithdraw:      data.min_withdraw ?? MIN_WITHDRAW,
+    referralRate:     data.referral_rate ?? 5,
     withdrawReferralGateEnabled: !!data.withdraw_referral_gate_enabled,
-    withdrawMinReferrals: Number(data.withdraw_min_referrals) || 3,
-    maintenanceMode:  data.maintenance_mode,
-    adminWallet:      data.admin_wallet,
-    adminWalletTestnet: data.admin_wallet_testnet || data.admin_wallet || '',
+    withdrawMinReferrals: Number(data.withdraw_min_referrals ?? 3),
+    maintenanceMode:  !!data.maintenance_mode,
+    adminWallet:      data.admin_wallet || ADMIN_WALLET,
+    adminWalletTestnet: data.admin_wallet_testnet || data.admin_wallet || ADMIN_WALLET,
     adminWalletMainnet: data.admin_wallet_mainnet || '',
     adminIds:         data.admin_ids || [],
     botUsername:      data.bot_username || '',
     withdrawalWebhookUrl: data.withdrawal_webhook_url || '',
     withdrawalWebhookSecret: data.withdrawal_webhook_secret || '',
     tonNetwork:       data.ton_network || 'testnet',
+    mineEnabled:      data.mine_enabled ?? true,
+    mineMinBet:       Number(data.mine_min_bet ?? 0.01),
+    mineMaxBet:       Number(data.mine_max_bet ?? 1),
+    mineFeeRate:      Number(data.mine_fee_rate ?? 5),
+    mineCreatorWinRate: Number(data.mine_creator_win_rate ?? 30),
   }
 }
 
@@ -381,9 +386,40 @@ export async function saveAdminConfig(cfg) {
       admin_ids:        cfg.adminIds || [],
       bot_username:     cfg.botUsername || '',
       ton_network:      cfg.tonNetwork || 'testnet',
+      mine_enabled:     cfg.mineEnabled !== false,
+      mine_min_bet:     Number(cfg.mineMinBet ?? 0.01),
+      mine_max_bet:     Number(cfg.mineMaxBet ?? 1),
+      mine_fee_rate:    Number(cfg.mineFeeRate ?? 5),
+      mine_creator_win_rate: Number(cfg.mineCreatorWinRate ?? 30),
       updated_at:       new Date().toISOString(),
   }
   await secureApi('admin_save_config', { row })
+}
+
+export async function mineCreateGame({ betAmount, safeCell }) {
+  return secureApi('mine_create_game', {
+    bet_amount: Number(betAmount),
+    safe_cell: Number(safeCell),
+  })
+}
+
+export async function mineJoinGame({ gameId, slot }) {
+  return secureApi('mine_join_game', {
+    game_id: String(gameId),
+    slot: Number(slot),
+  })
+}
+
+export async function mineRevealCell({ gameId, slot, selectedCell }) {
+  return secureApi('mine_reveal_cell', {
+    game_id: String(gameId),
+    slot: Number(slot),
+    selected_cell: Number(selectedCell),
+  })
+}
+
+export async function mineListGames() {
+  return secureApi('mine_list_games')
 }
 
 export async function getNotifications(userId) {

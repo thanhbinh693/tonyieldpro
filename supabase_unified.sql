@@ -85,6 +85,11 @@ create table if not exists admin_config (
   admin_ids bigint[] default '{}',
   bot_username text default '',
   ton_network text not null default 'testnet' check (ton_network in ('mainnet', 'testnet')),
+  mine_enabled boolean default true,
+  mine_min_bet numeric(18,6) default 0.01,
+  mine_max_bet numeric(18,6) default 1,
+  mine_fee_rate numeric(8,4) default 5,
+  mine_creator_win_rate numeric(8,4) default 30,
   updated_at timestamptz default now(),
   constraint single_admin_config_row check (id = 1)
 );
@@ -118,6 +123,21 @@ create table if not exists notifications (
   created_at timestamptz default now()
 );
 
+create table if not exists mine_games (
+  id text primary key,
+  creator_id bigint references users(id) on delete cascade,
+  bet_amount numeric(18,6) not null,
+  safe_cell int not null check (safe_cell between 0 and 24),
+  fee_rate numeric(8,4) not null default 5,
+  creator_win_rate numeric(8,4) not null default 30,
+  status text not null default 'open' check (status in ('open', 'completed', 'cancelled')),
+  players jsonb not null default '[]'::jsonb,
+  result jsonb not null default '{}'::jsonb,
+  created_at timestamptz default now(),
+  completed_at timestamptz,
+  updated_at timestamptz default now()
+);
+
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';
 alter table users add column if not exists total_profit numeric(18,6) default 0;
@@ -132,6 +152,11 @@ alter table admin_config add column if not exists withdraw_min_referrals int def
 alter table admin_config add column if not exists withdrawal_webhook_url text default '';
 alter table admin_config add column if not exists withdrawal_webhook_secret text default '';
 alter table admin_config add column if not exists ton_network text not null default 'testnet';
+alter table admin_config add column if not exists mine_enabled boolean default true;
+alter table admin_config add column if not exists mine_min_bet numeric(18,6) default 0.01;
+alter table admin_config add column if not exists mine_max_bet numeric(18,6) default 1;
+alter table admin_config add column if not exists mine_fee_rate numeric(8,4) default 5;
+alter table admin_config add column if not exists mine_creator_win_rate numeric(8,4) default 30;
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';
 alter table transactions add column if not exists blockchain_tx_hash text default '';
@@ -230,6 +255,8 @@ create index if not exists idx_transactions_pending_withdraw
   where status = 'pending' and type = 'withdraw';
 create index if not exists idx_notifications_created_at on notifications (created_at desc);
 create index if not exists idx_notifications_user_id on notifications (user_id, created_at desc);
+create index if not exists idx_mine_games_status_created on mine_games (status, created_at desc);
+create index if not exists idx_mine_games_creator on mine_games (creator_id, created_at desc);
 
 create or replace view withdrawal_queue as
 select
@@ -1032,6 +1059,7 @@ alter table transactions enable row level security;
 alter table admin_config enable row level security;
 alter table plans enable row level security;
 alter table notifications enable row level security;
+alter table mine_games enable row level security;
 
 drop policy if exists "allow_all_users" on users;
 drop policy if exists "allow_all_investments" on investments;
@@ -1039,6 +1067,7 @@ drop policy if exists "allow_all_transactions" on transactions;
 drop policy if exists "allow_all_config" on admin_config;
 drop policy if exists "allow_all_plans" on plans;
 drop policy if exists "allow_all_notifications" on notifications;
+drop policy if exists "allow_all_mine_games" on mine_games;
 
 create policy "allow_all_users" on users for all using (true) with check (true);
 create policy "allow_all_investments" on investments for all using (true) with check (true);
@@ -1046,6 +1075,7 @@ create policy "allow_all_transactions" on transactions for all using (true) with
 create policy "allow_all_config" on admin_config for all using (true) with check (true);
 create policy "allow_all_plans" on plans for all using (true) with check (true);
 create policy "allow_all_notifications" on notifications for all using (true) with check (true);
+create policy "allow_all_mine_games" on mine_games for all using (true) with check (true);
 
 create extension if not exists pg_net with schema extensions;
 
@@ -1136,12 +1166,17 @@ begin
     alter publication supabase_realtime add table notifications;
   exception when duplicate_object then null;
   end;
+
+  begin
+    alter publication supabase_realtime add table mine_games;
+  exception when duplicate_object then null;
+  end;
 end $$;
 
 select schemaname, tablename
 from pg_publication_tables
 where pubname = 'supabase_realtime'
-  and tablename in ('users', 'investments', 'transactions', 'plans', 'admin_config', 'notifications');
+  and tablename in ('users', 'investments', 'transactions', 'plans', 'admin_config', 'notifications', 'mine_games');
 
 create or replace view tonyield_healthcheck as
 select 'users.balance' as check_name,
@@ -1179,6 +1214,15 @@ select 'admin_config.withdraw_min_referrals',
 union all
 select 'admin_config.ton_network',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='ton_network')
+union all
+select 'admin_config.mine_fee_rate',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='mine_fee_rate')
+union all
+select 'admin_config.mine_creator_win_rate',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='mine_creator_win_rate')
+union all
+select 'mine_games.table',
+       exists(select 1 from information_schema.tables where table_schema='public' and table_name='mine_games')
 union all
 select 'function.trigger_withdrawal_webhook',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='trigger_withdrawal_webhook')
@@ -1244,6 +1288,7 @@ drop policy if exists "allow_all_transactions" on transactions;
 drop policy if exists "allow_all_config" on admin_config;
 drop policy if exists "allow_all_plans" on plans;
 drop policy if exists "allow_all_notifications" on notifications;
+drop policy if exists "allow_all_mine_games" on mine_games;
 
 drop policy if exists "public_select_users" on users;
 drop policy if exists "public_select_investments" on investments;
@@ -1251,6 +1296,7 @@ drop policy if exists "public_select_transactions" on transactions;
 drop policy if exists "public_select_config" on admin_config;
 drop policy if exists "public_select_plans" on plans;
 drop policy if exists "public_select_notifications" on notifications;
+drop policy if exists "public_select_mine_games" on mine_games;
 
 create policy "public_select_users" on users
   for select using (true);
@@ -1268,6 +1314,9 @@ create policy "public_select_plans" on plans
   for select using (true);
 
 create policy "public_select_notifications" on notifications
+  for select using (true);
+
+create policy "public_select_mine_games" on mine_games
   for select using (true);
 
 revoke execute on function credit_profit(bigint, text, numeric, numeric, bigint, bigint, text, text, bigint)
