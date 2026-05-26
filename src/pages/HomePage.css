@@ -1076,8 +1076,7 @@
 }
 
 .sec .rings-svg {
-  position: absolute;
-  inset: 0;
+  position: relative;
   z-index: 1;
   width: 94px;
   height: 94px;
@@ -1085,9 +1084,9 @@
 }
 
 .sec .rings-wrap.expired .rings-svg {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  left: auto;
+  top: auto;
+  transform: none;
 }
 
 .sec .rings-wrap.expired .rings-svg {
@@ -1103,11 +1102,15 @@
   fill: none;
   stroke: rgba(125,211,252,.14);
   stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .sec .ring-arc {
   fill: none;
   stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  vector-effect: non-scaling-stroke;
   transition: stroke-dashoffset .45s ease;
   filter: drop-shadow(0 0 6px rgba(0,194,255,.68));
 }
@@ -1124,30 +1127,32 @@
   fill: #e9fbff;
   text-anchor: middle;
   dominant-baseline: middle;
-  animation: ringPercentGlow 2.2s ease-in-out infinite;
+  animation: ringPercentGlow 1.65s ease-in-out infinite;
   filter:
-    drop-shadow(0 0 5px rgba(0,194,255,.42))
-    drop-shadow(0 0 12px rgba(0,152,234,.24));
+    drop-shadow(0 0 7px rgba(125,211,252,.70))
+    drop-shadow(0 0 18px rgba(0,194,255,.42))
+    drop-shadow(0 0 28px rgba(0,152,234,.24));
 }
 
 @keyframes ringPercentGlow {
   0%, 100% {
-    fill: #dff8ff;
-    opacity: .88;
+    fill: #e5fbff;
+    opacity: .92;
     filter:
-      drop-shadow(0 0 4px rgba(0,194,255,.34))
-      drop-shadow(0 0 10px rgba(0,152,234,.18));
+      drop-shadow(0 0 7px rgba(0,194,255,.58))
+      drop-shadow(0 0 16px rgba(0,152,234,.30));
   }
   48% {
     fill: #ffffff;
     opacity: 1;
     filter:
-      drop-shadow(0 0 8px rgba(125,211,252,.82))
-      drop-shadow(0 0 18px rgba(0,194,255,.44));
+      drop-shadow(0 0 12px rgba(226,249,255,1))
+      drop-shadow(0 0 24px rgba(125,211,252,.86))
+      drop-shadow(0 0 38px rgba(0,194,255,.52));
   }
   58% {
-    fill: #7dd3fc;
-    opacity: .96;
+    fill: #9eefff;
+    opacity: 1;
   }
 }
 

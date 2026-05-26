@@ -85,6 +85,14 @@ function PlanRing({ inv, onActivate, onCollect }) {
     }
     return (
       <div className="rings-wrap expired">
+        <svg viewBox="0 0 100 100" className="rings-svg">
+          <circle cx="50" cy="50" r={R_outer} className="ring-track" strokeWidth="3.5"/>
+          <circle cx="50" cy="50" r={R_mid} className="ring-track" strokeWidth="2.5"/>
+          <circle cx="50" cy="50" r={R_inner} className="ring-track" strokeWidth="2"/>
+          <circle cx="50" cy="50" r={R_outer} fill="none" stroke="#00d4ff" strokeWidth="3.5"
+            strokeDasharray={legacyArc(R_outer, 0.3)} strokeLinecap="round" opacity="0.25"
+            transform="rotate(-90 50 50)"/>
+        </svg>
         <button className="activate-btn" onClick={() => onActivate(inv.id)}>
           <span className="activate-icon"><Play size={16} color="#FFFFFF" /></span>
           <span>Activate</span>
