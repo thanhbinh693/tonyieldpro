@@ -38,11 +38,18 @@ function PlanRing({ inv, onActivate, onCollect }) {
     || 86_400_000
   const timePct = Math.max(0, Math.min(1, 1 - remaining / intervalMs))
   const timePercent = Math.round(timePct * 100)
+  const planPct = Math.min(1, (inv.progress || 0) / 100)
   const activeToday = isPlanActiveToday(inv)
   const radius = 40
   const circumference = 2 * Math.PI * radius
   const dash = circumference.toFixed(2)
   const dashOffset = (pct) => (circumference * (1 - Math.max(0, Math.min(1, pct)))).toFixed(2)
+  const R_outer = 42, R_mid = 34, R_inner = 26
+  const legacyArc = (r, pct) => {
+    const c = 2 * Math.PI * r
+    const filled = Math.max(0.01, pct) * c
+    return `${filled.toFixed(2)} ${c.toFixed(2)}`
+  }
 
   const renderRing = (pct, label, className = '') => (
     <svg viewBox="0 0 100 100" className="rings-svg">
@@ -64,11 +71,28 @@ function PlanRing({ inv, onActivate, onCollect }) {
 
   if (!inv.activated) {
     if (!activeToday) {
-      return <div className="rings-wrap waiting">{renderRing(0, '0%', 'muted')}</div>
+      return (
+        <div className="rings-wrap waiting">
+          <svg viewBox="0 0 100 100" className="rings-svg">
+            <circle cx="50" cy="50" r={R_outer} className="ring-track" strokeWidth="3.5"/>
+            <circle cx="50" cy="50" r={R_mid} className="ring-track" strokeWidth="2.5"/>
+            <circle cx="50" cy="50" r={R_outer} fill="none" stroke="#00d4ff" strokeWidth="3.5"
+              strokeDasharray={legacyArc(R_outer, 0.15)} strokeLinecap="round" opacity="0.2"
+              transform="rotate(-90 50 50)"/>
+          </svg>
+        </div>
+      )
     }
     return (
       <div className="rings-wrap expired">
-        {renderRing(0.08, '0%', 'muted')}
+        <svg viewBox="0 0 100 100" className="rings-svg">
+          <circle cx="50" cy="50" r={R_outer} className="ring-track" strokeWidth="3.5"/>
+          <circle cx="50" cy="50" r={R_mid} className="ring-track" strokeWidth="2.5"/>
+          <circle cx="50" cy="50" r={R_inner} className="ring-track" strokeWidth="2"/>
+          <circle cx="50" cy="50" r={R_outer} fill="none" stroke="#00d4ff" strokeWidth="3.5"
+            strokeDasharray={legacyArc(R_outer, 0.3)} strokeLinecap="round" opacity="0.25"
+            transform="rotate(-90 50 50)"/>
+        </svg>
         <button className="activate-btn" onClick={() => onActivate(inv.id)}>
           <span className="activate-icon"><Play size={16} color="#FFFFFF" /></span>
           <span>Activate</span>
@@ -78,7 +102,18 @@ function PlanRing({ inv, onActivate, onCollect }) {
   }
 
   if (!activeToday) {
-    return <div className="rings-wrap paused">{renderRing(timePct, `${timePercent}%`, 'paused')}</div>
+    return (
+      <div className="rings-wrap paused">
+        <svg viewBox="0 0 100 100" className="rings-svg">
+          <circle cx="50" cy="50" r={R_outer} className="ring-track" strokeWidth="3.5"/>
+          <circle cx="50" cy="50" r={R_mid} className="ring-track" strokeWidth="2.5"/>
+          <circle cx="50" cy="50" r={R_inner} className="ring-track" strokeWidth="2"/>
+          <circle cx="50" cy="50" r={R_outer} fill="none" stroke="#00d4ff" strokeWidth="3.5"
+            strokeDasharray={legacyArc(R_outer, planPct)} strokeLinecap="round" opacity="0.35"
+            transform="rotate(-90 50 50)"/>
+        </svg>
+      </div>
+    )
   }
 
   if (expired) return null
