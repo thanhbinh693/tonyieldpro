@@ -127,7 +127,7 @@ create table if not exists mine_games (
   id text primary key,
   creator_id bigint references users(id) on delete cascade,
   bet_amount numeric(18,6) not null,
-  safe_cell int not null check (safe_cell between 0 and 24),
+  safe_cell int not null check (safe_cell between 0 and 9),
   fee_rate numeric(8,4) not null default 5,
   creator_win_rate numeric(8,4) not null default 30,
   status text not null default 'open' check (status in ('open', 'completed', 'cancelled')),
@@ -137,6 +137,14 @@ create table if not exists mine_games (
   completed_at timestamptz,
   updated_at timestamptz default now()
 );
+
+do $$
+begin
+  alter table mine_games drop constraint if exists mine_games_safe_cell_check;
+  alter table mine_games
+    add constraint mine_games_safe_cell_check
+    check (safe_cell between 0 and 9);
+end $$;
 
 alter table users add column if not exists referral_deposit_volume numeric(18,6) default 0;
 alter table users add column if not exists referred_by text default '';

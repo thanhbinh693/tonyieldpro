@@ -518,8 +518,8 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
   const bet = roundMoney(Number(payload.bet ?? payload.bet_amount))
   const safeCell = Math.trunc(Number(payload.safe_cell))
   if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid amount' }, 400)
-  if (!Number.isInteger(safeCell) || safeCell < 0 || safeCell > 24) {
-    return json({ ok: false, error: 'Invalid safe cell' }, 400)
+  if (!Number.isInteger(safeCell) || safeCell < 0 || safeCell > 9) {
+    return json({ ok: false, error: 'Invalid safe cell. Enter a number from 0 to 9.' }, 400)
   }
 
   const cfg = await getMineConfig()
@@ -579,9 +579,11 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
 
 async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const gameId = String(payload.game_id || '').trim()
-  const cell = Math.trunc(Number(payload.cell))
+  const cell = Math.trunc(Number(payload.cell ?? payload.selected_cell ?? payload.slot))
   if (!gameId) return json({ ok: false, error: 'Missing game_id' }, 400)
-  if (!Number.isInteger(cell) || cell < 0 || cell > 24) return json({ ok: false, error: 'Invalid cell' }, 400)
+  if (!Number.isInteger(cell) || cell < 0 || cell > 9) {
+    return json({ ok: false, error: 'Invalid cell. Enter a number from 0 to 9.' }, 400)
+  }
 
   const cfg = await getMineConfig()
   if (!cfg.enabled) return json({ ok: false, error: 'Mine game is disabled' }, 403)

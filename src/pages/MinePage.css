@@ -56,7 +56,6 @@
 }
 
 .mine-balance span,
-.mine-stat-grid span,
 .mine-field label {
   display: block;
   color: var(--color-muted);
@@ -136,26 +135,6 @@
   font-weight: 800;
 }
 
-.mine-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.mine-stat-grid div {
-  padding: 10px;
-  border-radius: 15px;
-  background: rgba(15, 23, 42, 0.82);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-.mine-stat-grid strong {
-  display: block;
-  margin-top: 5px;
-  color: var(--color-text);
-  font-size: 14px;
-}
-
 .mine-primary,
 .mine-secondary {
   width: 100%;
@@ -179,14 +158,9 @@
 
 .mine-primary:disabled,
 .mine-secondary:disabled,
-.mine-amount-row button:disabled,
-.mine-cell:disabled {
+.mine-amount-row button:disabled {
   opacity: 0.58;
   cursor: not-allowed;
-}
-
-.mine-board-card {
-  padding: 16px;
 }
 
 .mine-disabled {
@@ -197,45 +171,6 @@
   color: #fca5a5;
   font-size: 13px;
   font-weight: 700;
-}
-
-.mine-board {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 9px;
-}
-
-.mine-cell {
-  aspect-ratio: 1;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 152, 234, 0.18);
-  color: var(--color-text);
-  background:
-    radial-gradient(circle at 35% 25%, rgba(0, 194, 255, 0.18), transparent 36%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(2, 8, 18, 0.98));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 16px rgba(0,0,0,0.2);
-  cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
-}
-
-.mine-cell:not(:disabled):active {
-  transform: scale(0.94);
-}
-
-.mine-cell.revealed {
-  border-color: rgba(34, 197, 94, 0.58);
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.14);
-}
-
-.mine-cell.mine {
-  border-color: rgba(239, 68, 68, 0.62);
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.14);
-}
-
-.mine-cell.selected {
-  box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.28), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 .mine-status {
@@ -252,12 +187,70 @@
   font-weight: 700;
 }
 
-.mine-board-card.won .mine-status {
-  color: #86efac;
+.mine-room-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.mine-board-card.lost .mine-status {
-  color: #fca5a5;
+.mine-room-head h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.mine-games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mine-game-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 68px;
+  padding: 13px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 152, 234, 0.18);
+  background:
+    linear-gradient(135deg, rgba(0, 152, 234, 0.1), transparent 42%),
+    rgba(2, 8, 18, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.mine-game-main,
+.mine-game-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mine-game-main strong {
+  color: var(--color-text);
+  font-size: 16px;
+}
+
+.mine-game-code,
+.mine-game-side > span:last-child {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mine-open-pill {
+  align-self: flex-end;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
 }
 
 @media (max-width: 380px) {
@@ -270,15 +263,7 @@
     text-align: left;
   }
 
-  .mine-stat-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .mine-board {
-    gap: 7px;
-  }
-
-  .mine-cell {
-    border-radius: 13px;
+  .mine-game-row {
+    align-items: stretch;
   }
 }

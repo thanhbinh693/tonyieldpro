@@ -404,10 +404,12 @@ export async function mineCreateGame({ betAmount, safeCell }) {
   })
 }
 
-export async function mineJoinGame({ gameId, slot }) {
+export async function mineJoinGame({ gameId, slot, cell, selectedCell }) {
+  const resolvedCell = cell ?? selectedCell ?? slot
   return secureApi('mine_join_game', {
     game_id: String(gameId),
     slot: Number(slot),
+    cell: Number(resolvedCell),
   })
 }
 
