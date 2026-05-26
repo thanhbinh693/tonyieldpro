@@ -1171,7 +1171,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
 
       <div className="setting-group mine-admin-config">
         <div className="sg-label"><Bomb size={16} color="#FFD600" />Mine Game</div>
-        <div className="sg-desc">Openers need 1.2x room amount. Creator picks a cell from 1 to 9; the server roll uses creator win rate and pays a random amount to winning openers.</div>
+        <div className="sg-desc">Openers need 1.2x room amount. Creator picks a cell from 0 to 9; the server roll uses creator win rate and pays a random amount to winning openers.</div>
         <label className="sg-check-row">
           <input type="checkbox" checked={mineEnabled} onChange={e=>setMineEnabled(e.target.checked)} />
           <span>Enable Mine page for users</span>

@@ -6,53 +6,84 @@
 }
 
 .mine-hero {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px;
+  position: relative;
+  min-height: 158px;
   padding: 18px;
-  border: 1px solid rgba(0, 152, 234, 0.24);
-  border-radius: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  overflow: hidden;
+  border-radius: var(--r3);
+  border: var(--glass-border);
   background:
-    radial-gradient(circle at top left, rgba(0, 152, 234, 0.22), transparent 42%),
-    linear-gradient(145deg, rgba(13, 23, 42, 0.92), rgba(4, 10, 20, 0.96));
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    linear-gradient(145deg, rgba(0, 152, 234, .18), transparent 48%),
+    linear-gradient(180deg, rgba(255, 214, 0, .08), transparent 62%),
+    var(--gradient-surface);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.mine-hero::before {
+  content: "";
+  position: absolute;
+  inset: auto -40px -62px -40px;
+  height: 118px;
+  background: radial-gradient(ellipse at center, rgba(0, 194, 255, .28), transparent 70%);
+  pointer-events: none;
+}
+
+.mine-hero-mark {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: var(--blue2);
+  background: rgba(0, 152, 234, .14);
+  border: 1px solid rgba(0, 194, 255, .26);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), var(--ton-glow);
 }
 
 .mine-hero .eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-ton);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
   margin-bottom: 8px;
+  color: var(--blue2);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .12em;
 }
 
 .mine-hero h1 {
   margin: 0;
+  font-family: var(--font-display);
   color: var(--color-text);
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1;
 }
 
 .mine-hero p {
-  margin: 8px 0 0;
+  margin: 9px 0 0;
+  max-width: 250px;
   color: var(--color-muted);
   font-size: 13px;
-  line-height: 1.45;
-  max-width: 260px;
+  line-height: 1.48;
 }
 
 .mine-balance {
-  flex: none;
-  min-width: 116px;
+  position: relative;
+  z-index: 1;
+  min-width: 126px;
   padding: 12px;
-  border-radius: 18px;
-  background: rgba(0, 152, 234, 0.12);
-  border: 1px solid rgba(0, 152, 234, 0.22);
+  border-radius: 16px;
   text-align: right;
+  background: rgba(3, 3, 4, .44);
+  border: 1px solid rgba(255,255,255,.09);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 .mine-balance span,
@@ -60,27 +91,30 @@
   display: block;
   color: var(--color-muted);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: .06em;
 }
 
 .mine-balance strong {
   display: block;
-  margin-top: 4px;
+  margin-top: 5px;
   color: var(--color-text);
-  font-size: 17px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .mine-card {
-  border-radius: 24px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(7, 14, 28, 0.82);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  border-radius: var(--r2);
+  border: var(--glass-border);
+  background: var(--glass);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-card);
 }
 
 .mine-controls {
-  padding: 16px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -90,14 +124,20 @@
   margin-top: 8px;
   display: flex;
   align-items: center;
+  min-height: 56px;
   border-radius: 16px;
-  border: 1px solid rgba(0, 152, 234, 0.24);
-  background: rgba(2, 8, 18, 0.78);
+  border: 1px solid rgba(0, 152, 234, .26);
+  background: rgba(3, 3, 4, .48);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
   overflow: hidden;
 }
 
-.mine-input-wrap input,
-.mine-input-wrap select {
+.mine-input-wrap:focus-within {
+  border-color: rgba(0, 194, 255, .62);
+  box-shadow: var(--shadow-input-focus);
+}
+
+.mine-input-wrap input {
   min-width: 0;
   flex: 1;
   padding: 14px;
@@ -105,120 +145,101 @@
   background: transparent;
   border: 0;
   outline: 0;
+  font-family: var(--font-mono);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .mine-input-wrap span {
   padding-right: 14px;
-  color: var(--color-ton);
-  font-weight: 800;
-}
-
-.mine-hint {
-  margin: 8px 0 0;
-  color: var(--color-muted);
+  color: var(--blue2);
   font-size: 12px;
-  line-height: 1.5;
-  opacity: 0.75;
-}
-
-.mine-amount-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.mine-amount-row button,
-.mine-secondary {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(148, 163, 184, 0.08);
-  color: var(--color-text);
-}
-
-.mine-amount-row button {
-  flex: 1;
-  padding: 9px 10px;
-  border-radius: 13px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .mine-digit-grid {
   margin-top: 8px;
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 5px;
 }
 
 .mine-digit-grid button {
+  min-height: 38px;
   aspect-ratio: 1;
   border-radius: 12px;
-  border: 1px solid rgba(0, 152, 234, 0.2);
-  background: rgba(2, 8, 18, 0.78);
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.04);
   color: var(--color-text);
-  font-size: 15px;
-  font-weight: 900;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 800;
   cursor: pointer;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease, box-shadow .14s ease;
+}
+
+.mine-digit-grid button:active {
+  transform: scale(.94);
 }
 
 .mine-digit-grid button.on {
-  border-color: rgba(0, 194, 255, 0.65);
-  background: rgba(0, 152, 234, 0.26);
-  color: #fff;
-  box-shadow: 0 0 16px rgba(0, 152, 234, 0.22);
+  border-color: rgba(255, 214, 0, .72);
+  background: rgba(255, 214, 0, .13);
+  color: var(--gold);
+  box-shadow: 0 0 18px rgba(255, 214, 0, .14);
 }
 
-.mine-primary,
-.mine-secondary {
+.mine-primary {
   width: 100%;
-  border-radius: 17px;
+  min-height: 54px;
+  border: 0;
+  border-radius: 16px;
   padding: 14px 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  color: #fff;
+  background: var(--btn-ton);
+  box-shadow: var(--shadow-btn-ton);
   font-weight: 900;
-  letter-spacing: 0.04em;
+  letter-spacing: .04em;
   cursor: pointer;
 }
 
-.mine-primary {
-  border: 0;
-  color: #fff;
-  background: linear-gradient(135deg, #0098ea, #00c2ff);
-  box-shadow: 0 14px 26px rgba(0, 152, 234, 0.28);
+.mine-primary:active {
+  transform: translateY(1px);
 }
 
 .mine-primary:disabled,
-.mine-secondary:disabled,
-.mine-amount-row button:disabled,
 .mine-digit-grid button:disabled {
-  opacity: 0.58;
+  opacity: .56;
   cursor: not-allowed;
 }
 
 .mine-disabled {
-  margin-bottom: 12px;
+  padding: 13px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   color: #fca5a5;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .mine-status {
-  margin-top: 14px;
-  min-height: 36px;
-  padding: 11px 12px;
+  min-height: 54px;
+  padding: 12px;
   border-radius: 16px;
-  background: rgba(2, 8, 18, 0.7);
+  background: rgba(3, 3, 4, .42);
   color: var(--color-muted);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  text-align: center;
 }
 
 .mine-room-head {
@@ -230,9 +251,22 @@
 
 .mine-room-head h3 {
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--color-text);
   font-size: 15px;
-  letter-spacing: 0.02em;
+  font-weight: 900;
+}
+
+.mine-room-head span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 194, 255, .2);
+  background: rgba(0, 152, 234, .1);
+  color: var(--blue2);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .mine-games-list {
@@ -246,21 +280,25 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 68px;
-  padding: 13px 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(0, 152, 234, 0.18);
+  min-height: 78px;
+  padding: 13px;
+  border-radius: 17px;
+  border: 1px solid rgba(255,255,255,.08);
   background:
-    linear-gradient(135deg, rgba(0, 152, 234, 0.1), transparent 42%),
-    rgba(2, 8, 18, 0.72);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    linear-gradient(135deg, rgba(0, 152, 234, .12), transparent 52%),
+    rgba(3, 3, 4, .42);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 .mine-game-main,
 .mine-game-side {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
+}
+
+.mine-game-main {
+  min-width: 0;
 }
 
 .mine-game-amount {
@@ -272,11 +310,12 @@
 
 .mine-game-amount strong {
   color: var(--color-text);
+  font-family: var(--font-mono);
   font-size: 16px;
 }
 
 .mine-game-amount span {
-  color: var(--color-ton);
+  color: var(--blue2);
   font-size: 11px;
   font-weight: 900;
 }
@@ -284,7 +323,7 @@
 .mine-game-code,
 .mine-game-side > span:last-child {
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -297,8 +336,8 @@
 .mine-game-meta span {
   padding: 3px 7px;
   border-radius: 999px;
-  background: rgba(0, 152, 234, 0.1);
-  border: 1px solid rgba(0, 194, 255, 0.16);
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
   color: var(--color-muted);
   font-size: 10px;
   font-weight: 800;
@@ -306,36 +345,42 @@
 
 .mine-open-pill {
   align-self: flex-end;
-  padding: 5px 9px;
+  min-height: 34px;
+  padding: 7px 11px;
   border-radius: 999px;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  border: 1px solid rgba(34, 197, 94, .34);
   color: #86efac;
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(34, 197, 94, .12);
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: .08em;
   cursor: pointer;
 }
 
 .mine-open-pill:disabled {
-  opacity: 0.55;
+  opacity: .55;
   cursor: not-allowed;
 }
 
 .mine-open-pill.muted {
-  border-color: rgba(148, 163, 184, 0.22);
+  border-color: rgba(148, 163, 184, .2);
   color: var(--color-muted);
-  background: rgba(148, 163, 184, 0.08);
+  background: rgba(148, 163, 184, .08);
 }
 
 @media (max-width: 380px) {
   .mine-hero {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     align-items: stretch;
+    padding-top: 76px;
   }
 
   .mine-balance {
     text-align: left;
+  }
+
+  .mine-digit-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .mine-game-row {

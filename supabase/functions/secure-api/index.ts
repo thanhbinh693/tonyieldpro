@@ -527,8 +527,8 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
   if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid amount' }, 400)
 
   const safeCell = Math.trunc(Number(payload.mine_digit ?? payload.safe_cell ?? payload.cell))
-  if (!Number.isInteger(safeCell) || safeCell < 1 || safeCell > 9) {
-    return json({ ok: false, error: 'Invalid creator cell. Choose a number from 1 to 9.' }, 400)
+  if (!Number.isInteger(safeCell) || safeCell < 0 || safeCell > 9) {
+    return json({ ok: false, error: 'Invalid creator cell. Choose a number from 0 to 9.' }, 400)
   }
 
   const cfg = await getMineConfig()
@@ -628,7 +628,7 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const creatorCell = Math.trunc(Number(game.safe_cell))
   const gameCreatorWinRate = Number(game.creator_win_rate)
   const creatorWinRate = Math.min(90, Math.max(0, Number.isFinite(gameCreatorWinRate) ? gameCreatorWinRate : cfg.creatorWinRate))
-  if (!Number.isInteger(creatorCell) || creatorCell < 1 || creatorCell > 9) {
+  if (!Number.isInteger(creatorCell) || creatorCell < 0 || creatorCell > 9) {
     return json({ ok: false, error: 'Invalid game creator cell' }, 409)
   }
   const creatorWins = remainingPool <= 0 || randomPercent() < creatorWinRate
@@ -765,7 +765,7 @@ function randomPercent() {
 }
 
 function randomDigitExcept(excluded: number) {
-  const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter((digit) => digit !== excluded)
+  const digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((digit) => digit !== excluded)
   const bytes = new Uint32Array(1)
   globalThis.crypto.getRandomValues(bytes)
   return digits[bytes[0] % digits.length]

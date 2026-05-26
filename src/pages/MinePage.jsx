@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Bomb, Coins, ShieldAlert, Sparkles } from 'lucide-react'
+import { Bomb, Coins, ShieldAlert, Sparkles, Target } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import './MinePage.css'
 
@@ -30,8 +30,15 @@ const MAX_OPENERS = 5
 
 function mineGameMeta(game) {
   const bet = Number(game?.bet_amount) || 0
+  const result = game?.result && typeof game.result === 'object' ? game.result : {}
+  const payoutCap = Number(result.payout_cap ?? bet)
+  const paidOut = Number(result.paid_out || 0)
+  const remainingPool = Math.max(0, Number(result.remaining_pool ?? (payoutCap - paidOut)) || 0)
+  const players = Array.isArray(game?.players) ? game.players.length : 0
   return {
     requiredBalance: bet * OPEN_RISK_MULTIPLIER,
+    remainingPool,
+    players,
   }
 }
 
@@ -49,7 +56,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
   const [games, setGames] = useState([])
 
   const openGames = useMemo(
-    () => games.filter(g => String(g.status || 'open') === 'open'),
+    () => games.filter(g => String(g.status || 'open') === 'open' && mineGameMeta(g).remainingPool > 0),
     [games]
   )
 
@@ -94,8 +101,8 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
       return
     }
     const selectedCreatorCell = Number(creatorCell)
-    if (!Number.isInteger(selectedCreatorCell) || selectedCreatorCell < 1 || selectedCreatorCell > 9) {
-      showToast?.('Pick creator cell from 1 to 9.', 'err')
+    if (!Number.isInteger(selectedCreatorCell) || selectedCreatorCell < 0 || selectedCreatorCell > 9) {
+      showToast?.('Pick creator cell from 0 to 9.', 'err')
       return
     }
 
@@ -146,17 +153,16 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
     }
   }
 
-  const quickAmounts = [minBet, minBet * 2, maxBet || minBet * 5]
-    .map(v => +Number(v || 0).toFixed(3))
-    .filter((v, i, arr) => v > 0 && arr.indexOf(v) === i)
-
   return (
     <main className="page mine-page">
       <section className="mine-hero">
+        <div className="mine-hero-mark">
+          <Bomb size={28} />
+        </div>
         <div>
           <div className="eyebrow"><Bomb size={14} /> DROP GAME</div>
           <h1>Mine</h1>
-          <p>Create a compact room. Pick a creator cell; random payouts are rolled against your win rate.</p>
+          <p>Pick a cell, lock a room, and let joiners open against the configured creator win rate.</p>
         </div>
         <div className="mine-balance">
           <span>Available</span>
@@ -185,19 +191,12 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
             />
             <span>TON</span>
           </div>
-          <div className="mine-amount-row">
-            {quickAmounts.map(v => (
-              <button key={v} type="button" onClick={() => setAmount(String(v))} disabled={loading || !mineEnabled}>
-                {v}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="mine-field">
-          <label>Creator Cell (1 to 9)</label>
+          <label>Creator Cell (0 to 9)</label>
           <div className="mine-digit-grid">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
               <button
                 key={digit}
                 type="button"
@@ -209,7 +208,6 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
               </button>
             ))}
           </div>
-          <p className="mine-hint">This cell is used by the server roll. Joiners receive the same random payout style when they win.</p>
         </div>
 
         <button className="mine-primary" onClick={createGame} disabled={!mineEnabled || loading}>
@@ -219,7 +217,8 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
       <section className="mine-card mine-controls">
         <div className="mine-room-head">
-          <h3>Open Games</h3>
+          <h3><Target size={15} /> Open Games</h3>
+          <span>{openGames.length} live</span>
         </div>
 
         {openGames.length === 0 ? (
@@ -238,7 +237,12 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
                   <div className="mine-game-main">
                     <span className="mine-game-code">#{String(g.id).replace(/^mine-/, '').slice(0, 8)}</span>
                     <div className="mine-game-amount">
+                      <strong>{formatTon(meta.remainingPool)}</strong>
                       <span>Need {formatTon(meta.requiredBalance)}</span>
+                    </div>
+                    <div className="mine-game-meta">
+                      <span>{meta.players}/{MAX_OPENERS} opens</span>
+                      <span>pool live</span>
                     </div>
                   </div>
                   <div className="mine-game-side">
