@@ -3,12 +3,12 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-sizing: border-box;
 }
 
 .mine-hero {
   position: relative;
   overflow: hidden;
-  isolation: isolate;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -24,10 +24,10 @@
     inset 0 1px 0 rgba(255,255,255,.07),
     0 22px 64px -46px rgba(0,194,255,.85);
   backdrop-filter: blur(18px);
+  box-sizing: border-box;
 }
 
-.mine-hero::before,
-.mine-card::before {
+.mine-hero::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -37,23 +37,9 @@
   background-size: 28px 28px;
   opacity: .58;
   pointer-events: none;
-  z-index: 0;
 }
 
-.mine-hero::after,
-.mine-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(125,211,252,.12), transparent);
-  transform: translateX(-120%);
-  animation: mineLiveScan 5.4s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.mine-hero > *,
-.mine-card > * {
+.mine-hero > * {
   position: relative;
   z-index: 1;
 }
@@ -118,8 +104,7 @@
 .mine-card {
   position: relative;
   overflow: hidden;
-  isolation: isolate;
-  width: 100%;
+  width: auto;
   border: 1px solid rgba(0,194,255,.22);
   border-radius: 22px;
   background:
@@ -129,6 +114,7 @@
     inset 0 1px 0 rgba(255,255,255,.06),
     0 20px 58px -48px rgba(0,194,255,.82);
   backdrop-filter: blur(18px);
+  box-sizing: border-box;
 }
 
 .mine-controls {
@@ -306,7 +292,8 @@
 }
 
 .mine-game-row {
-  width: 100%;
+  width: auto;
+  box-sizing: border-box;
   min-height: 72px;
   padding: 13px;
   border: 1px solid rgba(255,255,255,.08);
@@ -463,21 +450,35 @@
     text-align: left;
   }
 
+  .mine-digit-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .mine-digit-grid button:nth-child(5) {
+    border-right: 0;
+  }
+
+  .mine-digit-grid button:nth-child(n + 6) {
+    border-top: 1px solid rgba(255,255,255,.08);
+  }
+
+  .mine-game-row {
+    gap: 10px;
+  }
+
+  .mine-game-amount {
+    gap: 5px;
+  }
+
+  .mine-game-amount strong {
+    font-size: 14px;
+  }
+
+  .mine-game-amount span {
+    font-size: 10px;
+  }
+
   .mine-game-side {
     align-items: flex-end;
-  }
-}
-
-@keyframes mineLiveScan {
-  0%, 48% {
-    opacity: 0;
-    transform: translateX(-120%);
-  }
-  58% {
-    opacity: 1;
-  }
-  78%, 100% {
-    opacity: 0;
-    transform: translateX(120%);
   }
 }
