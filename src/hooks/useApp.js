@@ -632,9 +632,14 @@ export function useApp() {
   }, [])
 
   const computeAdminStats = useCallback(async () => {
-    const all = await getAllUsersData()
+    const [all, mineGamesRes] = await Promise.all([
+      getAllUsersData(),
+      supabase.from('mine_games').select('bet_amount, fee_rate, status, result'),
+    ])
+    if (mineGamesRes.error) throw mineGamesRes.error
     let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0
     let userBalanceLiability=0, pendingWithdrawAmount=0, todayYieldReserve=0
+    let mineFeeEarned=0, mineOpenGames=0, mineCompletedGames=0
     const now = Date.now()
     const todayDow = new Date(now).getDay()
     const tomorrowStart = new Date(now)
@@ -671,6 +676,17 @@ export function useApp() {
         }
       })
     })
+    ;(mineGamesRes.data || []).forEach(game => {
+      if (String(game.status || '') === 'cancelled') return
+      const bet = Number(game.bet_amount) || 0
+      const feeRate = Number(game.fee_rate) || 0
+      const result = game.result && typeof game.result === 'object' ? game.result : {}
+      const payoutCap = Number(result.payout_cap)
+      const fee = Number.isFinite(payoutCap) ? Math.max(0, bet - payoutCap) : bet * (feeRate / 100)
+      mineFeeEarned += fee
+      if (String(game.status || 'open') === 'open') mineOpenGames++
+      if (String(game.status || '') === 'completed') mineCompletedGames++
+    })
     const requiredYieldReserve = userBalanceLiability + pendingWithdrawAmount + todayYieldReserve
     return {
       totalUsers: userList.length,
@@ -682,6 +698,9 @@ export function useApp() {
       pendingWithdrawAmount: +pendingWithdrawAmount.toFixed(6),
       todayYieldReserve: +todayYieldReserve.toFixed(6),
       requiredYieldReserve: +requiredYieldReserve.toFixed(6),
+      mineFeeEarned: +mineFeeEarned.toFixed(6),
+      mineOpenGames,
+      mineCompletedGames,
     }
   }, [])
 

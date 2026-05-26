@@ -725,9 +725,10 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
     label: win ? `Mine win ${shortGameId(gameId)}` : `Mine loss ${shortGameId(gameId)}`,
     amount: playerNet,
     invoiceId: gameId,
+    type: win ? 'mine' : 'mine_joiner_loss',
   })
 
-  if (!win) {
+  if (creatorWins) {
     const creator = await getPlayableUser(Number(game.creator_id))
     await supabase
       .from('users')
@@ -745,6 +746,7 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
       label: `Mine creator reward ${shortGameId(gameId)}`,
       amount: riskAmount,
       invoiceId: gameId,
+      type: 'mine_creator_reward',
     })
   }
 
@@ -866,11 +868,11 @@ function normalizeMinePlayers(value: unknown): MinePlayer[] {
   return Array.isArray(value) ? value as MinePlayer[] : []
 }
 
-async function insertGameTx(params: { id: string; userId: number; label: string; amount: number; invoiceId: string }) {
+async function insertGameTx(params: { id: string; userId: number; label: string; amount: number; invoiceId: string; type?: string }) {
   const { error } = await supabase.from('transactions').insert({
     id: params.id,
     user_id: params.userId,
-    type: 'mine',
+    type: params.type || 'mine',
     label: params.label,
     amount: params.amount,
     status: 'completed',
