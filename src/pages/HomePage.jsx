@@ -69,6 +69,13 @@ function PlanRing({ inv, onActivate, onCollect }) {
     </svg>
   )
 
+  const renderScanCountdown = (label) => (
+    <div className="countdown-scan">
+      <span className="countdown-scan-line" />
+      <span className="ring-percent">{label}</span>
+    </div>
+  )
+
   if (!inv.activated) {
     if (!activeToday) {
       return (
@@ -120,7 +127,7 @@ function PlanRing({ inv, onActivate, onCollect }) {
 
   return (
     <>
-      <div className="rings-wrap">{renderRing(timePct, `${timePercent}%`)}</div>
+      <div className="rings-wrap countdown-active">{renderScanCountdown(`${timePercent}%`)}</div>
       <div className="inv-countdown-label">{fmt(h)}:{fmt(m)}:{fmt(s)}</div>
     </>
   )
