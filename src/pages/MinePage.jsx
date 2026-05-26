@@ -20,6 +20,11 @@ function fmtAgo(dateStr) {
   return `${days}d ago`
 }
 
+function hasJoinedGame(game, userId) {
+  const players = Array.isArray(game?.players) ? game.players : []
+  return players.some((p) => Number(p?.user_id) === Number(userId))
+}
+
 export default function MinePage({ user, config, showToast, mineCreate, mineJoin, mineList }) {
   const mineEnabled = config?.mineEnabled !== false
   const minBet = Number(config?.mineMinBet ?? 0.01)
@@ -101,6 +106,14 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
     if (!mineEnabled || loading) return
     const cell = Number(safeCell)
     const requiredBalance = Number(game?.bet_amount) || 0
+    if (Number(game?.creator_id) === myUserId) {
+      showToast?.('This is your game. Wait for another player to open it.', 'err')
+      return
+    }
+    if (hasJoinedGame(game, myUserId)) {
+      showToast?.('You already opened this game.', 'err')
+      return
+    }
     if (!Number.isInteger(cell) || cell < 0 || cell > 9) {
       showToast?.('Please enter safe cell from 0 to 9 before opening a game.', 'err')
       return
@@ -205,31 +218,35 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
           <div className="mine-status"><Coins size={16} /> No game yet. Create the first room.</div>
         ) : (
           <div className="mine-games-list">
-            {openGames.map((g) => (
-              <div
-                key={g.id}
-                className="mine-game-row"
-              >
-                <div className="mine-game-main">
-                  <span className="mine-game-code">#{String(g.id).replace(/^mine-/, '').slice(0, 8)}</span>
-                  <div className="mine-game-amount">
-                    <strong>{formatTon(g.bet_amount || 0)}</strong>
-                    <span>Need {formatTon(g.bet_amount || 0)}</span>
+            {openGames.map((g) => {
+              const isCreator = Number(g.creator_id) === myUserId
+              const joined = hasJoinedGame(g, myUserId)
+              return (
+                <div
+                  key={g.id}
+                  className="mine-game-row"
+                >
+                  <div className="mine-game-main">
+                    <span className="mine-game-code">#{String(g.id).replace(/^mine-/, '').slice(0, 8)}</span>
+                    <div className="mine-game-amount">
+                      <strong>{formatTon(g.bet_amount || 0)}</strong>
+                      <span>Need {formatTon(g.bet_amount || 0)}</span>
+                    </div>
+                  </div>
+                  <div className="mine-game-side">
+                    <button
+                      type="button"
+                      className={`mine-open-pill ${joined || isCreator ? 'muted' : ''}`}
+                      onClick={() => openGame(g)}
+                      disabled={loading || !mineEnabled || joined || isCreator}
+                    >
+                      {isCreator ? 'CREATED' : joined ? 'JOINED' : 'OPEN'}
+                    </button>
+                    <span>{fmtAgo(g.created_at)}</span>
                   </div>
                 </div>
-                <div className="mine-game-side">
-                  <button
-                    type="button"
-                    className="mine-open-pill"
-                    onClick={() => openGame(g)}
-                    disabled={loading || !mineEnabled}
-                  >
-                    OPEN
-                  </button>
-                  <span>{fmtAgo(g.created_at)}</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>

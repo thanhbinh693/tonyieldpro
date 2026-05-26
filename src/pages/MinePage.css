@@ -272,6 +272,12 @@
   cursor: not-allowed;
 }
 
+.mine-open-pill.muted {
+  border-color: rgba(148, 163, 184, 0.22);
+  color: var(--color-muted);
+  background: rgba(148, 163, 184, 0.08);
+}
+
 @media (max-width: 380px) {
   .mine-hero {
     flex-direction: column;
