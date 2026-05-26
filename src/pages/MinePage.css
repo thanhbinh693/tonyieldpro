@@ -6,6 +6,9 @@
 }
 
 .mine-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -14,10 +17,45 @@
   border: 1px solid rgba(255,255,255,.10);
   border-radius: 22px;
   background:
-    radial-gradient(circle at top right, rgba(0,152,234,.18), transparent 34%),
-    var(--glass);
-  box-shadow: 0 0 24px rgba(0,152,234,.12);
+    radial-gradient(circle at 16% 0%, rgba(0,194,255,.22), transparent 36%),
+    radial-gradient(circle at 100% 14%, rgba(240,180,41,.12), transparent 30%),
+    linear-gradient(145deg, rgba(6,14,28,.92), rgba(2,7,16,.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 22px 64px -46px rgba(0,194,255,.85);
   backdrop-filter: blur(18px);
+}
+
+.mine-hero::before,
+.mine-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(125,211,252,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125,211,252,.045) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: .58;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mine-hero::after,
+.mine-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(125,211,252,.12), transparent);
+  transform: translateX(-120%);
+  animation: mineLiveScan 5.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mine-hero > *,
+.mine-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .mine-hero .eyebrow {
@@ -78,11 +116,18 @@
 }
 
 .mine-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   width: 100%;
-  border: var(--glass-border);
+  border: 1px solid rgba(0,194,255,.22);
   border-radius: 22px;
-  background: var(--glass);
-  box-shadow: 0 0 24px rgba(0,152,234,.12);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(0,194,255,.13), transparent 32%),
+    linear-gradient(145deg, rgba(7,16,32,.88), rgba(2,8,18,.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 20px 58px -48px rgba(0,194,255,.82);
   backdrop-filter: blur(18px);
 }
 
@@ -99,7 +144,7 @@
   align-items: center;
   border: 1px solid rgba(255,255,255,.10);
   border-radius: 14px;
-  background: rgba(15,17,21,.72);
+  background: rgba(2,8,18,.78);
   overflow: hidden;
 }
 
@@ -137,7 +182,7 @@
   gap: 0;
   border: 1px solid rgba(255,255,255,.10);
   border-radius: 16px;
-  background: rgba(15,17,21,.72);
+  background: rgba(2,8,18,.78);
   overflow: hidden;
 }
 
@@ -219,7 +264,7 @@
   padding: 12px;
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 14px;
-  background: rgba(15,17,21,.62);
+  background: rgba(2,8,18,.70);
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -266,7 +311,9 @@
   padding: 13px;
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 16px;
-  background: rgba(15,17,21,.62);
+  background:
+    linear-gradient(135deg, rgba(0,152,234,.08), transparent 46%),
+    rgba(2,8,18,.70);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -276,7 +323,9 @@
 
 .mine-game-row:hover {
   border-color: rgba(0,194,255,.24);
-  background: rgba(0,152,234,.08);
+  background:
+    linear-gradient(135deg, rgba(0,152,234,.13), transparent 48%),
+    rgba(2,8,18,.74);
   box-shadow: 0 0 22px rgba(0,152,234,.10);
 }
 
@@ -416,5 +465,19 @@
 
   .mine-game-side {
     align-items: flex-end;
+  }
+}
+
+@keyframes mineLiveScan {
+  0%, 48% {
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+  58% {
+    opacity: 1;
+  }
+  78%, 100% {
+    opacity: 0;
+    transform: translateX(120%);
   }
 }
