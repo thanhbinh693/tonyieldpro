@@ -1080,6 +1080,15 @@
   filter: drop-shadow(0 0 10px rgba(0,194,255,.18));
 }
 
+.sec .rings-wrap.expired .rings-svg {
+  pointer-events: none;
+}
+
+.sec .activate-btn {
+  z-index: 3;
+  pointer-events: auto;
+}
+
 .sec .ring-track {
   fill: none;
   stroke: rgba(125,211,252,.14);
