@@ -96,7 +96,7 @@
 @keyframes ringRotate2 { to{transform:rotate(-360deg)} }
 @keyframes ringRotate3 { to{transform:rotate(360deg)} }
 
-.activate-btn { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--gold);color:#080b12;border:none;border-radius:10px;padding:7px 10px;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1;white-space:nowrap;transition:.15s; }
+.activate-btn { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transform-origin:center center;background:var(--gold);color:#080b12;border:none;border-radius:10px;padding:7px 10px;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1;white-space:nowrap;transition:.15s; }
 .activate-btn:active { transform:translate(-50%,-50%) scale(.94); }
 .activate-btn.pulse { animation:pulseGlow 1.5s ease-in-out infinite; }
 .activate-icon { font-size:12px; }
@@ -1034,6 +1034,9 @@
   position: relative;
   width: 94px;
   height: 94px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 50%, rgba(0,194,255,.12), transparent 58%),
@@ -1073,11 +1076,18 @@
 }
 
 .sec .rings-svg {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 1;
   width: 94px;
   height: 94px;
   filter: drop-shadow(0 0 10px rgba(0,194,255,.18));
+}
+
+.sec .rings-wrap.expired .rings-svg {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .sec .rings-wrap.expired .rings-svg {
