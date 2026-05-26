@@ -377,7 +377,7 @@ async function userPlayMine(userId: number, payload: Record<string, unknown>) {
   const selectedCell = Math.trunc(Number(payload.selectedCell))
   const requestedMineCount = Math.trunc(Number(payload.mineCount) || 3)
 
-  if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid bet' }, 400)
+  if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid amount' }, 400)
   if (!Number.isInteger(selectedCell) || selectedCell < 0 || selectedCell > 24) {
     return json({ ok: false, error: 'Invalid selected cell' }, 400)
   }
@@ -391,13 +391,14 @@ async function userPlayMine(userId: number, payload: Record<string, unknown>) {
 
   const enabled = cfg?.mine_enabled !== false
   const minBet = Math.max(0.001, Number(cfg?.mine_min_bet) || 0.01)
-  const maxBet = Math.max(minBet, Number(cfg?.mine_max_bet) || 1)
+  const configuredMaxBet = Number(cfg?.mine_max_bet)
+  const maxBet = Number.isFinite(configuredMaxBet) && configuredMaxBet > 0 ? Math.max(minBet, configuredMaxBet) : null
   const mineCount = Math.min(24, Math.max(1, Number(cfg?.mine_count) || requestedMineCount || 3))
   const houseEdge = Math.min(30, Math.max(0, Number(cfg?.mine_house_edge) || 0))
 
   if (!enabled) return json({ ok: false, error: 'Mine game is disabled' }, 403)
-  if (bet < minBet) return json({ ok: false, error: `Minimum bet is ${minBet}` }, 400)
-  if (bet > maxBet) return json({ ok: false, error: `Maximum bet is ${maxBet}` }, 400)
+  if (bet < minBet) return json({ ok: false, error: `Minimum amount is ${minBet}` }, 400)
+  if (maxBet && bet > maxBet) return json({ ok: false, error: `Maximum amount is ${maxBet}` }, 400)
   if (requestedMineCount !== mineCount) return json({ ok: false, error: 'Mine settings changed, refresh and retry' }, 409)
 
   const { data: currentUser, error: userErr } = await supabase
@@ -514,17 +515,17 @@ async function mineListGames(userId: number) {
 }
 
 async function mineCreateGame(userId: number, payload: Record<string, unknown>) {
-  const bet = roundMoney(Number(payload.bet))
+  const bet = roundMoney(Number(payload.bet ?? payload.bet_amount))
   const safeCell = Math.trunc(Number(payload.safe_cell))
-  if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid bet' }, 400)
+  if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid amount' }, 400)
   if (!Number.isInteger(safeCell) || safeCell < 0 || safeCell > 24) {
     return json({ ok: false, error: 'Invalid safe cell' }, 400)
   }
 
   const cfg = await getMineConfig()
   if (!cfg.enabled) return json({ ok: false, error: 'Mine game is disabled' }, 403)
-  if (bet < cfg.minBet) return json({ ok: false, error: `Minimum bet is ${cfg.minBet}` }, 400)
-  if (bet > cfg.maxBet) return json({ ok: false, error: `Maximum bet is ${cfg.maxBet}` }, 400)
+  if (bet < cfg.minBet) return json({ ok: false, error: `Minimum amount is ${cfg.minBet}` }, 400)
+  if (cfg.maxBet && bet > cfg.maxBet) return json({ ok: false, error: `Maximum amount is ${cfg.maxBet}` }, 400)
 
   const creator = await getPlayableUser(userId)
   if (creator.balance < bet) return json({ ok: false, error: 'Insufficient balance' }, 400)
@@ -751,10 +752,11 @@ async function getMineConfig() {
     .maybeSingle()
   if (error) throw error
   const minBet = Math.max(0.001, Number(cfg?.mine_min_bet) || 0.01)
+  const configuredMaxBet = Number(cfg?.mine_max_bet)
   return {
     enabled: cfg?.mine_enabled !== false,
     minBet,
-    maxBet: Math.max(minBet, Number(cfg?.mine_max_bet) || 1),
+    maxBet: Number.isFinite(configuredMaxBet) && configuredMaxBet > 0 ? Math.max(minBet, configuredMaxBet) : null,
     feeRate: Math.min(50, Math.max(0, Number(cfg?.mine_fee_rate) || 5)),
     creatorWinRate: Math.min(90, Math.max(0, Number(cfg?.mine_creator_win_rate) || 30)),
   }

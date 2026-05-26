@@ -87,7 +87,7 @@ create table if not exists admin_config (
   ton_network text not null default 'testnet' check (ton_network in ('mainnet', 'testnet')),
   mine_enabled boolean default true,
   mine_min_bet numeric(18,6) default 0.01,
-  mine_max_bet numeric(18,6) default 1,
+  mine_max_bet numeric(18,6) default null,
   mine_fee_rate numeric(8,4) default 5,
   mine_creator_win_rate numeric(8,4) default 30,
   updated_at timestamptz default now(),
@@ -154,9 +154,10 @@ alter table admin_config add column if not exists withdrawal_webhook_secret text
 alter table admin_config add column if not exists ton_network text not null default 'testnet';
 alter table admin_config add column if not exists mine_enabled boolean default true;
 alter table admin_config add column if not exists mine_min_bet numeric(18,6) default 0.01;
-alter table admin_config add column if not exists mine_max_bet numeric(18,6) default 1;
+alter table admin_config add column if not exists mine_max_bet numeric(18,6) default null;
 alter table admin_config add column if not exists mine_fee_rate numeric(8,4) default 5;
 alter table admin_config add column if not exists mine_creator_win_rate numeric(8,4) default 30;
+alter table admin_config alter column mine_max_bet drop default;
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';
 alter table transactions add column if not exists blockchain_tx_hash text default '';
@@ -194,6 +195,12 @@ where u.id = p.user_id
 
 insert into admin_config (id) values (1)
 on conflict (id) do update set updated_at = now();
+
+update admin_config
+set mine_max_bet = null,
+    updated_at = now()
+where id = 1
+  and coalesce(mine_max_bet, 1) = 1;
 
 insert into plans (
   id, name, tier, min_amount, max_amount, rate, duration, duration_unit,

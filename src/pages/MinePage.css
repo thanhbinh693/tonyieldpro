@@ -97,7 +97,8 @@
   overflow: hidden;
 }
 
-.mine-input-wrap input {
+.mine-input-wrap input,
+.mine-input-wrap select {
   min-width: 0;
   flex: 1;
   padding: 14px;
@@ -115,20 +116,20 @@
   font-weight: 800;
 }
 
-.mine-bet-row {
+.mine-amount-row {
   display: flex;
   gap: 8px;
   margin-top: 10px;
 }
 
-.mine-bet-row button,
+.mine-amount-row button,
 .mine-secondary {
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: rgba(148, 163, 184, 0.08);
   color: var(--color-text);
 }
 
-.mine-bet-row button {
+.mine-amount-row button {
   flex: 1;
   padding: 9px 10px;
   border-radius: 13px;
@@ -178,7 +179,7 @@
 
 .mine-primary:disabled,
 .mine-secondary:disabled,
-.mine-bet-row button:disabled,
+.mine-amount-row button:disabled,
 .mine-cell:disabled {
   opacity: 0.58;
   cursor: not-allowed;

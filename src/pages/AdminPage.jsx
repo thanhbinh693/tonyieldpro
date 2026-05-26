@@ -986,11 +986,9 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [minWithdraw,  setMinWithdraw]  = useState(config.minWithdraw  || 5)
   const [withdrawReferralGateEnabled, setWithdrawReferralGateEnabled] = useState(!!config.withdrawReferralGateEnabled)
   const [withdrawMinReferrals, setWithdrawMinReferrals] = useState(config.withdrawMinReferrals ?? 3)
-  const [mineEnabled, setMineEnabled] = useState(config.mine?.enabled ?? true)
-  const [mineMinBet, setMineMinBet] = useState(config.mine?.minBet ?? 0.01)
-  const [mineMaxBet, setMineMaxBet] = useState(config.mine?.maxBet ?? 1)
-  const [mineCount, setMineCount] = useState(config.mine?.mineCount ?? 3)
-  const [mineHouseEdge, setMineHouseEdge] = useState(config.mine?.houseEdge ?? 4)
+  const [mineEnabled, setMineEnabled] = useState(config.mineEnabled ?? true)
+  const [mineFeeRate, setMineFeeRate] = useState(config.mineFeeRate ?? 5)
+  const [mineCreatorWinRate, setMineCreatorWinRate] = useState(config.mineCreatorWinRate ?? 30)
   const [tonNetwork,   setTonNetwork]   = useState(config.tonNetwork   || 'testnet')
   const [showNetConfirm, setShowNetConfirm] = useState(false)
   const [pendingNetwork, setPendingNetwork] = useState(null)
@@ -1006,11 +1004,9 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     setMinWithdraw(config.minWithdraw || 5)
     setWithdrawReferralGateEnabled(!!config.withdrawReferralGateEnabled)
     setWithdrawMinReferrals(config.withdrawMinReferrals ?? 3)
-    setMineEnabled(config.mine?.enabled ?? true)
-    setMineMinBet(config.mine?.minBet ?? 0.01)
-    setMineMaxBet(config.mine?.maxBet ?? 1)
-    setMineCount(config.mine?.mineCount ?? 3)
-    setMineHouseEdge(config.mine?.houseEdge ?? 4)
+    setMineEnabled(config.mineEnabled ?? true)
+    setMineFeeRate(config.mineFeeRate ?? 5)
+    setMineCreatorWinRate(config.mineCreatorWinRate ?? 30)
     setTonNetwork(config.tonNetwork || 'testnet')
   }, [config, currentUserId])
 
@@ -1027,10 +1023,8 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     if (!activeAdminWallet) { showToast(`Admin ${tonNetwork} wallet cannot be empty`,'err'); return }
     if (parsedIds.length === 0) { showToast('Add at least one Admin Telegram ID','err'); return }
     if (cleanWebhookUrl && !/^https?:\/\//i.test(cleanWebhookUrl)) { showToast('Webhook URL must start with http:// or https://','err'); return }
-    const cleanMineMin = Math.max(0.001, Number(mineMinBet) || 0.01)
-    const cleanMineMax = Math.max(cleanMineMin, Number(mineMaxBet) || cleanMineMin)
-    const cleanMineCount = Math.min(24, Math.max(1, Math.round(Number(mineCount) || 3)))
-    const cleanMineHouseEdge = Math.min(30, Math.max(0, Number(mineHouseEdge) || 0))
+    const cleanMineFeeRate = Math.min(50, Math.max(0, Number(mineFeeRate) || 0))
+    const cleanMineCreatorWinRate = Math.min(90, Math.max(0, Number(mineCreatorWinRate) || 0))
     onSave({
       adminWallet: activeAdminWallet,
       adminWalletTestnet: adminWalletTestnet.trim(),
@@ -1043,13 +1037,9 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       minWithdraw: +minWithdraw,
       withdrawReferralGateEnabled,
       withdrawMinReferrals: Math.max(0, Number(withdrawMinReferrals) || 0),
-      mine: {
-        enabled: !!mineEnabled,
-        minBet: cleanMineMin,
-        maxBet: cleanMineMax,
-        mineCount: cleanMineCount,
-        houseEdge: cleanMineHouseEdge,
-      },
+      mineEnabled: !!mineEnabled,
+      mineFeeRate: cleanMineFeeRate,
+      mineCreatorWinRate: cleanMineCreatorWinRate,
       tonNetwork,
     })
   }
@@ -1155,26 +1145,22 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
 
       <div className="setting-group mine-admin-config">
         <div className="sg-label"><Bomb size={16} color="#FFD600" />Mine Game</div>
-        <div className="sg-desc">Configure the Mine balance game without changing code. Bets use user balance and payouts are handled server-side.</div>
+        <div className="sg-desc">Configure the Mine balance game without changing code. Entries use user balance and payouts are handled server-side.</div>
         <label className="sg-check-row">
           <input type="checkbox" checked={mineEnabled} onChange={e=>setMineEnabled(e.target.checked)} />
           <span>Enable Mine page for users</span>
         </label>
         <div className="sg-row">
-          <input className="sg-input sg-input-sm" type="number" min="0.001" step="0.001" value={mineMinBet} onChange={e=>setMineMinBet(+e.target.value)} />
-          <span className="sg-unit">min bet</span>
+          <input className="sg-input sg-input-sm" type="number" value={5} disabled />
+          <span className="sg-unit">slots</span>
         </div>
         <div className="sg-row">
-          <input className="sg-input sg-input-sm" type="number" min="0.001" step="0.001" value={mineMaxBet} onChange={e=>setMineMaxBet(+e.target.value)} />
-          <span className="sg-unit">max bet</span>
+          <input className="sg-input sg-input-sm" type="number" min="0" max="50" step="0.5" value={mineFeeRate} onChange={e=>setMineFeeRate(+e.target.value)} />
+          <span className="sg-unit">fee rate %</span>
         </div>
         <div className="sg-row">
-          <input className="sg-input sg-input-sm" type="number" min="1" max="24" step="1" value={mineCount} onChange={e=>setMineCount(+e.target.value)} />
-          <span className="sg-unit">mines / 25 cells</span>
-        </div>
-        <div className="sg-row">
-          <input className="sg-input sg-input-sm" type="number" min="0" max="30" step="0.5" value={mineHouseEdge} onChange={e=>setMineHouseEdge(+e.target.value)} />
-          <span className="sg-unit">house edge %</span>
+          <input className="sg-input sg-input-sm" type="number" min="0" max="90" step="0.5" value={mineCreatorWinRate} onChange={e=>setMineCreatorWinRate(+e.target.value)} />
+          <span className="sg-unit">creator win %</span>
         </div>
       </div>
 

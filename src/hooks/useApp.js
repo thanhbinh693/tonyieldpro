@@ -133,7 +133,7 @@ const DEFAULT_CONFIG = {
   tonNetwork: TON_NETWORK,
   mineEnabled: true,
   mineMinBet: 0.01,
-  mineMaxBet: 1,
+  mineMaxBet: null,
   mineFeeRate: 5,
   mineCreatorWinRate: 30,
 }

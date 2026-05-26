@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Bomb, Coins, Gem, RefreshCw, ShieldAlert, Sparkles, Users } from 'lucide-react'
+import { Bomb, Coins, Gem, ShieldAlert, Sparkles, Users } from 'lucide-react'
+import { supabase } from '../utils/supabase'
 import './MinePage.css'
 
 const GRID_SIZE = 25
@@ -62,13 +63,12 @@ function normalizeSlots(players = []) {
 export default function MinePage({ user, config, showToast, mineCreate, mineJoin, mineReveal, mineList }) {
   const mineEnabled = config?.mineEnabled !== false
   const minBet = Number(config?.mineMinBet ?? 0.01)
-  const maxBet = Number(config?.mineMaxBet ?? 1)
-  const feeRate = Number(config?.mineFeeRate ?? 5)
-  const creatorWinRate = Number(config?.mineCreatorWinRate ?? 30)
+  const configuredMaxBet = Number(config?.mineMaxBet)
+  const maxBet = Number.isFinite(configuredMaxBet) && configuredMaxBet > 0 ? configuredMaxBet : null
   const balance = Number(user?.balance) || 0
   const myUserId = Number(user?.id) || 0
 
-  const [bet, setBet] = useState(String(minBet))
+  const [amount, setAmount] = useState(String(minBet))
   const [safeCell, setSafeCell] = useState('')
   const [loading, setLoading] = useState(false)
   const [games, setGames] = useState([])
@@ -115,8 +115,11 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
   useEffect(() => {
     refreshGames()
-    const timer = setInterval(() => refreshGames(true), 8000)
-    return () => clearInterval(timer)
+    const channel = supabase
+      .channel(`mine-games-${myUserId || 'guest'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mine_games' }, () => refreshGames(true))
+      .subscribe()
+    return () => supabase.removeChannel(channel)
   }, []) // eslint-disable-line
 
   const createGame = async () => {
@@ -124,28 +127,28 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
       showToast?.('Mine game is currently disabled.', 'err')
       return
     }
-    const amount = Number(bet)
+    const entryAmount = Number(amount)
     const safe = Number(safeCell)
-    if (!amount || amount < minBet) {
-      showToast?.(`Minimum bet is ${formatTon(minBet)}.`, 'err')
+    if (!entryAmount || entryAmount < minBet) {
+      showToast?.(`Minimum amount is ${formatTon(minBet)}.`, 'err')
       return
     }
-    if (amount > maxBet) {
-      showToast?.(`Maximum bet is ${formatTon(maxBet)}.`, 'err')
+    if (maxBet && entryAmount > maxBet) {
+      showToast?.(`Maximum amount is ${formatTon(maxBet)}.`, 'err')
       return
     }
-    if (amount > balance) {
+    if (entryAmount > balance) {
       showToast?.('Insufficient balance.', 'err')
       return
     }
-    if (!Number.isInteger(safe) || safe < 0 || safe >= GRID_SIZE) {
-      showToast?.('Please choose safe cell from 0 to 24.', 'err')
+    if (!Number.isInteger(safe) || safe < 0 || safe > 9) {
+      showToast?.('Please enter safe cell from 0 to 9.', 'err')
       return
     }
 
     setLoading(true)
     try {
-      const result = await mineCreate?.({ betAmount: amount, safeCell: safe })
+      const result = await mineCreate?.({ betAmount: entryAmount, safeCell: safe })
       showToast?.(result?.message || 'Game created successfully.', 'ok')
       setSafeCell('')
       await refreshGames(true)
@@ -198,7 +201,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
     }
   }
 
-  const quickBets = [minBet, minBet * 2, maxBet]
+  const quickAmounts = [minBet, minBet * 2, maxBet || minBet * 5]
     .map(v => +Number(v || 0).toFixed(3))
     .filter((v, i, arr) => v > 0 && arr.indexOf(v) === i)
 
@@ -224,22 +227,22 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
       <section className="mine-card mine-controls">
         <div className="mine-field">
-          <label>Create Game Bet Amount</label>
+          <label>Create Game Amount</label>
           <div className="mine-input-wrap">
             <input
               type="number"
               min={minBet}
-              max={maxBet}
+              max={maxBet || undefined}
               step="0.01"
-              value={bet}
-              onChange={(e) => setBet(e.target.value)}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
               disabled={loading || !mineEnabled}
             />
             <span>TON</span>
           </div>
-          <div className="mine-bet-row">
-            {quickBets.map(v => (
-              <button key={v} type="button" onClick={() => setBet(String(v))} disabled={loading || !mineEnabled}>
+          <div className="mine-amount-row">
+            {quickAmounts.map(v => (
+              <button key={v} type="button" onClick={() => setAmount(String(v))} disabled={loading || !mineEnabled}>
                 {v}
               </button>
             ))}
@@ -247,12 +250,12 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         </div>
 
         <div className="mine-field">
-          <label>Your Safe Cell (0 → 24)</label>
+          <label>Your Safe Cell (0 to 9)</label>
           <div className="mine-input-wrap">
             <input
               type="number"
               min={0}
-              max={24}
+              max={9}
               step="1"
               value={safeCell}
               onChange={(e) => setSafeCell(e.target.value)}
@@ -260,13 +263,6 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
             />
             <span>#</span>
           </div>
-        </div>
-
-        <div className="mine-stat-grid">
-          <div><span>Slots</span><strong>{SLOT_COUNT}</strong></div>
-          <div><span>Fee rate</span><strong>{feeRate}%</strong></div>
-          <div><span>Creator win</span><strong>{creatorWinRate}%</strong></div>
-          <div><span>Bet range</span><strong>{formatTon(minBet, 2)} - {formatTon(maxBet, 2)}</strong></div>
         </div>
 
         <button className="mine-primary" onClick={createGame} disabled={!mineEnabled || loading}>
@@ -277,9 +273,6 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
       <section className="mine-card mine-controls">
         <div className="mine-room-head">
           <h3>Open Games</h3>
-          <button type="button" className="mine-secondary" onClick={() => refreshGames()} disabled={loading}>
-            <RefreshCw size={16} /> Refresh
-          </button>
         </div>
 
         {games.length === 0 ? (

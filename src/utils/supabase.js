@@ -348,6 +348,7 @@ export async function getRegistry() {
 export async function getAdminConfig(fallback = null) {
   const { data } = await supabase.from('admin_config').select('*').eq('id', 1).maybeSingle()
   if (!data) return fallback
+  const mineMaxBet = Number(data.mine_max_bet)
   return {
     minWithdraw:      data.min_withdraw ?? MIN_WITHDRAW,
     referralRate:     data.referral_rate ?? 5,
@@ -364,7 +365,7 @@ export async function getAdminConfig(fallback = null) {
     tonNetwork:       data.ton_network || 'testnet',
     mineEnabled:      data.mine_enabled ?? true,
     mineMinBet:       Number(data.mine_min_bet ?? 0.01),
-    mineMaxBet:       Number(data.mine_max_bet ?? 1),
+    mineMaxBet:       Number.isFinite(mineMaxBet) && mineMaxBet > 0 ? mineMaxBet : null,
     mineFeeRate:      Number(data.mine_fee_rate ?? 5),
     mineCreatorWinRate: Number(data.mine_creator_win_rate ?? 30),
   }
@@ -388,7 +389,7 @@ export async function saveAdminConfig(cfg) {
       ton_network:      cfg.tonNetwork || 'testnet',
       mine_enabled:     cfg.mineEnabled !== false,
       mine_min_bet:     Number(cfg.mineMinBet ?? 0.01),
-      mine_max_bet:     Number(cfg.mineMaxBet ?? 1),
+      mine_max_bet:     Number.isFinite(Number(cfg.mineMaxBet)) && Number(cfg.mineMaxBet) > 0 ? Number(cfg.mineMaxBet) : null,
       mine_fee_rate:    Number(cfg.mineFeeRate ?? 5),
       mine_creator_win_rate: Number(cfg.mineCreatorWinRate ?? 30),
       updated_at:       new Date().toISOString(),
@@ -398,7 +399,7 @@ export async function saveAdminConfig(cfg) {
 
 export async function mineCreateGame({ betAmount, safeCell }) {
   return secureApi('mine_create_game', {
-    bet_amount: Number(betAmount),
+    bet: Number(betAmount),
     safe_cell: Number(safeCell),
   })
 }
