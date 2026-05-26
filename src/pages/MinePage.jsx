@@ -160,10 +160,10 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         <div className="mine-hero-mark">
           <Bomb size={28} />
         </div>
-        <div>
+        <div className="mine-hero-copy">
           <div className="eyebrow"><Bomb size={14} /> DROP GAME</div>
           <h1>Mine</h1>
-          <p>Pick a cell, lock a room, and let joiners open against the configured creator win rate.</p>
+          <p>Pick a lucky digit, open a TON room, and let players chase the prize. Safe rolls win, mine hits pay the creator.</p>
         </div>
         <div className="mine-balance">
           <span>Available</span>
@@ -179,7 +179,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
       <section className="mine-card mine-controls">
         <div className="mine-field">
-          <label>Create Game Amount</label>
+          <label>Room Prize</label>
           <div className="mine-input-wrap">
             <input
               type="number"
@@ -195,7 +195,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         </div>
 
         <div className="mine-field">
-          <label>Creator Cell (0 to 9)</label>
+          <label>Mine Digit (0 to 9)</label>
           <div className="mine-digit-grid">
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
               <button
@@ -223,7 +223,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         </div>
 
         {openGames.length === 0 ? (
-          <div className="mine-status"><Coins size={16} /> No game yet. Create the first room.</div>
+          <div className="mine-status"><Coins size={16} /> No room yet. Start a prize room.</div>
         ) : (
           <div className="mine-games-list">
             {openGames.map((g) => {
