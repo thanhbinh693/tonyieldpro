@@ -3,9 +3,6 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
 .mine-hero {
@@ -14,76 +11,79 @@
   justify-content: space-between;
   gap: 14px;
   padding: 18px;
-  border: 1px solid rgba(0, 152, 234, 0.24);
-  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 22px;
   background:
-    radial-gradient(circle at top left, rgba(0, 152, 234, 0.22), transparent 42%),
-    linear-gradient(145deg, rgba(13, 23, 42, 0.92), rgba(4, 10, 20, 0.96));
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-  width: 100%;
-  box-sizing: border-box;
+    radial-gradient(circle at top right, rgba(0,152,234,.18), transparent 34%),
+    var(--glass);
+  box-shadow: 0 0 24px rgba(0,152,234,.12);
+  backdrop-filter: blur(18px);
 }
 
 .mine-hero .eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-ton);
+  margin-bottom: 8px;
+  color: var(--blue2);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  margin-bottom: 8px;
+  letter-spacing: .10em;
 }
 
 .mine-hero h1 {
   margin: 0;
-  color: var(--color-text);
-  font-size: 34px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 32px;
   line-height: 1;
 }
 
 .mine-hero p {
   margin: 8px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.45;
   max-width: 260px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .mine-balance {
-  flex: none;
-  min-width: 116px;
+  flex: 0 0 auto;
+  min-width: 120px;
   padding: 12px;
-  border-radius: 18px;
-  background: rgba(0, 152, 234, 0.12);
-  border: 1px solid rgba(0, 152, 234, 0.22);
+  border: 1px solid rgba(0,194,255,.18);
+  border-radius: 16px;
+  background: rgba(0,152,234,.10);
   text-align: right;
 }
 
 .mine-balance span,
 .mine-field label {
   display: block;
-  color: var(--color-muted);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
+  letter-spacing: .05em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .mine-balance strong {
   display: block;
   margin-top: 4px;
-  color: var(--color-text);
-  font-size: 17px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .mine-card {
-  border-radius: 24px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(7, 14, 28, 0.82);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
   width: 100%;
-  box-sizing: border-box;
+  border: var(--glass-border);
+  border-radius: 22px;
+  background: var(--glass);
+  box-shadow: 0 0 24px rgba(0,152,234,.12);
+  backdrop-filter: blur(18px);
 }
 
 .mine-controls {
@@ -97,96 +97,123 @@
   margin-top: 8px;
   display: flex;
   align-items: center;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 152, 234, 0.24);
-  background: rgba(2, 8, 18, 0.78);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  background: rgba(15,17,21,.72);
   overflow: hidden;
+}
+
+.mine-input-wrap:focus-within {
+  border-color: rgba(0,194,255,.48);
+  box-shadow: var(--ton-glow);
 }
 
 .mine-input-wrap input {
   min-width: 0;
-  width: 100%;
   flex: 1;
-  padding: 14px;
-  color: var(--color-text);
-  background: transparent;
+  width: 100%;
+  padding: 13px 14px;
   border: 0;
   outline: 0;
-  font-size: 20px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 18px;
   font-weight: 800;
 }
 
 .mine-input-wrap span {
+  flex: 0 0 auto;
   padding-right: 14px;
-  color: var(--color-ton);
+  color: var(--blue2);
+  font-size: 12px;
   font-weight: 800;
 }
 
 .mine-digit-grid {
   margin-top: 8px;
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .mine-digit-grid button {
   aspect-ratio: 1;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 152, 234, 0.2);
-  background: rgba(2, 8, 18, 0.78);
-  color: var(--color-text);
+  min-height: 42px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  background: rgba(15,17,21,.72);
+  color: var(--text);
+  font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 900;
   cursor: pointer;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+
+.mine-digit-grid button:hover:not(:disabled) {
+  border-color: rgba(0,194,255,.34);
+  background: rgba(0,152,234,.12);
+}
+
+.mine-digit-grid button:active:not(:disabled) {
+  transform: scale(.97);
 }
 
 .mine-digit-grid button.on {
-  border-color: rgba(0, 194, 255, 0.65);
-  background: rgba(0, 152, 234, 0.26);
+  border-color: rgba(0,194,255,.60);
+  background: var(--color-ton-muted);
   color: #fff;
-  box-shadow: 0 0 16px rgba(0, 152, 234, 0.22);
+  box-shadow: var(--ton-glow);
 }
 
 .mine-primary {
   width: 100%;
-  border-radius: 17px;
-  padding: 14px 16px;
+  min-height: 48px;
   border: 0;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  background: var(--btn-ton);
   color: #fff;
-  background: linear-gradient(135deg, #0098ea, #00c2ff);
-  box-shadow: 0 14px 26px rgba(0, 152, 234, 0.28);
+  box-shadow: var(--ton-glow);
+  font-family: var(--font);
+  font-size: 14px;
   font-weight: 900;
-  letter-spacing: 0.04em;
+  letter-spacing: .04em;
   cursor: pointer;
+  transition: transform .14s ease, filter .14s ease;
+}
+
+.mine-primary:active:not(:disabled) {
+  transform: scale(.98);
 }
 
 .mine-primary:disabled,
 .mine-digit-grid button:disabled {
-  opacity: 0.58;
+  opacity: .58;
   cursor: not-allowed;
 }
 
 .mine-disabled {
-  margin-bottom: 12px;
+  margin: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #fca5a5;
+  color: var(--red);
   font-size: 13px;
   font-weight: 700;
 }
 
 .mine-status {
-  margin-top: 14px;
-  min-height: 36px;
-  padding: 11px 12px;
-  border-radius: 16px;
-  background: rgba(2, 8, 18, 0.7);
-  color: var(--color-muted);
+  min-height: 44px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(15,17,21,.62);
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -203,14 +230,20 @@
 
 .mine-room-head h3 {
   margin: 0;
-  color: var(--color-text);
+  color: var(--text);
+  font-family: var(--font-display);
   font-size: 15px;
-  letter-spacing: 0.02em;
+  font-weight: 800;
 }
 
 .mine-room-head span {
-  color: var(--color-muted);
-  font-size: 12px;
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid rgba(0,194,255,.18);
+  border-radius: 999px;
+  background: rgba(0,152,234,.10);
+  color: var(--blue2);
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -221,28 +254,24 @@
 }
 
 .mine-game-row {
+  width: 100%;
+  min-height: 72px;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  background: rgba(15,17,21,.62);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 68px;
-  padding: 13px 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(0, 152, 234, 0.18);
-  background:
-    linear-gradient(135deg, rgba(0, 152, 234, 0.1), transparent 42%),
-    rgba(2, 8, 18, 0.72);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .mine-game-main,
 .mine-game-side {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 0;
 }
 
 .mine-game-main {
@@ -254,6 +283,18 @@
   align-items: flex-end;
 }
 
+.mine-game-code,
+.mine-game-side > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mine-game-amount {
   display: flex;
   align-items: baseline;
@@ -262,28 +303,19 @@
 }
 
 .mine-game-amount strong {
-  color: var(--color-text);
-  font-size: 16px;
   min-width: 0;
   overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 900;
   text-overflow: ellipsis;
 }
 
 .mine-game-amount span {
-  color: var(--color-ton);
+  color: var(--blue2);
   font-size: 11px;
-  font-weight: 900;
-}
-
-.mine-game-code,
-.mine-game-side > span:last-child {
-  color: var(--color-muted);
-  font-size: 12px;
   font-weight: 800;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .mine-game-meta {
@@ -294,58 +326,52 @@
 
 .mine-game-meta span {
   padding: 3px 7px;
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: 999px;
-  background: rgba(0, 152, 234, 0.1);
-  border: 1px solid rgba(0, 194, 255, 0.16);
-  color: var(--color-muted);
+  background: rgba(255,255,255,.04);
+  color: var(--muted);
   font-size: 10px;
   font-weight: 800;
 }
 
 .mine-open-pill {
-  align-self: flex-end;
-  padding: 5px 9px;
+  padding: 6px 10px;
+  border: 1px solid rgba(34,197,94,.30);
   border-radius: 999px;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(34,197,94,.10);
   color: #86efac;
-  background: rgba(34, 197, 94, 0.1);
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.08em;
-  cursor: pointer;
+  letter-spacing: .06em;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .mine-open-pill:disabled {
-  opacity: 0.55;
+  opacity: .55;
   cursor: not-allowed;
 }
 
 .mine-open-pill.muted {
-  border-color: rgba(148, 163, 184, 0.22);
-  color: var(--color-muted);
-  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148,163,184,.22);
+  background: rgba(148,163,184,.08);
+  color: var(--muted);
 }
 
-@media (max-width: 520px) {
+@media (max-width: 430px) {
   .mine-hero {
     flex-direction: column;
     align-items: stretch;
   }
 
   .mine-balance {
-    text-align: left;
-    width: 100%;
     min-width: 0;
-  }
-
-  .mine-digit-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    text-align: left;
   }
 
   .mine-game-row {
-    flex-direction: column;
     align-items: stretch;
+    flex-direction: column;
   }
 
   .mine-game-side {
@@ -353,188 +379,4 @@
     align-items: center;
     justify-content: space-between;
   }
-
-  .mine-open-pill {
-    align-self: auto;
-  }
-}
-
-/* Premium mine console layer */
-.mine-hero,
-.mine-card,
-.mine-game-row {
-  position: relative;
-  overflow: hidden;
-}
-
-.mine-hero {
-  isolation: isolate;
-  border-color: rgba(0, 194, 255, 0.34);
-  background:
-    radial-gradient(circle at 16% 0%, rgba(0, 194, 255, 0.24), transparent 36%),
-    radial-gradient(circle at 100% 18%, rgba(240, 180, 41, 0.14), transparent 30%),
-    linear-gradient(145deg, rgba(6, 14, 28, 0.96), rgba(1, 6, 16, 0.98));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 26px 70px -48px rgba(0, 194, 255, 0.95);
-}
-
-.mine-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(rgba(125, 211, 252, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(125, 211, 252, 0.055) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: radial-gradient(circle at 20% 20%, #000, transparent 72%);
-  pointer-events: none;
-  z-index: -2;
-}
-
-.mine-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(0, 194, 255, 0.14), transparent);
-  transform: translateX(-110%);
-  animation: mineScan 5.5s ease-in-out infinite;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.mine-hero .eyebrow {
-  width: fit-content;
-  padding: 5px 9px;
-  border: 1px solid rgba(0, 194, 255, 0.28);
-  border-radius: 999px;
-  background: rgba(0, 152, 234, 0.12);
-  color: #7dd3fc;
-}
-
-.mine-hero h1 {
-  text-shadow: 0 0 28px rgba(0, 194, 255, 0.22);
-}
-
-.mine-balance {
-  border-color: rgba(0, 194, 255, 0.34);
-  background:
-    linear-gradient(145deg, rgba(0, 152, 234, 0.16), rgba(255,255,255,0.04)),
-    rgba(2, 8, 18, 0.72);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-}
-
-.mine-card {
-  border-color: rgba(0, 194, 255, 0.22);
-  background:
-    radial-gradient(circle at 92% 0%, rgba(0, 194, 255, 0.14), transparent 30%),
-    linear-gradient(145deg, rgba(7, 16, 32, 0.90), rgba(2, 8, 18, 0.94));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    0 20px 56px -44px rgba(0, 194, 255, 0.85);
-}
-
-.mine-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(rgba(125, 211, 252, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(125, 211, 252, 0.035) 1px, transparent 1px);
-  background-size: 24px 24px;
-  opacity: .6;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.mine-controls,
-.mine-room-head,
-.mine-games-list {
-  position: relative;
-  z-index: 1;
-}
-
-.mine-input-wrap {
-  border-color: rgba(0, 194, 255, 0.30);
-  background: rgba(1, 7, 18, 0.82);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
-}
-
-.mine-input-wrap:focus-within {
-  border-color: rgba(0, 194, 255, 0.62);
-  box-shadow: 0 0 22px rgba(0, 152, 234, 0.20);
-}
-
-.mine-digit-grid button {
-  transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
-}
-
-.mine-digit-grid button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: rgba(0, 194, 255, 0.42);
-  background: rgba(0, 152, 234, 0.16);
-}
-
-.mine-digit-grid button.on {
-  background:
-    radial-gradient(circle at 50% 0%, rgba(125, 211, 252, 0.35), transparent 58%),
-    rgba(0, 152, 234, 0.28);
-  box-shadow: 0 0 22px rgba(0, 194, 255, 0.30);
-}
-
-.mine-primary,
-.mine-open-pill {
-  transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
-}
-
-.mine-primary:hover:not(:disabled),
-.mine-open-pill:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-}
-
-.mine-status {
-  border: 1px solid rgba(0, 194, 255, 0.16);
-  background: rgba(1, 7, 18, 0.78);
-}
-
-.mine-room-head span,
-.mine-game-meta span {
-  border-color: rgba(0, 194, 255, 0.22);
-  background: rgba(0, 152, 234, 0.11);
-}
-
-.mine-game-row {
-  border-color: rgba(0, 194, 255, 0.20);
-  background:
-    linear-gradient(135deg, rgba(0, 152, 234, 0.14), transparent 44%),
-    rgba(1, 7, 18, 0.76);
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-
-.mine-game-row::after {
-  content: '';
-  position: absolute;
-  inset: auto 12px 8px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 194, 255, 0.46), transparent);
-  opacity: .72;
-  pointer-events: none;
-}
-
-.mine-game-row:hover {
-  transform: translateY(-1px);
-  border-color: rgba(0, 194, 255, 0.44);
-  box-shadow: 0 20px 48px -38px rgba(0, 194, 255, 0.85);
-}
-
-.mine-open-pill {
-  box-shadow: 0 0 18px rgba(34, 197, 94, 0.16);
-}
-
-@keyframes mineScan {
-  0%, 48% { transform: translateX(-110%); opacity: 0; }
-  58% { opacity: 1; }
-  76%, 100% { transform: translateX(110%); opacity: 0; }
 }
