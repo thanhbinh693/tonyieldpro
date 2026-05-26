@@ -307,7 +307,8 @@
 }
 
 .tx-kind.deposit,
-.tx-kind.referral {
+.tx-kind.referral,
+.tx-kind.mine {
   background: rgba(0, 152, 234, .14);
   color: var(--blue2);
 }
@@ -385,7 +386,7 @@
 
 .tx-type-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   margin: 0 0 8px;
 }
@@ -447,6 +448,11 @@
 .tx-type-tab.profit.active {
   border-color: rgba(255,214,0,.34);
   background: linear-gradient(135deg, rgba(255,214,0,.18), rgba(0,152,234,.10));
+}
+
+.tx-type-tab.mine.active {
+  border-color: rgba(0,194,255,.38);
+  background: linear-gradient(135deg, rgba(0,194,255,.20), rgba(0,152,234,.10));
 }
 
 .tx-list-animated {

@@ -440,7 +440,7 @@ async function userPlayMine(userId: number, payload: Record<string, unknown>) {
   const { error: txErr } = await supabase.from('transactions').insert({
     id: txId,
     user_id: userId,
-    type: win ? 'profit' : 'game',
+    type: 'mine',
     label: win ? `Mine win ${multiplier.toFixed(2)}x` : 'Mine loss',
     amount: netAmount,
     status: 'completed',
@@ -500,8 +500,16 @@ type MinePlayer = {
   status: 'joined' | 'win' | 'loss'
   payout?: number
   fee?: number
+  risk?: number
+  creator_cell?: number
+  creator_win_rate?: number
+  result_digit?: number
+  random_payout?: number
   joined_at: string
 }
+
+const MINE_MAX_PLAYERS = 5
+const MINE_OPEN_RISK_MULTIPLIER = 1.2
 
 async function mineListGames(userId: number) {
   const { data, error } = await supabase
@@ -516,10 +524,11 @@ async function mineListGames(userId: number) {
 
 async function mineCreateGame(userId: number, payload: Record<string, unknown>) {
   const bet = roundMoney(Number(payload.bet ?? payload.bet_amount))
-  const safeCell = Math.trunc(Number(payload.safe_cell))
   if (!bet || bet <= 0) return json({ ok: false, error: 'Invalid amount' }, 400)
-  if (!Number.isInteger(safeCell) || safeCell < 0 || safeCell > 9) {
-    return json({ ok: false, error: 'Invalid safe cell. Enter a number from 0 to 9.' }, 400)
+
+  const safeCell = Math.trunc(Number(payload.mine_digit ?? payload.safe_cell ?? payload.cell))
+  if (!Number.isInteger(safeCell) || safeCell < 1 || safeCell > 9) {
+    return json({ ok: false, error: 'Invalid creator cell. Choose a number from 1 to 9.' }, 400)
   }
 
   const cfg = await getMineConfig()
@@ -555,7 +564,12 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
       creator_win_rate: cfg.creatorWinRate,
       status: 'open',
       players: [],
-      result: {},
+      result: {
+        max_players: MINE_MAX_PLAYERS,
+        risk_multiplier: MINE_OPEN_RISK_MULTIPLIER,
+        payout_cap: roundMoney(bet * (1 - cfg.feeRate / 100)),
+        paid_out: 0,
+      },
       updated_at: now,
     })
     .select('*')
@@ -567,7 +581,7 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
   }
 
   await insertGameTx({
-    id: `mine-lock-${publicId(10)}`,
+    id: publicId(10),
     userId,
     label: `Mine created ${shortGameId(gameId)}`,
     amount: -bet,
@@ -579,11 +593,7 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
 
 async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const gameId = String(payload.game_id || '').trim()
-  const cell = Math.trunc(Number(payload.cell ?? payload.selected_cell ?? payload.slot))
   if (!gameId) return json({ ok: false, error: 'Missing game_id' }, 400)
-  if (!Number.isInteger(cell) || cell < 0 || cell > 9) {
-    return json({ ok: false, error: 'Invalid cell. Enter a number from 0 to 9.' }, 400)
-  }
 
   const cfg = await getMineConfig()
   if (!cfg.enabled) return json({ ok: false, error: 'Mine game is disabled' }, 403)
@@ -600,20 +610,33 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
 
   const players = normalizeMinePlayers(game.players)
   if (players.some((p) => Number(p.user_id) === userId)) return json({ ok: false, error: 'Already joined this game' }, 400)
-  if (players.length >= 4) return json({ ok: false, error: 'Game is full' }, 400)
+  if (players.length >= MINE_MAX_PLAYERS) return json({ ok: false, error: 'Game is full' }, 400)
 
   const user = await getPlayableUser(userId)
   const bet = roundMoney(Number(game.bet_amount))
-  if (user.balance < bet) return json({ ok: false, error: 'Insufficient balance' }, 400)
+  const riskAmount = roundMoney(bet * MINE_OPEN_RISK_MULTIPLIER)
+  if (user.balance < riskAmount) return json({ ok: false, error: `Need ${riskAmount} TON balance to open this game` }, 400)
 
   const now = new Date().toISOString()
-  const win = cell === Number(game.safe_cell)
   const feeRate = Math.min(50, Math.max(0, Number(game.fee_rate) || cfg.feeRate))
-  const creatorWinRate = Math.min(90, Math.max(0, Number(game.creator_win_rate) || cfg.creatorWinRate))
   const fee = roundMoney(bet * (feeRate / 100))
-  const creatorReward = win ? roundMoney(bet * (creatorWinRate / 100)) : 0
-  const payout = win ? roundMoney(bet * 2 - fee) : 0
-  const playerNet = win ? roundMoney(payout - bet) : -bet
+  const oldResult = (game.result && typeof game.result === 'object') ? game.result as Record<string, unknown> : {}
+  const payoutCap = roundMoney(Number(oldResult.payout_cap ?? (bet - fee)))
+  const paidOut = roundMoney(Number(oldResult.paid_out || 0))
+  const remainingPool = roundMoney(Math.max(0, payoutCap - paidOut))
+  const candidatePayout = remainingPool > 0 ? randomMinePayout(remainingPool, MINE_MAX_PLAYERS - players.length) : 0
+  const creatorCell = Math.trunc(Number(game.safe_cell))
+  const gameCreatorWinRate = Number(game.creator_win_rate)
+  const creatorWinRate = Math.min(90, Math.max(0, Number.isFinite(gameCreatorWinRate) ? gameCreatorWinRate : cfg.creatorWinRate))
+  if (!Number.isInteger(creatorCell) || creatorCell < 1 || creatorCell > 9) {
+    return json({ ok: false, error: 'Invalid game creator cell' }, 409)
+  }
+  const creatorWins = remainingPool <= 0 || randomPercent() < creatorWinRate
+  const resultDigit = creatorWins ? creatorCell : randomDigitExcept(creatorCell)
+  const win = remainingPool > 0 && !creatorWins
+  const payout = win ? candidatePayout : 0
+  const nextPaidOut = roundMoney(paidOut + payout)
+  const playerNet = win ? payout : -riskAmount
 
   const nextUserBalance = roundMoney(user.balance + playerNet)
   const { data: updatedUser, error: updateErr } = await supabase
@@ -625,7 +648,7 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
       updated_at: now,
     })
     .eq('id', userId)
-    .gte('balance', win ? 0 : bet)
+    .gte('balance', riskAmount)
     .select('balance')
     .maybeSingle()
   if (updateErr) throw updateErr
@@ -635,23 +658,42 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
     user_id: userId,
     username: String(user.username || ''),
     first_name: String(user.first_name || ''),
-    cell,
+    cell: creatorCell,
     status: win ? 'win' : 'loss',
     payout,
     fee,
+    risk: riskAmount,
+    creator_cell: creatorCell,
+    creator_win_rate: creatorWinRate,
+    result_digit: resultDigit,
+    random_payout: candidatePayout,
     joined_at: now,
   }
   const nextPlayers = [...players, joinedPlayer]
-  const completed = win || nextPlayers.length >= 4
+  const completed = nextPlayers.length >= MINE_MAX_PLAYERS || nextPaidOut >= payoutCap
   const result = completed
     ? {
-      winner_id: win ? userId : Number(game.creator_id),
-      winner_role: win ? 'player' : 'creator',
+      ...oldResult,
       winning_cell: Number(game.safe_cell),
-      completed_reason: win ? 'safe_cell_found' : 'slots_filled',
+      payout_cap: payoutCap,
+      paid_out: nextPaidOut,
+      remaining_pool: roundMoney(Math.max(0, payoutCap - nextPaidOut)),
+      max_players: MINE_MAX_PLAYERS,
+      risk_multiplier: MINE_OPEN_RISK_MULTIPLIER,
+      rule: 'creator_cell_win_rate',
+      completed_reason: nextPlayers.length >= MINE_MAX_PLAYERS ? 'slots_filled' : 'pool_depleted',
       completed_at: now,
     }
-    : (game.result || {})
+    : {
+      ...oldResult,
+      winning_cell: Number(game.safe_cell),
+      payout_cap: payoutCap,
+      paid_out: nextPaidOut,
+      remaining_pool: roundMoney(Math.max(0, payoutCap - nextPaidOut)),
+      max_players: MINE_MAX_PLAYERS,
+      risk_multiplier: MINE_OPEN_RISK_MULTIPLIER,
+      rule: 'creator_cell_win_rate',
+    }
 
   const { data: updatedGame, error: saveErr } = await supabase
     .from('mine_games')
@@ -673,42 +715,31 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   }
 
   await insertGameTx({
-    id: `mine-player-${publicId(10)}`,
+    id: publicId(10),
     userId,
     label: win ? `Mine win ${shortGameId(gameId)}` : `Mine loss ${shortGameId(gameId)}`,
     amount: playerNet,
     invoiceId: gameId,
   })
 
-  if (creatorReward > 0) {
+  if (!win) {
+    const creator = await getPlayableUser(Number(game.creator_id))
     await supabase
       .from('users')
-      .update({ updated_at: now })
+      .update({
+        balance: roundMoney(creator.balance + riskAmount),
+        total_profit: roundMoney(Number(creator.total_profit || 0) + riskAmount),
+        today_profit: roundMoney(Number(creator.today_profit || 0) + riskAmount),
+        updated_at: now,
+      })
       .eq('id', Number(game.creator_id))
-    await supabase.rpc('credit_profit', {
-      p_user_id: Number(game.creator_id),
-      p_investment_id: gameId,
-      p_profit: creatorReward,
-      p_new_earned: creatorReward,
-      p_next_time: Date.now(),
-      p_old_next_time: Date.now(),
-      p_tx_id: `mine-creator-${publicId(10)}`,
-      p_tx_label: `Mine creator fee ${shortGameId(gameId)}`,
-      p_now: Date.now(),
-    }).then(async (result: { error: unknown }) => {
-      if (result.error) {
-        await supabase.from('users').update({
-          balance: roundMoney(Number((await getPlayableUser(Number(game.creator_id))).balance) + creatorReward),
-          updated_at: now,
-        }).eq('id', Number(game.creator_id))
-        await insertGameTx({
-          id: `mine-creator-${publicId(10)}`,
-          userId: Number(game.creator_id),
-          label: `Mine creator fee ${shortGameId(gameId)}`,
-          amount: creatorReward,
-          invoiceId: gameId,
-        })
-      }
+
+    await insertGameTx({
+      id: publicId(10),
+      userId: Number(game.creator_id),
+      label: `Mine creator reward ${shortGameId(gameId)}`,
+      amount: riskAmount,
+      invoiceId: gameId,
     })
   }
 
@@ -718,10 +749,39 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
     payout,
     profit: playerNet,
     fee,
-    creator_reward: creatorReward,
+    risk: riskAmount,
+    result_digit: resultDigit,
+    random_payout: candidatePayout,
+    remaining_pool: roundMoney(Math.max(0, payoutCap - nextPaidOut)),
     game: updatedGame,
     balance: Number(updatedUser.balance),
   })
+}
+
+function randomPercent() {
+  const bytes = new Uint32Array(1)
+  globalThis.crypto.getRandomValues(bytes)
+  return (bytes[0] / 0xFFFFFFFF) * 100
+}
+
+function randomDigitExcept(excluded: number) {
+  const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter((digit) => digit !== excluded)
+  const bytes = new Uint32Array(1)
+  globalThis.crypto.getRandomValues(bytes)
+  return digits[bytes[0] % digits.length]
+}
+
+function randomMinePayout(remainingPool: number, remainingSlots: number) {
+  const pool = roundMoney(remainingPool)
+  if (pool <= 0) return 0
+  const slots = Math.max(1, remainingSlots)
+  const fairSlice = pool / slots
+  const min = Math.min(pool, Math.max(0.001, fairSlice * 0.35))
+  const max = Math.min(pool, Math.max(min, fairSlice * 1.65))
+  const bytes = new Uint32Array(1)
+  globalThis.crypto.getRandomValues(bytes)
+  const ratio = bytes[0] / 0xFFFFFFFF
+  return roundMoney(min + (max - min) * ratio)
 }
 
 async function mineRevealCell(userId: number, payload: Record<string, unknown>) {
@@ -753,14 +813,14 @@ async function getMineConfig() {
     .eq('id', 1)
     .maybeSingle()
   if (error) throw error
-  const minBet = Math.max(0.001, Number(cfg?.mine_min_bet) || 0.01)
+  const minBet = Math.max(1, Number(cfg?.mine_min_bet) || 1)
   const configuredMaxBet = Number(cfg?.mine_max_bet)
   return {
     enabled: cfg?.mine_enabled !== false,
     minBet,
     maxBet: Number.isFinite(configuredMaxBet) && configuredMaxBet > 0 ? Math.max(minBet, configuredMaxBet) : null,
     feeRate: Math.min(50, Math.max(0, Number(cfg?.mine_fee_rate) || 5)),
-    creatorWinRate: Math.min(90, Math.max(0, Number(cfg?.mine_creator_win_rate) || 30)),
+    creatorWinRate: Math.min(90, Math.max(0, Number.isFinite(Number(cfg?.mine_creator_win_rate)) ? Number(cfg?.mine_creator_win_rate) : 30)),
   }
 }
 
@@ -787,7 +847,7 @@ async function insertGameTx(params: { id: string; userId: number; label: string;
   const { error } = await supabase.from('transactions').insert({
     id: params.id,
     user_id: params.userId,
-    type: params.amount >= 0 ? 'profit' : 'game',
+    type: 'mine',
     label: params.label,
     amount: params.amount,
     status: 'completed',

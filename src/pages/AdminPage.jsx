@@ -34,13 +34,14 @@ const adminIconColor = {
   purple: '#00C2FF',
   muted: '#94A3B8',
 }
-const txIconMap = { deposit: ArrowDownCircle, withdraw: ArrowUpCircle, profit: Coins, referral: Users }
-const txIconColor = { deposit: '#0098EA', withdraw: '#EF4444', profit: '#FFD600', referral: '#0098EA' }
+const txIconMap = { deposit: ArrowDownCircle, withdraw: ArrowUpCircle, profit: Coins, referral: Users, mine: Bomb, game: Bomb }
+const txIconColor = { deposit: '#0098EA', withdraw: '#EF4444', profit: '#FFD600', referral: '#0098EA', mine: '#00C2FF', game: '#00C2FF' }
 const displayTxStatus = (status) => status === 'sent' ? 'completed' : status
 const TX_TYPE_FILTERS = [
   { id:'deposit', label:'Deposit' },
   { id:'withdraw', label:'Withdraw' },
   { id:'profit', label:'Profit' },
+  { id:'mine', label:'Mine' },
   { id:'referral', label:'Referral' },
 ]
 const sectionIconMap = {
@@ -89,9 +90,30 @@ const getProfitPlanName = (items) => {
 
 const isCapitalReleaseTx = (tx) =>
   tx?.type === 'deposit' && (/^principal returned\b/i.test(String(tx.label || '').trim()) || String(tx.id || '').startsWith('ret-'))
+const isMineTx = (tx) =>
+  tx?.type === 'mine' || tx?.type === 'game' || /^mine\b/i.test(String(tx?.label || '').trim())
+const mineResult = (tx) => {
+  const label = String(tx?.label || '')
+  if (/^mine created\b/i.test(label)) return 'LOCK'
+  if (/^mine creator|^mine room return/i.test(label)) return 'REWARD'
+  return (Number(tx?.amount) || 0) >= 0 ? 'WIN' : 'LOSS'
+}
 const adminTxTitle = (tx) => {
   if (isCapitalReleaseTx(tx)) return 'Capital Release'
+  if (isMineTx(tx)) {
+    const result = mineResult(tx)
+    if (result === 'WIN') return 'Mine Win'
+    if (result === 'LOSS') return 'Mine Loss'
+    if (result === 'LOCK') return 'Mine Room'
+    return 'Mine Reward'
+  }
   return tx.label
+}
+
+const txMatchesFilter = (tx, filterId) => {
+  if (filterId === 'mine') return isMineTx(tx)
+  if (filterId === 'profit') return tx.type === 'profit' && !isMineTx(tx)
+  return tx.type === filterId
 }
 
 const buildProfitGroups = (txs, allTx = []) => {
@@ -117,9 +139,9 @@ const buildProfitGroups = (txs, allTx = []) => {
 const shortCode = (value) => {
   const raw = String(value || '')
     .replace(/^plan-/i, '')
-    .replace(/^(tx-wd-|tx-|wd-|prf-|ref-|ret-|inv-)/i, '')
+    .replace(/^(tx-wd-|tx-|wd-|prf-|ref-|ret-|inv-|mine-lock-|mine-player-|mine-creator-|mine-)/i, '')
     .replace(/[^A-Za-z0-9]/g, '')
-    .replace(/^(txwd|tx|wd|prf|ref|ret|inv)/i, '')
+    .replace(/^(txwd|tx|wd|prf|ref|ret|inv|mine)/i, '')
   if (!raw) return 'NA'
   return raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
 }
@@ -249,11 +271,11 @@ export default function AdminPage({
 
   const allTxSorted = [...allTx].sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
   const txCounts = TX_TYPE_FILTERS.reduce((acc, f) => {
-    acc[f.id] = allTx.filter(t => t.type === f.id).length
+    acc[f.id] = allTx.filter(t => txMatchesFilter(t, f.id)).length
     return acc
   }, {})
   const activeTxFilter = txFilter
-  const filteredTx  = allTxSorted.filter(t => t.type === activeTxFilter)
+  const filteredTx  = allTxSorted.filter(t => txMatchesFilter(t, activeTxFilter))
   const filteredProfitGroups = activeTxFilter === 'profit' ? buildProfitGroups(filteredTx, allTx) : []
 
   const filteredUsers = allUsers.filter(u => {
@@ -678,15 +700,15 @@ export default function AdminPage({
             )
           })}
           {activeTxFilter !== 'profit' && filteredTx.map(tx => (
-            <div key={tx.id} className={`adm-tx-row admin-history-row ${tx.type} ${isCapitalReleaseTx(tx) ? 'capital-release' : ''}`}>
-              <div className={`atr-ico ${tx.type}`}><AdminTxIcon type={tx.type} /></div>
+            <div key={tx.id} className={`adm-tx-row admin-history-row ${isMineTx(tx) ? 'mine' : tx.type} ${isCapitalReleaseTx(tx) ? 'capital-release' : ''}`}>
+              <div className={`atr-ico ${isMineTx(tx) ? 'mine' : tx.type}`}><AdminTxIcon type={isMineTx(tx) ? 'mine' : tx.type} /></div>
               <div className="atr-left">
                 <div className="atr-label">
                   {(() => {
                     const u = allUsers.find(u => Number(u.id)===Number(tx.userId))
                     return u ? <><strong>@{u.username||u.firstName||'—'}</strong> <span style={{color:'var(--muted)',fontSize:11}}>#{tx.userId}</span></> : `User#${tx.userId}`
                   })()}
-                  <span className={`admin-history-type ${isCapitalReleaseTx(tx) ? 'release' : ''}`}>{isCapitalReleaseTx(tx) ? 'release' : (tx.type === 'withdraw' ? 'WD' : tx.type)}</span>
+                  <span className={`admin-history-type ${isCapitalReleaseTx(tx) ? 'release' : isMineTx(tx) ? 'mine' : ''}`}>{isCapitalReleaseTx(tx) ? 'release' : isMineTx(tx) ? mineResult(tx) : (tx.type === 'withdraw' ? 'WD' : tx.type)}</span>
                 </div>
                 <div className="admin-history-label">{adminTxTitle(tx)}</div>
                 <div className="admin-history-meta">
@@ -987,6 +1009,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [withdrawReferralGateEnabled, setWithdrawReferralGateEnabled] = useState(!!config.withdrawReferralGateEnabled)
   const [withdrawMinReferrals, setWithdrawMinReferrals] = useState(config.withdrawMinReferrals ?? 3)
   const [mineEnabled, setMineEnabled] = useState(config.mineEnabled ?? true)
+  const [mineMinBet, setMineMinBet] = useState(config.mineMinBet ?? 1)
   const [mineFeeRate, setMineFeeRate] = useState(config.mineFeeRate ?? 5)
   const [mineCreatorWinRate, setMineCreatorWinRate] = useState(config.mineCreatorWinRate ?? 30)
   const [tonNetwork,   setTonNetwork]   = useState(config.tonNetwork   || 'testnet')
@@ -1005,6 +1028,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     setWithdrawReferralGateEnabled(!!config.withdrawReferralGateEnabled)
     setWithdrawMinReferrals(config.withdrawMinReferrals ?? 3)
     setMineEnabled(config.mineEnabled ?? true)
+    setMineMinBet(config.mineMinBet ?? 1)
     setMineFeeRate(config.mineFeeRate ?? 5)
     setMineCreatorWinRate(config.mineCreatorWinRate ?? 30)
     setTonNetwork(config.tonNetwork || 'testnet')
@@ -1023,6 +1047,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     if (!activeAdminWallet) { showToast(`Admin ${tonNetwork} wallet cannot be empty`,'err'); return }
     if (parsedIds.length === 0) { showToast('Add at least one Admin Telegram ID','err'); return }
     if (cleanWebhookUrl && !/^https?:\/\//i.test(cleanWebhookUrl)) { showToast('Webhook URL must start with http:// or https://','err'); return }
+    const cleanMineMinBet = Math.max(1, Number(mineMinBet) || 1)
     const cleanMineFeeRate = Math.min(50, Math.max(0, Number(mineFeeRate) || 0))
     const cleanMineCreatorWinRate = Math.min(90, Math.max(0, Number(mineCreatorWinRate) || 0))
     onSave({
@@ -1038,6 +1063,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       withdrawReferralGateEnabled,
       withdrawMinReferrals: Math.max(0, Number(withdrawMinReferrals) || 0),
       mineEnabled: !!mineEnabled,
+      mineMinBet: cleanMineMinBet,
       mineFeeRate: cleanMineFeeRate,
       mineCreatorWinRate: cleanMineCreatorWinRate,
       tonNetwork,
@@ -1145,7 +1171,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
 
       <div className="setting-group mine-admin-config">
         <div className="sg-label"><Bomb size={16} color="#FFD600" />Mine Game</div>
-        <div className="sg-desc">Configure the Mine balance game without changing code. Entries use user balance and payouts are handled server-side.</div>
+        <div className="sg-desc">Openers need 1.2x room amount. Creator picks a cell from 1 to 9; the server roll uses creator win rate and pays a random amount to winning openers.</div>
         <label className="sg-check-row">
           <input type="checkbox" checked={mineEnabled} onChange={e=>setMineEnabled(e.target.checked)} />
           <span>Enable Mine page for users</span>
@@ -1153,6 +1179,10 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
         <div className="sg-row">
           <input className="sg-input sg-input-sm" type="number" value={5} disabled />
           <span className="sg-unit">slots</span>
+        </div>
+        <div className="sg-row">
+          <input className="sg-input sg-input-sm" type="number" min="1" step="0.5" value={mineMinBet} onChange={e=>setMineMinBet(+e.target.value)} />
+          <span className="sg-unit">min TON</span>
         </div>
         <div className="sg-row">
           <input className="sg-input sg-input-sm" type="number" min="0" max="50" step="0.5" value={mineFeeRate} onChange={e=>setMineFeeRate(+e.target.value)} />

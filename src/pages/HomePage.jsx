@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { ArrowDownCircle, ArrowUpCircle, Bell, ChevronRight, Clock, Hash, Minus, Play, Plus, Shield, Target, TrendingUp, Users } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, Bell, Bomb, ChevronRight, Clock, Hash, Minus, Play, Plus, Shield, Target, TrendingUp, Users } from 'lucide-react'
 import { DAY_NAMES_FULL } from '../utils/config'
 import './HomePage.css'
 
@@ -175,9 +175,9 @@ function PlanRing({ inv, onActivate, onCollect }) {
   )
 }
 
-const txIcon  = { profit: TrendingUp, deposit: ArrowDownCircle, withdraw: ArrowUpCircle, referral: Users }
-const txClass = { profit:'p',  deposit:'d', withdraw:'w', referral:'r'  }
-const txColor = { profit:'#FFD600', deposit:'#0098EA', withdraw:'#EF4444', referral:'#0098EA' }
+const txIcon  = { profit: TrendingUp, deposit: ArrowDownCircle, withdraw: ArrowUpCircle, referral: Users, mine: Bomb, game: Bomb }
+const txClass = { profit:'p',  deposit:'d', withdraw:'w', referral:'r', mine:'m', game:'m' }
+const txColor = { profit:'#FFD600', deposit:'#0098EA', withdraw:'#EF4444', referral:'#0098EA', mine:'#00C2FF', game:'#00C2FF' }
 const txDisplayAmount = (tx) => tx.type === 'withdraw'
   ? -Math.abs(Number(tx.amount) || 0)
   : Number(tx.amount) || 0
@@ -231,16 +231,31 @@ const formatMarketIdLabel = (key, planName = '') => {
 const shortCode = (value) => {
   const raw = String(value || '')
     .replace(/^plan-/i, '')
-    .replace(/^(tx-wd-|tx-|wd-|prf-|ref-|ret-|inv-)/i, '')
+    .replace(/^(tx-wd-|tx-|wd-|prf-|ref-|ret-|inv-|mine-lock-|mine-player-|mine-creator-|mine-)/i, '')
     .replace(/[^A-Za-z0-9]/g, '')
-    .replace(/^(txwd|tx|wd|prf|ref|ret|inv)/i, '')
+    .replace(/^(txwd|tx|wd|prf|ref|ret|inv|mine)/i, '')
   if (!raw) return 'NA'
   return raw.length > 10 ? `${raw.slice(0, 4)}...${raw.slice(-4)}` : raw
 }
 const isCapitalReleaseTx = (tx) =>
   tx?.type === 'deposit' && (/^principal returned\b/i.test(String(tx.label || '').trim()) || String(tx.id || '').startsWith('ret-'))
+const isMineTx = (tx) =>
+  tx?.type === 'mine' || tx?.type === 'game' || /^mine\b/i.test(String(tx?.label || '').trim())
+const mineResult = (tx) => {
+  const label = String(tx?.label || '')
+  if (/^mine created\b/i.test(label)) return 'LOCK'
+  if (/^mine creator|^mine room return/i.test(label)) return 'REWARD'
+  return (Number(tx?.amount) || 0) >= 0 ? 'WIN' : 'LOSS'
+}
 const txTitle = (tx) => {
   if (isCapitalReleaseTx(tx)) return 'Capital Release'
+  if (isMineTx(tx)) {
+    const result = mineResult(tx)
+    if (result === 'WIN') return 'Mine Win'
+    if (result === 'LOSS') return 'Mine Loss'
+    if (result === 'LOCK') return 'Mine Room'
+    return 'Mine Reward'
+  }
   if (tx.type === 'withdraw') return 'Withdrawal'
   return formatYieldLabel(tx.label)
 }
@@ -367,8 +382,15 @@ const TX_TYPE_FILTERS = [
   { id:'deposit', label:'Deposit' },
   { id:'withdraw', label:'Withdraw' },
   { id:'profit', label:'Profit' },
+  { id:'mine', label:'Mine' },
   { id:'referral', label:'Referral' },
 ]
+
+const txMatchesFilter = (tx, filterId) => {
+  if (filterId === 'mine') return isMineTx(tx)
+  if (filterId === 'profit') return tx.type === 'profit' && !isMineTx(tx)
+  return tx.type === filterId
+}
 
 export default function HomePage({ user, investments, transactions, plans, config, referral, notifications = [], notificationUnread = 0, markNotificationsSeen, onDeposit, onWithdraw, setTab, setIsAdmin, isAdmin, isAdminView, activateInvestment, collectProfit }) {
   const logoRef = useRef(null)
@@ -643,11 +665,11 @@ export default function HomePage({ user, investments, transactions, plans, confi
         )}
         {transactions.length > 0 && (() => {
           const counts = TX_TYPE_FILTERS.reduce((acc, f) => {
-            acc[f.id] = transactions.filter(tx => tx.type === f.id).length
+            acc[f.id] = transactions.filter(tx => txMatchesFilter(tx, f.id)).length
             return acc
           }, {})
           const activeType = txTypeFilter
-          const activeItems = transactions.filter(tx => tx.type === activeType)
+          const activeItems = transactions.filter(tx => txMatchesFilter(tx, activeType))
           const displayItems = buildTxDisplayItems(activeItems, investments, transactions)
           return (
             <>
@@ -721,13 +743,14 @@ export default function HomePage({ user, investments, transactions, plans, confi
                   }
                   const tx = item.tx
                   const shownAmount = txDisplayAmount(tx)
+                  const visualType = isMineTx(tx) ? 'mine' : tx.type
                   return (
                     <div key={tx.id} className={`tx-row ${isCapitalReleaseTx(tx) ? 'capital-release' : ''}`}>
-                      <div className={`tx-ico ${txClass[tx.type]}`}><TxIconNode type={tx.type} /></div>
+                      <div className={`tx-ico ${txClass[visualType]}`}><TxIconNode type={visualType} /></div>
                       <div className="tx-inf">
                         <div className="tx-title-row">
                           <div className="tx-n">{txTitle(tx)}</div>
-                          <span className={`tx-kind ${isCapitalReleaseTx(tx) ? 'release' : tx.type}`}>{isCapitalReleaseTx(tx) ? 'RELEASE' : tx.type}</span>
+                          <span className={`tx-kind ${isCapitalReleaseTx(tx) ? 'release' : visualType}`}>{isCapitalReleaseTx(tx) ? 'RELEASE' : isMineTx(tx) ? mineResult(tx) : tx.type}</span>
                         </div>
                         <div className="tx-meta-row">
                           {tx.type === 'withdraw' ? (

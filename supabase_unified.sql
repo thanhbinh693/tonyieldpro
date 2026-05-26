@@ -86,7 +86,7 @@ create table if not exists admin_config (
   bot_username text default '',
   ton_network text not null default 'testnet' check (ton_network in ('mainnet', 'testnet')),
   mine_enabled boolean default true,
-  mine_min_bet numeric(18,6) default 0.01,
+  mine_min_bet numeric(18,6) default 1,
   mine_max_bet numeric(18,6) default null,
   mine_fee_rate numeric(8,4) default 5,
   mine_creator_win_rate numeric(8,4) default 30,
@@ -161,7 +161,8 @@ alter table admin_config add column if not exists withdrawal_webhook_url text de
 alter table admin_config add column if not exists withdrawal_webhook_secret text default '';
 alter table admin_config add column if not exists ton_network text not null default 'testnet';
 alter table admin_config add column if not exists mine_enabled boolean default true;
-alter table admin_config add column if not exists mine_min_bet numeric(18,6) default 0.01;
+alter table admin_config add column if not exists mine_min_bet numeric(18,6) default 1;
+alter table admin_config alter column mine_min_bet set default 1;
 alter table admin_config add column if not exists mine_max_bet numeric(18,6) default null;
 alter table admin_config add column if not exists mine_fee_rate numeric(8,4) default 5;
 alter table admin_config add column if not exists mine_creator_win_rate numeric(8,4) default 30;

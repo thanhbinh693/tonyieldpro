@@ -132,7 +132,7 @@ const DEFAULT_CONFIG = {
   withdrawalWebhookSecret: '',
   tonNetwork: TON_NETWORK,
   mineEnabled: true,
-  mineMinBet: 0.01,
+  mineMinBet: 1,
   mineMaxBet: null,
   mineFeeRate: 5,
   mineCreatorWinRate: 30,
@@ -859,9 +859,9 @@ export function useApp() {
     }
   }, [showToast])
 
-  const mineCreate = useCallback(async ({ betAmount, safeCell }) => {
+  const mineCreate = useCallback(async ({ betAmount, mineDigit }) => {
     try {
-      return await mineCreateGame({ betAmount, safeCell })
+      return await mineCreateGame({ betAmount, mineDigit })
     } catch (e) {
       console.error('[mineCreate]', e)
       showToast(`Create game failed: ${e?.message || 'please retry'}.`, 'err')

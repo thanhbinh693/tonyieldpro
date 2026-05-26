@@ -105,6 +105,8 @@
 .atr-ico.withdraw { background:#f04f5a18;color:var(--red); }
 .atr-ico.profit { background:#f0b42918;color:var(--gold); }
 .atr-ico.referral { background:#3b9eff18;color:var(--blue); }
+.atr-ico.mine,
+.atr-ico.game { background:#00c2ff18;color:var(--blue); }
 .atr-left { flex:1;min-width:0; }
 .atr-label { font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
 .atr-date { font-size:10px;color:var(--muted);margin-top:1px; }
@@ -1300,6 +1302,8 @@
 .admin-page .atr-ico.withdraw { background: rgba(239, 68, 68, .1); border-color: rgba(239, 68, 68, .18); }
 .admin-page .atr-ico.profit { background: rgba(245, 158, 11, .1); border-color: rgba(245, 158, 11, .18); }
 .admin-page .atr-ico.referral { background: rgba(0, 152, 234, .1); border-color: rgba(0, 194, 255, .18); }
+.admin-page .atr-ico.mine,
+.admin-page .atr-ico.game { background: rgba(0, 194, 255, .1); border-color: rgba(0, 194, 255, .2); }
 
 .admin-page .atr-label {
   font-size: 12px;
@@ -1389,6 +1393,12 @@
     rgba(15, 23, 34, .58);
 }
 
+.admin-page .admin-history-row.mine {
+  background:
+    linear-gradient(135deg, rgba(0, 194, 255, .10), rgba(8, 12, 18, .72) 38%),
+    rgba(15, 23, 34, .58);
+}
+
 .admin-page .admin-history-row .atr-label > span[style*="marginLeft"],
 .admin-page .admin-history-row .atr-label > span[style*="margin-left"] {
   display: none;
@@ -1413,6 +1423,12 @@
   border-color: rgba(34, 197, 94, .26);
   color: #86efac;
   box-shadow: 0 0 12px rgba(34, 197, 94, .12);
+}
+
+.admin-page .admin-history-type.mine {
+  background: rgba(0, 194, 255, .12);
+  border-color: rgba(0, 194, 255, .24);
+  color: #7dd3fc;
 }
 
 .admin-page .admin-history-row.capital-release {
@@ -1507,6 +1523,11 @@
 .admin-page .tx-filter-pill.profit.on {
   background: linear-gradient(135deg, rgba(255, 214, 0, .16), rgba(0, 152, 234, .08));
   border-color: rgba(255, 214, 0, .26);
+}
+
+.admin-page .tx-filter-pill.mine.on {
+  background: linear-gradient(135deg, rgba(0, 194, 255, .18), rgba(0, 152, 234, .08));
+  border-color: rgba(0, 194, 255, .28);
 }
 
 .admin-page .admin-history-list {

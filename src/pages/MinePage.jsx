@@ -25,16 +25,26 @@ function hasJoinedGame(game, userId) {
   return players.some((p) => Number(p?.user_id) === Number(userId))
 }
 
+const OPEN_RISK_MULTIPLIER = 1.2
+const MAX_OPENERS = 5
+
+function mineGameMeta(game) {
+  const bet = Number(game?.bet_amount) || 0
+  return {
+    requiredBalance: bet * OPEN_RISK_MULTIPLIER,
+  }
+}
+
 export default function MinePage({ user, config, showToast, mineCreate, mineJoin, mineList }) {
   const mineEnabled = config?.mineEnabled !== false
-  const minBet = Number(config?.mineMinBet ?? 0.01)
+  const minBet = Number(config?.mineMinBet ?? 1)
   const configuredMaxBet = Number(config?.mineMaxBet)
   const maxBet = Number.isFinite(configuredMaxBet) && configuredMaxBet > 0 ? configuredMaxBet : null
   const balance = Number(user?.balance) || 0
   const myUserId = Number(user?.id) || 0
 
   const [amount, setAmount] = useState(String(minBet))
-  const [safeCell, setSafeCell] = useState('')
+  const [creatorCell, setCreatorCell] = useState('')
   const [loading, setLoading] = useState(false)
   const [games, setGames] = useState([])
 
@@ -71,9 +81,8 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
       return
     }
     const entryAmount = Number(amount)
-    const safe = Number(safeCell)
     if (!entryAmount || entryAmount < minBet) {
-      showToast?.(`Minimum amount is ${formatTon(minBet)}.`, 'err')
+      showToast?.(`Minimum game is ${formatTon(minBet)}.`, 'err')
       return
     }
     if (maxBet && entryAmount > maxBet) {
@@ -84,16 +93,17 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
       showToast?.('Insufficient balance.', 'err')
       return
     }
-    if (!Number.isInteger(safe) || safe < 0 || safe > 9) {
-      showToast?.('Please enter safe cell from 0 to 9.', 'err')
+    const selectedCreatorCell = Number(creatorCell)
+    if (!Number.isInteger(selectedCreatorCell) || selectedCreatorCell < 1 || selectedCreatorCell > 9) {
+      showToast?.('Pick creator cell from 1 to 9.', 'err')
       return
     }
 
     setLoading(true)
     try {
-      const result = await mineCreate?.({ betAmount: entryAmount, safeCell: safe })
+      const result = await mineCreate?.({ betAmount: entryAmount, mineDigit: selectedCreatorCell })
       showToast?.(result?.message || 'Game created successfully.', 'ok')
-      setSafeCell('')
+      setCreatorCell('')
       await refreshGames(true)
     } catch (e) {
       console.error('[mine][create]', e)
@@ -104,18 +114,14 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
   const openGame = async (game) => {
     if (!mineEnabled || loading) return
-    const cell = Number(safeCell)
-    const requiredBalance = Number(game?.bet_amount) || 0
+    const meta = mineGameMeta(game)
+    const requiredBalance = meta.requiredBalance
     if (Number(game?.creator_id) === myUserId) {
       showToast?.('This is your game. Wait for another player to open it.', 'err')
       return
     }
     if (hasJoinedGame(game, myUserId)) {
       showToast?.('You already opened this game.', 'err')
-      return
-    }
-    if (!Number.isInteger(cell) || cell < 0 || cell > 9) {
-      showToast?.('Please enter safe cell from 0 to 9 before opening a game.', 'err')
       return
     }
     if (requiredBalance > balance) {
@@ -125,11 +131,11 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
     setLoading(true)
     try {
-      const result = await mineJoin?.({ gameId: game.id, cell })
+      const result = await mineJoin?.({ gameId: game.id })
       showToast?.(
         result?.win
-          ? `Opened. You won ${formatTon(result?.payout || 0)}.`
-          : 'Opened. No safe cell found.',
+          ? `You won ${formatTon(result?.payout || 0)}!`
+          : `Creator cell hit. You lost ${formatTon(result?.risk || requiredBalance)}.`,
         result?.win ? 'ok' : 'err'
       )
       await refreshGames(true)
@@ -150,7 +156,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         <div>
           <div className="eyebrow"><Bomb size={14} /> DROP GAME</div>
           <h1>Mine</h1>
-          <p>Create a compact room with a hidden safe cell and realtime open-game status.</p>
+          <p>Create a compact room. Pick a creator cell; random payouts are rolled against your win rate.</p>
         </div>
         <div className="mine-balance">
           <span>Available</span>
@@ -189,19 +195,21 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         </div>
 
         <div className="mine-field">
-          <label>Your Safe Cell (0 to 9)</label>
-          <div className="mine-input-wrap">
-            <input
-              type="number"
-              min={0}
-              max={9}
-              step="1"
-              value={safeCell}
-              onChange={(e) => setSafeCell(e.target.value)}
-              disabled={loading || !mineEnabled}
-            />
-            <span>#</span>
+          <label>Creator Cell (1 to 9)</label>
+          <div className="mine-digit-grid">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
+              <button
+                key={digit}
+                type="button"
+                className={Number(creatorCell) === digit ? 'on' : ''}
+                onClick={() => setCreatorCell(String(digit))}
+                disabled={loading || !mineEnabled}
+              >
+                {digit}
+              </button>
+            ))}
           </div>
+          <p className="mine-hint">This cell is used by the server roll. Joiners receive the same random payout style when they win.</p>
         </div>
 
         <button className="mine-primary" onClick={createGame} disabled={!mineEnabled || loading}>
@@ -221,6 +229,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
             {openGames.map((g) => {
               const isCreator = Number(g.creator_id) === myUserId
               const joined = hasJoinedGame(g, myUserId)
+              const meta = mineGameMeta(g)
               return (
                 <div
                   key={g.id}
@@ -229,8 +238,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
                   <div className="mine-game-main">
                     <span className="mine-game-code">#{String(g.id).replace(/^mine-/, '').slice(0, 8)}</span>
                     <div className="mine-game-amount">
-                      <strong>{formatTon(g.bet_amount || 0)}</strong>
-                      <span>Need {formatTon(g.bet_amount || 0)}</span>
+                      <span>Need {formatTon(meta.requiredBalance)}</span>
                     </div>
                   </div>
                   <div className="mine-game-side">

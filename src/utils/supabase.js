@@ -364,7 +364,7 @@ export async function getAdminConfig(fallback = null) {
     withdrawalWebhookSecret: data.withdrawal_webhook_secret || '',
     tonNetwork:       data.ton_network || 'testnet',
     mineEnabled:      data.mine_enabled ?? true,
-    mineMinBet:       Number(data.mine_min_bet ?? 0.01),
+    mineMinBet:       Number(data.mine_min_bet ?? 1),
     mineMaxBet:       Number.isFinite(mineMaxBet) && mineMaxBet > 0 ? mineMaxBet : null,
     mineFeeRate:      Number(data.mine_fee_rate ?? 5),
     mineCreatorWinRate: Number(data.mine_creator_win_rate ?? 30),
@@ -388,7 +388,7 @@ export async function saveAdminConfig(cfg) {
       bot_username:     cfg.botUsername || '',
       ton_network:      cfg.tonNetwork || 'testnet',
       mine_enabled:     cfg.mineEnabled !== false,
-      mine_min_bet:     Number(cfg.mineMinBet ?? 0.01),
+      mine_min_bet:     Number(cfg.mineMinBet ?? 1),
       mine_max_bet:     Number.isFinite(Number(cfg.mineMaxBet)) && Number(cfg.mineMaxBet) > 0 ? Number(cfg.mineMaxBet) : null,
       mine_fee_rate:    Number(cfg.mineFeeRate ?? 5),
       mine_creator_win_rate: Number(cfg.mineCreatorWinRate ?? 30),
@@ -397,20 +397,21 @@ export async function saveAdminConfig(cfg) {
   await secureApi('admin_save_config', { row })
 }
 
-export async function mineCreateGame({ betAmount, safeCell }) {
+export async function mineCreateGame({ betAmount, mineDigit }) {
   return secureApi('mine_create_game', {
     bet: Number(betAmount),
-    safe_cell: Number(safeCell),
+    mine_digit: Number(mineDigit),
   })
 }
 
 export async function mineJoinGame({ gameId, slot, cell, selectedCell }) {
   const resolvedCell = cell ?? selectedCell ?? slot
-  return secureApi('mine_join_game', {
+  const payload = {
     game_id: String(gameId),
-    slot: Number(slot),
-    cell: Number(resolvedCell),
-  })
+  }
+  if (resolvedCell !== undefined) payload.cell = Number(resolvedCell)
+  if (slot !== undefined) payload.slot = Number(slot)
+  return secureApi('mine_join_game', payload)
 }
 
 export async function mineRevealCell({ gameId, slot, selectedCell }) {

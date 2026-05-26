@@ -115,6 +115,14 @@
   font-weight: 800;
 }
 
+.mine-hint {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
 .mine-amount-row {
   display: flex;
   gap: 8px;
@@ -133,6 +141,31 @@
   padding: 9px 10px;
   border-radius: 13px;
   font-weight: 800;
+}
+
+.mine-digit-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mine-digit-grid button {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 152, 234, 0.2);
+  background: rgba(2, 8, 18, 0.78);
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mine-digit-grid button.on {
+  border-color: rgba(0, 194, 255, 0.65);
+  background: rgba(0, 152, 234, 0.26);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(0, 152, 234, 0.22);
 }
 
 .mine-primary,
@@ -158,7 +191,8 @@
 
 .mine-primary:disabled,
 .mine-secondary:disabled,
-.mine-amount-row button:disabled {
+.mine-amount-row button:disabled,
+.mine-digit-grid button:disabled {
   opacity: 0.58;
   cursor: not-allowed;
 }
@@ -251,6 +285,22 @@
 .mine-game-side > span:last-child {
   color: var(--color-muted);
   font-size: 12px;
+  font-weight: 800;
+}
+
+.mine-game-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mine-game-meta span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(0, 152, 234, 0.1);
+  border: 1px solid rgba(0, 194, 255, 0.16);
+  color: var(--color-muted);
+  font-size: 10px;
   font-weight: 800;
 }
 
