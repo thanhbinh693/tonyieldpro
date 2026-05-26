@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Bomb, Coins, ShieldAlert, Sparkles, Target } from 'lucide-react'
+import { Bomb, Coins, ShieldAlert, Sparkles } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import './MinePage.css'
 
@@ -157,13 +157,10 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
   return (
     <main className="page mine-page">
       <section className="mine-hero">
-        <div className="mine-hero-mark">
-          <Bomb size={28} />
-        </div>
-        <div className="mine-hero-copy">
+        <div>
           <div className="eyebrow"><Bomb size={14} /> DROP GAME</div>
           <h1>Mine</h1>
-          <p>Pick a lucky digit, open a TON room, and let players chase the prize. Safe rolls win, mine hits pay the creator.</p>
+          <p>Create a compact room. Pick a creator cell; random payouts are rolled against your win rate.</p>
         </div>
         <div className="mine-balance">
           <span>Available</span>
@@ -179,7 +176,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
       <section className="mine-card mine-controls">
         <div className="mine-field">
-          <label>Room Prize</label>
+          <label>Create Game Amount</label>
           <div className="mine-input-wrap">
             <input
               type="number"
@@ -195,7 +192,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         </div>
 
         <div className="mine-field">
-          <label>Mine Digit (0 to 9)</label>
+          <label>Creator Cell (0 to 9)</label>
           <div className="mine-digit-grid">
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
               <button
@@ -218,12 +215,12 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
 
       <section className="mine-card mine-controls">
         <div className="mine-room-head">
-          <h3><Target size={15} /> Open Games</h3>
+          <h3>Open Games</h3>
           <span>{openGames.length} live</span>
         </div>
 
         {openGames.length === 0 ? (
-          <div className="mine-status"><Coins size={16} /> No room yet. Start a prize room.</div>
+          <div className="mine-status"><Coins size={16} /> No game yet. Create the first room.</div>
         ) : (
           <div className="mine-games-list">
             {openGames.map((g) => {
