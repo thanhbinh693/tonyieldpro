@@ -624,7 +624,11 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const payoutCap = roundMoney(Number(oldResult.payout_cap ?? (bet - fee)))
   const paidOut = roundMoney(Number(oldResult.paid_out || 0))
   const remainingPool = roundMoney(Math.max(0, payoutCap - paidOut))
-  const candidatePayout = remainingPool > 0 ? randomMinePayout(remainingPool, MINE_MAX_PLAYERS - players.length) : 0
+  const remainingSlots = MINE_MAX_PLAYERS - players.length
+  const isFinalOpener = remainingSlots <= 1
+  const candidatePayout = remainingPool > 0
+    ? (isFinalOpener ? remainingPool : randomMinePayout(remainingPool, remainingSlots))
+    : 0
   const creatorCell = Math.trunc(Number(game.safe_cell))
   const gameCreatorWinRate = Number(game.creator_win_rate)
   const creatorWinRate = Math.min(90, Math.max(0, Number.isFinite(gameCreatorWinRate) ? gameCreatorWinRate : cfg.creatorWinRate))
@@ -635,7 +639,7 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const resultDigit = creatorWins ? creatorCell : randomDigitExcept(creatorCell)
   const win = remainingPool > 0 && !creatorWins
   const payout = win ? candidatePayout : 0
-  const nextPaidOut = roundMoney(paidOut + payout)
+  const nextPaidOut = roundMoney(paidOut + candidatePayout)
   const playerNet = win ? payout : -riskAmount
 
   const nextUserBalance = roundMoney(user.balance + playerNet)

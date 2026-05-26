@@ -192,6 +192,7 @@ const formatTon = (value, signed = false) => {
   const sign = signed && n > 0 ? '+' : ''
   return `${sign}${n.toFixed(3)} TON`
 }
+const formatBalanceTon = (value) => `${(Number(value) || 0).toFixed(6)} TON`
 const formatPct = (value) => `${(Number(value) || 0).toFixed(1)}%`
 const formatDateLong = (date = new Date()) =>
   date.toLocaleDateString('en-GB', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
@@ -529,7 +530,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
           <span />
         </div>
         <div className="bal-tag">PORTFOLIO VALUE</div>
-        <div className="bal-num">{formatTon(user?.balance).replace(' TON','')} <span>TON</span></div>
+        <div className="bal-num">{formatBalanceTon(user?.balance).replace(' TON','')} <span>TON</span></div>
         <div className="bal-profit">
           <span className="green-dot" /><span className="green">{formatTon(todayProfit, true)} today ({formatPct(todayPct)})</span>
         </div>

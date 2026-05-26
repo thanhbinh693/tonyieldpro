@@ -50,7 +50,7 @@ export function AvatarCard({ user, balance, todayProfit, profitEarned, referredU
 
       <div className="avatar-card-portfolio">
         <div>
-          <span className="avatar-card-balance">{(Number(balance) || 0).toFixed(3)} TON</span>
+          <span className="avatar-card-balance">{(Number(balance) || 0).toFixed(6)} TON</span>
           <span className="avatar-card-balance-label">Portfolio Value</span>
         </div>
         {today > 0 && <span className="avatar-card-profit">+{today.toFixed(3)} today</span>}

@@ -38,6 +38,7 @@ function mineGameMeta(game) {
   return {
     requiredBalance: bet * OPEN_RISK_MULTIPLIER,
     remainingPool,
+    visiblePool: bet,
     players,
   }
 }
@@ -166,7 +167,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
         </div>
         <div className="mine-balance">
           <span>Available</span>
-          <strong>{formatTon(balance)}</strong>
+          <strong>{formatTon(balance, 6)}</strong>
         </div>
       </section>
 
@@ -237,7 +238,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
                   <div className="mine-game-main">
                     <span className="mine-game-code">#{String(g.id).replace(/^mine-/, '').slice(0, 8)}</span>
                     <div className="mine-game-amount">
-                      <strong>{formatTon(meta.remainingPool)}</strong>
+                      <strong>{formatTon(meta.visiblePool)}</strong>
                       <span>Need {formatTon(meta.requiredBalance)}</span>
                     </div>
                     <div className="mine-game-meta">

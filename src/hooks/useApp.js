@@ -861,7 +861,11 @@ export function useApp() {
 
   const mineCreate = useCallback(async ({ betAmount, mineDigit }) => {
     try {
-      return await mineCreateGame({ betAmount, mineDigit })
+      const result = await mineCreateGame({ betAmount, mineDigit })
+      if (Number.isFinite(Number(result?.balance))) {
+        setUser(p => ({ ...p, balance: Number(result.balance) }))
+      }
+      return result
     } catch (e) {
       console.error('[mineCreate]', e)
       showToast(`Create game failed: ${e?.message || 'please retry'}.`, 'err')
@@ -871,7 +875,11 @@ export function useApp() {
 
   const mineJoin = useCallback(async ({ gameId, slot, cell, selectedCell }) => {
     try {
-      return await mineJoinGame({ gameId, slot, cell, selectedCell })
+      const result = await mineJoinGame({ gameId, slot, cell, selectedCell })
+      if (Number.isFinite(Number(result?.balance))) {
+        setUser(p => ({ ...p, balance: Number(result.balance) }))
+      }
+      return result
     } catch (e) {
       console.error('[mineJoin]', e)
       showToast(`Join game failed: ${e?.message || 'please retry'}.`, 'err')
