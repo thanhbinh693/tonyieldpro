@@ -364,6 +364,7 @@ export default function AdminPage({
         <div className="adm-section overview-section">
           <div className="overview-command">
             <div className="oc-grid" />
+            <div className="oc-scanline" aria-hidden="true" />
             <div className="oc-main">
               <div className="oc-kicker">
                 <span className="oc-live-dot" />
@@ -375,6 +376,12 @@ export default function AdminPage({
               </div>
             </div>
             <div className="oc-orbit" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="oc-nodes" aria-hidden="true">
+              <span />
               <span />
               <span />
               <span />
