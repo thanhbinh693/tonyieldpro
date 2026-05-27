@@ -1061,7 +1061,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     if (!activeAdminWallet) { showToast(`Admin ${tonNetwork} wallet cannot be empty`,'err'); return }
     if (parsedIds.length === 0) { showToast('Add at least one Admin Telegram ID','err'); return }
     if (cleanWebhookUrl && !/^https?:\/\//i.test(cleanWebhookUrl)) { showToast('Webhook URL must start with http:// or https://','err'); return }
-    const cleanMineMinBet = Math.max(1, Number(mineMinBet) || 1)
+    const cleanMineMinBet = Math.max(0.001, Number(mineMinBet) || 0.001)
     const cleanMineFeeRate = Math.min(50, Math.max(0, Number(mineFeeRate) || 0))
     const cleanMineCreatorWinRate = Math.min(100, Math.max(0, Number(mineCreatorWinRate) || 0))
     const cleanMineSlots = Math.min(20, Math.max(1, Math.trunc(Number(mineSlots) || 5)))
@@ -1197,7 +1197,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
           <span className="sg-unit">slots</span>
         </div>
         <div className="sg-row">
-          <input className="sg-input sg-input-sm" type="number" min="1" step="0.5" value={mineMinBet} onChange={e=>setMineMinBet(+e.target.value)} />
+          <input className="sg-input sg-input-sm" type="number" min="0.001" step="0.001" value={mineMinBet} onChange={e=>setMineMinBet(+e.target.value)} />
           <span className="sg-unit">min TON</span>
         </div>
         <div className="sg-row">

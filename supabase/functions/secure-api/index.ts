@@ -870,7 +870,7 @@ async function getMineConfig() {
     .eq('id', 1)
     .maybeSingle()
   if (error) throw error
-  const minBet = Math.max(1, Number(cfg?.mine_min_bet) || 1)
+  const minBet = Math.max(0.001, Number(cfg?.mine_min_bet) || 0.001)
   const configuredMaxBet = Number(cfg?.mine_max_bet)
   return {
     enabled: cfg?.mine_enabled !== false,
