@@ -508,7 +508,8 @@ type MinePlayer = {
   joined_at: string
 }
 
-const MINE_MAX_PLAYERS = 5
+const MINE_DEFAULT_SLOTS = 5
+const MINE_MIN_SLOT_PAYOUT = 0.001
 const MINE_OPEN_RISK_MULTIPLIER = 1.2
 
 async function mineListGames(userId: number) {
@@ -535,6 +536,10 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
   if (!cfg.enabled) return json({ ok: false, error: 'Mine game is disabled' }, 403)
   if (bet < cfg.minBet) return json({ ok: false, error: `Minimum amount is ${cfg.minBet}` }, 400)
   if (cfg.maxBet && bet > cfg.maxBet) return json({ ok: false, error: `Maximum amount is ${cfg.maxBet}` }, 400)
+  const payoutCap = roundMoney(bet * (1 - cfg.feeRate / 100))
+  if (payoutCap < roundMoney(cfg.slots * MINE_MIN_SLOT_PAYOUT)) {
+    return json({ ok: false, error: `Amount too small for ${cfg.slots} slots` }, 400)
+  }
 
   const creator = await getPlayableUser(userId)
   if (creator.balance < bet) return json({ ok: false, error: 'Insufficient balance' }, 400)
@@ -565,10 +570,10 @@ async function mineCreateGame(userId: number, payload: Record<string, unknown>) 
       status: 'open',
       players: [],
       result: {
-        max_players: MINE_MAX_PLAYERS,
+        max_players: cfg.slots,
         risk_multiplier: MINE_OPEN_RISK_MULTIPLIER,
-        payout_cap: roundMoney(bet * (1 - cfg.feeRate / 100)),
-        payout_slots: randomMinePayoutSlots(roundMoney(bet * (1 - cfg.feeRate / 100)), MINE_MAX_PLAYERS),
+        payout_cap: payoutCap,
+        payout_slots: randomMinePayoutSlots(payoutCap, cfg.slots),
         paid_out: 0,
       },
       updated_at: now,
@@ -610,8 +615,10 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   if (Number(game.creator_id) === userId) return json({ ok: false, error: 'Creator cannot join own game' }, 400)
 
   const players = normalizeMinePlayers(game.players)
+  const oldResult = (game.result && typeof game.result === 'object') ? game.result as Record<string, unknown> : {}
+  const maxPlayers = normalizeMineSlots(oldResult.max_players ?? cfg.slots)
   if (players.some((p) => Number(p.user_id) === userId)) return json({ ok: false, error: 'Already joined this game' }, 400)
-  if (players.length >= MINE_MAX_PLAYERS) return json({ ok: false, error: 'Game is full' }, 400)
+  if (players.length >= maxPlayers) return json({ ok: false, error: 'Game is full' }, 400)
 
   const user = await getPlayableUser(userId)
   const bet = roundMoney(Number(game.bet_amount))
@@ -621,20 +628,20 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
   const now = new Date().toISOString()
   const feeRate = Math.min(50, Math.max(0, Number(game.fee_rate) || cfg.feeRate))
   const fee = roundMoney(bet * (feeRate / 100))
-  const oldResult = (game.result && typeof game.result === 'object') ? game.result as Record<string, unknown> : {}
   const payoutCap = roundMoney(Number(oldResult.payout_cap ?? (bet - fee)))
   const paidOut = roundMoney(Number(oldResult.paid_out || 0))
   const remainingPool = roundMoney(Math.max(0, payoutCap - paidOut))
-  const payoutSlots = normalizeMinePayoutSlots(oldResult.payout_slots, payoutCap, MINE_MAX_PLAYERS)
+  const payoutSlots = normalizeMinePayoutSlots(oldResult.payout_slots, payoutCap, maxPlayers)
   const slotIndex = players.length
   const candidatePayout = remainingPool > 0 ? roundMoney(Number(payoutSlots[slotIndex]) || 0) : 0
   const creatorCell = Math.trunc(Number(game.safe_cell))
   const gameCreatorWinRate = Number(game.creator_win_rate)
-  const creatorWinRate = Math.min(90, Math.max(0, Number.isFinite(gameCreatorWinRate) ? gameCreatorWinRate : cfg.creatorWinRate))
+  const creatorWinRate = Math.min(100, Math.max(0, Number.isFinite(gameCreatorWinRate) ? gameCreatorWinRate : cfg.creatorWinRate))
+  const mineProbability = computeMineProbability(creatorWinRate, maxPlayers)
   if (!Number.isInteger(creatorCell) || creatorCell < 0 || creatorCell > 9) {
     return json({ ok: false, error: 'Invalid game creator cell' }, 409)
   }
-  const creatorWins = remainingPool <= 0 || randomPercent() < creatorWinRate
+  const creatorWins = remainingPool <= 0 || randomPercent() < mineProbability
   const resultDigit = creatorWins ? creatorCell : randomDigitExcept(creatorCell)
   const win = remainingPool > 0 && !creatorWins
   const payout = win ? candidatePayout : 0
@@ -668,12 +675,13 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
     risk: riskAmount,
     creator_cell: creatorCell,
     creator_win_rate: creatorWinRate,
+    creator_mine_probability: mineProbability,
     result_digit: resultDigit,
     random_payout: candidatePayout,
     joined_at: now,
   }
   const nextPlayers = [...players, joinedPlayer]
-  const completed = nextPlayers.length >= MINE_MAX_PLAYERS || nextPaidOut >= payoutCap
+  const completed = nextPlayers.length >= maxPlayers || nextPaidOut >= payoutCap
   const result = completed
     ? {
       ...oldResult,
@@ -682,10 +690,11 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
       payout_slots: payoutSlots,
       paid_out: nextPaidOut,
       remaining_pool: roundMoney(Math.max(0, payoutCap - nextPaidOut)),
-      max_players: MINE_MAX_PLAYERS,
+      max_players: maxPlayers,
       risk_multiplier: MINE_OPEN_RISK_MULTIPLIER,
       rule: 'creator_cell_win_rate',
-      completed_reason: nextPlayers.length >= MINE_MAX_PLAYERS ? 'slots_filled' : 'pool_depleted',
+      creator_mine_probability: mineProbability,
+      completed_reason: nextPlayers.length >= maxPlayers ? 'slots_filled' : 'pool_depleted',
       completed_at: now,
     }
     : {
@@ -695,9 +704,10 @@ async function mineJoinGame(userId: number, payload: Record<string, unknown>) {
       payout_slots: payoutSlots,
       paid_out: nextPaidOut,
       remaining_pool: roundMoney(Math.max(0, payoutCap - nextPaidOut)),
-      max_players: MINE_MAX_PLAYERS,
+      max_players: maxPlayers,
       risk_multiplier: MINE_OPEN_RISK_MULTIPLIER,
       rule: 'creator_cell_win_rate',
+      creator_mine_probability: mineProbability,
     }
 
   const { data: updatedGame, error: saveErr } = await supabase
@@ -782,7 +792,11 @@ function normalizeMinePayoutSlots(value: unknown, payoutCap: number, count: numb
   const slots = Array.isArray(value)
     ? value.map((amount) => roundMoney(Number(amount))).filter((amount) => Number.isFinite(amount) && amount >= 0)
     : []
-  if (slots.length === count && roundMoney(slots.reduce((sum, amount) => sum + amount, 0)) === roundMoney(payoutCap)) {
+  if (
+    slots.length === count
+    && slots.every((amount) => amount >= MINE_MIN_SLOT_PAYOUT)
+    && roundMoney(slots.reduce((sum, amount) => sum + amount, 0)) === roundMoney(payoutCap)
+  ) {
     return slots
   }
   return randomMinePayoutSlots(payoutCap, count)
@@ -790,23 +804,41 @@ function normalizeMinePayoutSlots(value: unknown, payoutCap: number, count: numb
 
 function randomMinePayoutSlots(payoutCap: number, count: number) {
   const total = roundMoney(payoutCap)
-  const slots = Math.max(1, Math.trunc(count))
+  const slots = normalizeMineSlots(count)
   if (total <= 0) return Array.from({ length: slots }, () => 0)
+  if (total < roundMoney(slots * MINE_MIN_SLOT_PAYOUT)) {
+    throw new Error(`Payout cap too small for ${slots} slots`)
+  }
 
   const bytes = new Uint32Array(slots)
   globalThis.crypto.getRandomValues(bytes)
   const weights = [...bytes].map((value) => Math.max(1, Number(value)))
   const weightTotal = weights.reduce((sum, value) => sum + value, 0)
+  const variableTotal = roundMoney(total - slots * MINE_MIN_SLOT_PAYOUT)
 
   const payouts: number[] = []
   let assigned = 0
   for (let i = 0; i < slots - 1; i += 1) {
-    const amount = roundMoney(total * (weights[i] / weightTotal))
+    const remainingSlots = slots - i - 1
+    const maxForSlot = roundMoney(total - assigned - remainingSlots * MINE_MIN_SLOT_PAYOUT)
+    const weightedAmount = roundMoney(MINE_MIN_SLOT_PAYOUT + variableTotal * (weights[i] / weightTotal))
+    const amount = Math.min(maxForSlot, Math.max(MINE_MIN_SLOT_PAYOUT, weightedAmount))
     payouts.push(amount)
     assigned = roundMoney(assigned + amount)
   }
   payouts.push(roundMoney(total - assigned))
   return payouts
+}
+
+function normalizeMineSlots(value: unknown) {
+  return Math.min(20, Math.max(1, Math.trunc(Number(value) || MINE_DEFAULT_SLOTS)))
+}
+
+function computeMineProbability(creatorWinRate: number, slots: number) {
+  const n = normalizeMineSlots(slots)
+  if (creatorWinRate >= 100) return 100
+  const creatorRate = Math.min(0.999999, Math.max(0, creatorWinRate / 100))
+  return roundMoney((1 - Math.pow(1 - creatorRate, 1 / n)) * 100)
 }
 
 async function mineRevealCell(userId: number, payload: Record<string, unknown>) {
@@ -834,7 +866,7 @@ async function mineRevealCell(userId: number, payload: Record<string, unknown>) 
 async function getMineConfig() {
   const { data: cfg, error } = await supabase
     .from('admin_config')
-    .select('mine_enabled, mine_min_bet, mine_max_bet, mine_fee_rate, mine_creator_win_rate')
+    .select('mine_enabled, mine_min_bet, mine_max_bet, mine_fee_rate, mine_creator_win_rate, mine_slots')
     .eq('id', 1)
     .maybeSingle()
   if (error) throw error
@@ -845,7 +877,8 @@ async function getMineConfig() {
     minBet,
     maxBet: Number.isFinite(configuredMaxBet) && configuredMaxBet > 0 ? Math.max(minBet, configuredMaxBet) : null,
     feeRate: Math.min(50, Math.max(0, Number(cfg?.mine_fee_rate) || 5)),
-    creatorWinRate: Math.min(90, Math.max(0, Number.isFinite(Number(cfg?.mine_creator_win_rate)) ? Number(cfg?.mine_creator_win_rate) : 30)),
+    creatorWinRate: Math.min(100, Math.max(0, Number.isFinite(Number(cfg?.mine_creator_win_rate)) ? Number(cfg?.mine_creator_win_rate) : 30)),
+    slots: normalizeMineSlots(cfg?.mine_slots),
   }
 }
 

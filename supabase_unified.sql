@@ -90,6 +90,7 @@ create table if not exists admin_config (
   mine_max_bet numeric(18,6) default null,
   mine_fee_rate numeric(8,4) default 5,
   mine_creator_win_rate numeric(8,4) default 30,
+  mine_slots int default 5,
   updated_at timestamptz default now(),
   constraint single_admin_config_row check (id = 1)
 );
@@ -166,6 +167,7 @@ alter table admin_config alter column mine_min_bet set default 1;
 alter table admin_config add column if not exists mine_max_bet numeric(18,6) default null;
 alter table admin_config add column if not exists mine_fee_rate numeric(8,4) default 5;
 alter table admin_config add column if not exists mine_creator_win_rate numeric(8,4) default 30;
+alter table admin_config add column if not exists mine_slots int default 5;
 alter table admin_config alter column mine_max_bet drop default;
 alter table investments add column if not exists updated_at timestamptz default now();
 alter table transactions add column if not exists fail_reason text default '';

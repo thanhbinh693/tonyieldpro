@@ -1024,6 +1024,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [mineMinBet, setMineMinBet] = useState(config.mineMinBet ?? 1)
   const [mineFeeRate, setMineFeeRate] = useState(config.mineFeeRate ?? 5)
   const [mineCreatorWinRate, setMineCreatorWinRate] = useState(config.mineCreatorWinRate ?? 30)
+  const [mineSlots, setMineSlots] = useState(config.mineSlots ?? 5)
   const [tonNetwork,   setTonNetwork]   = useState(config.tonNetwork   || 'testnet')
   const [showNetConfirm, setShowNetConfirm] = useState(false)
   const [pendingNetwork, setPendingNetwork] = useState(null)
@@ -1043,6 +1044,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     setMineMinBet(config.mineMinBet ?? 1)
     setMineFeeRate(config.mineFeeRate ?? 5)
     setMineCreatorWinRate(config.mineCreatorWinRate ?? 30)
+    setMineSlots(config.mineSlots ?? 5)
     setTonNetwork(config.tonNetwork || 'testnet')
   }, [config, currentUserId])
 
@@ -1061,7 +1063,8 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     if (cleanWebhookUrl && !/^https?:\/\//i.test(cleanWebhookUrl)) { showToast('Webhook URL must start with http:// or https://','err'); return }
     const cleanMineMinBet = Math.max(1, Number(mineMinBet) || 1)
     const cleanMineFeeRate = Math.min(50, Math.max(0, Number(mineFeeRate) || 0))
-    const cleanMineCreatorWinRate = Math.min(90, Math.max(0, Number(mineCreatorWinRate) || 0))
+    const cleanMineCreatorWinRate = Math.min(100, Math.max(0, Number(mineCreatorWinRate) || 0))
+    const cleanMineSlots = Math.min(20, Math.max(1, Math.trunc(Number(mineSlots) || 5)))
     onSave({
       adminWallet: activeAdminWallet,
       adminWalletTestnet: adminWalletTestnet.trim(),
@@ -1078,6 +1081,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       mineMinBet: cleanMineMinBet,
       mineFeeRate: cleanMineFeeRate,
       mineCreatorWinRate: cleanMineCreatorWinRate,
+      mineSlots: cleanMineSlots,
       tonNetwork,
     })
   }
@@ -1183,13 +1187,13 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
 
       <div className="setting-group mine-admin-config">
         <div className="sg-label"><Bomb size={16} color="#FFD600" />Mine Game</div>
-        <div className="sg-desc">Openers need 1.2x room amount. Creator picks a cell from 0 to 9; the server roll uses creator win rate and pays a random amount to winning openers.</div>
+        <div className="sg-desc">Openers need 1.2x room amount. Creator win % is the target chance across the full room; the server converts it per slot.</div>
         <label className="sg-check-row">
           <input type="checkbox" checked={mineEnabled} onChange={e=>setMineEnabled(e.target.checked)} />
           <span>Enable Mine page for users</span>
         </label>
         <div className="sg-row">
-          <input className="sg-input sg-input-sm" type="number" value={5} disabled />
+          <input className="sg-input sg-input-sm" type="number" min="1" max="20" step="1" value={mineSlots} onChange={e=>setMineSlots(+e.target.value)} />
           <span className="sg-unit">slots</span>
         </div>
         <div className="sg-row">
@@ -1201,7 +1205,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
           <span className="sg-unit">fee rate %</span>
         </div>
         <div className="sg-row">
-          <input className="sg-input sg-input-sm" type="number" min="0" max="90" step="0.5" value={mineCreatorWinRate} onChange={e=>setMineCreatorWinRate(+e.target.value)} />
+          <input className="sg-input sg-input-sm" type="number" min="0" max="100" step="0.5" value={mineCreatorWinRate} onChange={e=>setMineCreatorWinRate(+e.target.value)} />
           <span className="sg-unit">creator win %</span>
         </div>
       </div>

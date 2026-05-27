@@ -368,6 +368,7 @@ export async function getAdminConfig(fallback = null) {
     mineMaxBet:       Number.isFinite(mineMaxBet) && mineMaxBet > 0 ? mineMaxBet : null,
     mineFeeRate:      Number(data.mine_fee_rate ?? 5),
     mineCreatorWinRate: Number(data.mine_creator_win_rate ?? 30),
+    mineSlots:        Math.min(20, Math.max(1, Number(data.mine_slots ?? 5))),
   }
 }
 
@@ -392,6 +393,7 @@ export async function saveAdminConfig(cfg) {
       mine_max_bet:     Number.isFinite(Number(cfg.mineMaxBet)) && Number(cfg.mineMaxBet) > 0 ? Number(cfg.mineMaxBet) : null,
       mine_fee_rate:    Number(cfg.mineFeeRate ?? 5),
       mine_creator_win_rate: Number(cfg.mineCreatorWinRate ?? 30),
+      mine_slots:       Math.min(20, Math.max(1, Number(cfg.mineSlots ?? 5))),
       updated_at:       new Date().toISOString(),
   }
   await secureApi('admin_save_config', { row })

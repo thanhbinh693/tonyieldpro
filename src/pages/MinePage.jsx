@@ -26,8 +26,6 @@ function hasJoinedGame(game, userId) {
 }
 
 const OPEN_RISK_MULTIPLIER = 1.2
-const MAX_OPENERS = 5
-
 function mineGameMeta(game) {
   const bet = Number(game?.bet_amount) || 0
   const result = game?.result && typeof game.result === 'object' ? game.result : {}
@@ -35,11 +33,13 @@ function mineGameMeta(game) {
   const paidOut = Number(result.paid_out || 0)
   const remainingPool = Math.max(0, Number(result.remaining_pool ?? (payoutCap - paidOut)) || 0)
   const players = Array.isArray(game?.players) ? game.players.length : 0
+  const maxPlayers = Math.max(1, Math.trunc(Number(result.max_players || 5)))
   return {
     requiredBalance: bet * OPEN_RISK_MULTIPLIER,
     remainingPool,
     visiblePool: bet,
     players,
+    maxPlayers,
   }
 }
 
@@ -239,7 +239,7 @@ export default function MinePage({ user, config, showToast, mineCreate, mineJoin
                       <span>Need {formatTon(meta.requiredBalance)}</span>
                     </div>
                     <div className="mine-game-meta">
-                      <span>{meta.players}/{MAX_OPENERS} opens</span>
+                      <span>{meta.players}/{meta.maxPlayers} opens</span>
                       <span>pool live</span>
                     </div>
                   </div>

@@ -136,6 +136,7 @@ const DEFAULT_CONFIG = {
   mineMaxBet: null,
   mineFeeRate: 5,
   mineCreatorWinRate: 30,
+  mineSlots: 5,
 }
 
 // ─── Resolve profit interval ms từ investment object ─────────────────────────
