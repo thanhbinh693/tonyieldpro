@@ -132,7 +132,7 @@ const DEFAULT_CONFIG = {
   withdrawalWebhookSecret: '',
   tonNetwork: TON_NETWORK,
   mineEnabled: true,
-  mineMinBet: 1,
+  mineMinBet: 0.001,
   mineMaxBet: null,
   mineFeeRate: 5,
   mineCreatorWinRate: 30,

@@ -164,6 +164,9 @@ alter table admin_config add column if not exists ton_network text not null defa
 alter table admin_config add column if not exists mine_enabled boolean default true;
 alter table admin_config add column if not exists mine_min_bet numeric(18,6) default 0.001;
 alter table admin_config alter column mine_min_bet set default 0.001;
+update admin_config
+set mine_min_bet = 0.001, updated_at = now()
+where id = 1 and (mine_min_bet is null or mine_min_bet = 1);
 alter table admin_config add column if not exists mine_max_bet numeric(18,6) default null;
 alter table admin_config add column if not exists mine_fee_rate numeric(8,4) default 5;
 alter table admin_config add column if not exists mine_creator_win_rate numeric(8,4) default 30;
