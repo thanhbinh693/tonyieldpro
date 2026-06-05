@@ -74,6 +74,7 @@ create table if not exists admin_config (
   id int primary key default 1,
   min_withdraw numeric(18,6) default 5,
   referral_rate numeric(8,4) default 5,
+  referral_reward_ton numeric(18,6) default 0,
   withdraw_referral_gate_enabled boolean default false,
   withdraw_min_referrals int default 3,
   maintenance_mode boolean default false,
@@ -156,6 +157,7 @@ alter table users add column if not exists bot_blocked_at timestamptz;
 alter table users drop column if exists wallet_session_id;
 alter table admin_config add column if not exists admin_wallet_testnet text default '';
 alter table admin_config add column if not exists admin_wallet_mainnet text default '';
+alter table admin_config add column if not exists referral_reward_ton numeric(18,6) default 0;
 alter table admin_config add column if not exists withdraw_referral_gate_enabled boolean default false;
 alter table admin_config add column if not exists withdraw_min_referrals int default 3;
 alter table admin_config add column if not exists withdrawal_webhook_url text default '';
@@ -520,6 +522,9 @@ begin
         ),
         updated_at = now()
     where id = referrer_id;
+
+    perform credit_referral_reward(p_user_id, floor(extract(epoch from clock_timestamp()) * 1000)::bigint);
+    perform credit_referral_reward(referrer_id, floor(extract(epoch from clock_timestamp()) * 1000)::bigint);
   end if;
 
   return attached_count > 0;
@@ -536,6 +541,7 @@ set search_path = public
 as $$
 declare
   updated_count int := 0;
+  unlocked_user record;
 begin
   update users older_link
   set referred_by = '',
@@ -565,6 +571,15 @@ begin
     );
 
   get diagnostics updated_count = row_count;
+
+  for unlocked_user in
+    select id
+    from users
+    where coalesce(referred_by, '') <> ''
+  loop
+    perform credit_referral_reward(unlocked_user.id, floor(extract(epoch from clock_timestamp()) * 1000)::bigint);
+  end loop;
+
   return updated_count;
 end;
 $$;
@@ -589,10 +604,8 @@ begin
 end;
 $$;
 
-create or replace function credit_referral_commission(
-  p_user_id bigint,
-  p_deposit_amount numeric,
-  p_deposit_tx_id text,
+create or replace function credit_referral_reward(
+  p_invitee_user_id bigint,
   p_now bigint default null
 ) returns boolean
 language plpgsql
@@ -602,23 +615,41 @@ as $$
 declare
   invitee record;
   referrer record;
-  referral_rate numeric;
-  commission numeric;
+  cfg record;
+  reward numeric;
+  user_refs int := 0;
   referral_tx_id text;
+  reward_key text;
   existing_referral_tx_id text;
   now_ms bigint;
   inserted_count int := 0;
 begin
-  if p_user_id is null or p_deposit_amount is null or p_deposit_amount <= 0 then
+  if p_invitee_user_id is null then
     return false;
   end if;
 
-  select id, username, first_name, referred_by
+  select id, username, first_name, referred_by, referrals, referral_friends, status
   into invitee
   from users
-  where id = p_user_id;
+  where id = p_invitee_user_id;
 
-  if invitee.id is null or coalesce(invitee.referred_by, '') = '' then
+  if invitee.id is null or coalesce(invitee.referred_by, '') = '' or invitee.status = 'banned' then
+    return false;
+  end if;
+
+  select referral_reward_ton, withdraw_referral_gate_enabled, withdraw_min_referrals
+  into cfg
+  from admin_config
+  where id = 1;
+
+  reward := round(coalesce(cfg.referral_reward_ton, 0)::numeric, 6);
+  if reward <= 0 then
+    return false;
+  end if;
+
+  user_refs := greatest(coalesce(invitee.referrals, 0), coalesce(invitee.referral_friends, 0));
+  if coalesce(cfg.withdraw_referral_gate_enabled, false)
+    and user_refs <= greatest(coalesce(cfg.withdraw_min_referrals, 0), 0) then
     return false;
   end if;
 
@@ -626,29 +657,21 @@ begin
   into referrer
   from users
   where referral_code = invitee.referred_by
-    and id <> p_user_id
+    and id <> p_invitee_user_id
   for update;
 
   if referrer.id is null then
     return false;
   end if;
 
-  select admin_config.referral_rate
-  into referral_rate
-  from admin_config
-  where id = 1;
-
-  commission := round((p_deposit_amount * (coalesce(referral_rate, 5) / 100))::numeric, 6);
-  if commission <= 0 then
-    return false;
-  end if;
+  reward_key := 'valid-referral:' || p_invitee_user_id::text;
 
   select id
   into existing_referral_tx_id
   from transactions
   where type = 'referral'
     and user_id = referrer.id
-    and invoice_id = coalesce(p_deposit_tx_id, '')
+    and invoice_id = reward_key
   limit 1;
 
   if existing_referral_tx_id is not null then
@@ -663,10 +686,10 @@ begin
     referral_tx_id,
     referrer.id,
     'referral',
-    'Referral - @' || coalesce(nullif(invitee.username, ''), nullif(invitee.first_name, ''), p_user_id::text) || ' deposit ' || p_deposit_amount::text || ' TON',
-    commission,
+    'Referral reward - @' || coalesce(nullif(invitee.username, ''), nullif(invitee.first_name, ''), p_invitee_user_id::text) || ' unlocked withdrawals',
+    reward,
     'completed',
-    coalesce(p_deposit_tx_id, ''),
+    reward_key,
     now_ms,
     now()
   )
@@ -678,13 +701,29 @@ begin
   end if;
 
   update users
-  set balance = balance + commission,
-      referral_commission = referral_commission + commission,
-      referral_deposit_volume = referral_deposit_volume + p_deposit_amount,
+  set balance = balance + reward,
+      referral_commission = referral_commission + reward,
       updated_at = now()
   where id = referrer.id;
 
   return true;
+end;
+$$;
+
+grant execute on function credit_referral_reward(bigint, bigint) to anon, authenticated;
+
+create or replace function credit_referral_commission(
+  p_user_id bigint,
+  p_deposit_amount numeric,
+  p_deposit_tx_id text,
+  p_now bigint default null
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return credit_referral_reward(p_user_id, p_now);
 end;
 $$;
 
@@ -697,24 +736,21 @@ security definer
 set search_path = public
 as $$
 declare
-  deposit_tx record;
+  invitee record;
   repaired_count int := 0;
   credited boolean := false;
 begin
-  for deposit_tx in
-    select id, user_id, amount, created_at
-    from transactions
-    where type = 'deposit'
-      and status = 'completed'
-      and amount > 0
-      and label not ilike 'Reinvest -%'
+  perform sync_referral_counts();
+
+  for invitee in
+    select id
+    from users
+    where coalesce(referred_by, '') <> ''
     order by created_at asc
   loop
-    select credit_referral_commission(
-      deposit_tx.user_id,
-      deposit_tx.amount,
-      deposit_tx.id,
-      deposit_tx.created_at
+    select credit_referral_reward(
+      invitee.id,
+      floor(extract(epoch from clock_timestamp()) * 1000)::bigint
     )
     into credited;
 
@@ -1224,6 +1260,9 @@ union all
 select 'admin_config.admin_wallet_mainnet',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='admin_wallet_mainnet')
 union all
+select 'admin_config.referral_reward_ton',
+       exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='referral_reward_ton')
+union all
 select 'admin_config.withdrawal_webhook_url',
        exists(select 1 from information_schema.columns where table_schema='public' and table_name='admin_config' and column_name='withdrawal_webhook_url')
 union all
@@ -1259,6 +1298,9 @@ select 'function.register_referral_user',
 union all
 select 'function.sync_referral_counts',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='sync_referral_counts')
+union all
+select 'function.credit_referral_reward',
+       exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='credit_referral_reward')
 union all
 select 'function.credit_referral_commission',
        exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='credit_referral_commission')
@@ -1348,6 +1390,8 @@ revoke execute on function record_deposit(
 ) from anon, authenticated;
 revoke execute on function register_referral_user(bigint, text, text, text)
   from anon, authenticated;
+revoke execute on function credit_referral_reward(bigint, bigint)
+  from anon, authenticated;
 revoke execute on function credit_referral_commission(bigint, numeric, text, bigint)
   from anon, authenticated;
 revoke execute on function repair_referral_commissions()
@@ -1378,6 +1422,8 @@ grant execute on function record_deposit(
   numeric, int, bigint, numeric, numeric, int[], bigint, bigint, bigint
 ) to service_role;
 grant execute on function register_referral_user(bigint, text, text, text)
+  to service_role;
+grant execute on function credit_referral_reward(bigint, bigint)
   to service_role;
 grant execute on function credit_referral_commission(bigint, numeric, text, bigint)
   to service_role;

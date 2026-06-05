@@ -119,7 +119,7 @@ function mkDefaultRef(tid) {
 }
 const DEFAULT_CONFIG = {
   minWithdraw: MIN_WITHDRAW,
-  referralRate: 5,
+  referralRewardTon: 0,
   withdrawReferralGateEnabled: false,
   withdrawMinReferrals: 3,
   maintenanceMode: false,

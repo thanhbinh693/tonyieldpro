@@ -54,7 +54,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
   const totalProfit = profitPerInterval * totalIntervals
   const intervalLabel = formatDistribution(intervalMin)
 
-  const referralRate = config?.referralRate || 5
+  const referralRewardTon = Number(config?.referralRewardTon) || 0
 
   // Build a human-readable active days label from the most common plan's active days
   const commonDays = plans[0]?.activeDays || [1,2,3,4,5]
@@ -164,7 +164,7 @@ export default function PlansPage({ plans, onDeposit, config }) {
           <div className="pc-features">
             <div className="pc-feat"><div className={`dot ${plan.color}`}/>Duration {formatDuration(plan)}</div>
             <div className="pc-feat"><div className={`dot ${plan.color}`}/>{formatDistribution(plan.profitIntervalMinutes)}</div>
-            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{formatPct(referralRate)} referral income</div>
+            <div className="pc-feat"><div className={`dot ${plan.color}`}/>{formatTon(referralRewardTon)} per valid referral</div>
             <div className="pc-feat"><div className={`dot ${plan.color}`}/>{(plan.activeDays||[1,2,3,4,5]).map(d=>DAY_NAMES[d]).join('-')} distributions</div>
           </div>
           <button className={`pc-btn ${plan.color}`} onClick={() => onDeposit(plan)}><Send size={16} color="#FFFFFF" /> Open Position</button>

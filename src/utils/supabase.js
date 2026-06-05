@@ -255,24 +255,24 @@ export async function getReferralDetails(telegramId) {
   if (depositError) throw depositError
 
   const depositOwner = new Map((deposits || []).map(tx => [String(tx.id), Number(tx.user_id)]))
-  const depositIds = [...depositOwner.keys()]
   const incomeByInvitee = new Map()
 
-  if (depositIds.length > 0) {
-    const { data: referralTxs, error: referralError } = await supabase
-      .from('transactions')
-      .select('amount, invoice_id')
-      .eq('user_id', id)
-      .eq('type', 'referral')
-      .in('invoice_id', depositIds)
-    if (referralError) throw referralError
+  const { data: referralTxs, error: referralError } = await supabase
+    .from('transactions')
+    .select('amount, invoice_id')
+    .eq('user_id', id)
+    .eq('type', 'referral')
+  if (referralError) throw referralError
 
-    ;(referralTxs || []).forEach(tx => {
-      const inviteeId = depositOwner.get(String(tx.invoice_id))
-      if (!inviteeId) return
-      incomeByInvitee.set(inviteeId, (incomeByInvitee.get(inviteeId) || 0) + (Number(tx.amount) || 0))
-    })
-  }
+  ;(referralTxs || []).forEach(tx => {
+    const invoiceId = String(tx.invoice_id || '')
+    const directRewardMatch = invoiceId.match(/^valid-referral:(\d+)$/)
+    const inviteeId = directRewardMatch
+      ? Number(directRewardMatch[1])
+      : depositOwner.get(invoiceId)
+    if (!inviteeId || !inviteeIds.includes(Number(inviteeId))) return
+    incomeByInvitee.set(Number(inviteeId), (incomeByInvitee.get(Number(inviteeId)) || 0) + (Number(tx.amount) || 0))
+  })
 
   return teamInvitees.map(u => ({
     id: Number(u.id),
@@ -351,7 +351,7 @@ export async function getAdminConfig(fallback = null) {
   const mineMaxBet = Number(data.mine_max_bet)
   return {
     minWithdraw:      data.min_withdraw ?? MIN_WITHDRAW,
-    referralRate:     data.referral_rate ?? 5,
+    referralRewardTon: Number(data.referral_reward_ton ?? 0),
     withdrawReferralGateEnabled: !!data.withdraw_referral_gate_enabled,
     withdrawMinReferrals: Number(data.withdraw_min_referrals ?? 3),
     maintenanceMode:  !!data.maintenance_mode,
@@ -376,7 +376,7 @@ export async function saveAdminConfig(cfg) {
   const row = {
       id:               1,
       min_withdraw:     cfg.minWithdraw,
-      referral_rate:    cfg.referralRate,
+      referral_reward_ton: Math.max(0, Number(cfg.referralRewardTon) || 0),
       withdraw_referral_gate_enabled: !!cfg.withdrawReferralGateEnabled,
       withdraw_min_referrals: Math.max(0, Number(cfg.withdrawMinReferrals) || 0),
       maintenance_mode: cfg.maintenanceMode,

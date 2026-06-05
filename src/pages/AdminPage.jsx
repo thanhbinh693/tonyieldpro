@@ -529,10 +529,10 @@ export default function AdminPage({
                     </div>
                   )}
 
-                  {/* Referral commission */}
+                  {/* Referral reward */}
                   {(u.referralCommission||0) > 0 && (
                     <div className="uc-ref-row">
-                      <span><Coins size={16} color="#FFD600" /> Referral earned: <strong>{(+u.referralCommission).toFixed(2)} TON</strong> · ref deposits <strong>{(+u.referralDepositVolume||0).toFixed(2)} TON</strong></span>
+                      <span><Coins size={16} color="#FFD600" /> Referral rewards: <strong>{(+u.referralCommission).toFixed(2)} TON</strong></span>
                     </div>
                   )}
 
@@ -855,7 +855,7 @@ function UserDetail({ user: u, allTx, onClose, onEdit, onBan }) {
 
       {(u.referralCommission||0) > 0 && (
         <div className="ud-ref-earned">
-          <Coins size={16} color="#FFD600" /> Referral commission earned: <strong>{(+u.referralCommission).toFixed(2)} TON</strong> · referred deposits: <strong>{(+u.referralDepositVolume||0).toFixed(2)} TON</strong>
+          <Coins size={16} color="#FFD600" /> Referral rewards earned: <strong>{(+u.referralCommission).toFixed(2)} TON</strong>
         </div>
       )}
       {u.pendingWithdraw > 0 && (
@@ -1016,7 +1016,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
   const [botUsername,  setBotUsername]  = useState(config.botUsername  || '')
   const [withdrawalWebhookUrl, setWithdrawalWebhookUrl] = useState(config.withdrawalWebhookUrl || '')
   const [withdrawalWebhookSecret, setWithdrawalWebhookSecret] = useState(config.withdrawalWebhookSecret || '')
-  const [referralRate, setReferralRate] = useState(config.referralRate || 5)
+  const [referralRewardTon, setReferralRewardTon] = useState(config.referralRewardTon ?? 0)
   const [minWithdraw,  setMinWithdraw]  = useState(config.minWithdraw  || 5)
   const [withdrawReferralGateEnabled, setWithdrawReferralGateEnabled] = useState(!!config.withdrawReferralGateEnabled)
   const [withdrawMinReferrals, setWithdrawMinReferrals] = useState(config.withdrawMinReferrals ?? 3)
@@ -1036,7 +1036,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
     setBotUsername(config.botUsername || '')
     setWithdrawalWebhookUrl(config.withdrawalWebhookUrl || '')
     setWithdrawalWebhookSecret(config.withdrawalWebhookSecret || '')
-    setReferralRate(config.referralRate || 5)
+    setReferralRewardTon(config.referralRewardTon ?? 0)
     setMinWithdraw(config.minWithdraw || 5)
     setWithdrawReferralGateEnabled(!!config.withdrawReferralGateEnabled)
     setWithdrawMinReferrals(config.withdrawMinReferrals ?? 3)
@@ -1073,7 +1073,7 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       botUsername: botUsername.trim(),
       withdrawalWebhookUrl: cleanWebhookUrl,
       withdrawalWebhookSecret: withdrawalWebhookSecret.trim(),
-      referralRate: +referralRate,
+      referralRewardTon: Math.max(0, Number(referralRewardTon) || 0),
       minWithdraw: +minWithdraw,
       withdrawReferralGateEnabled,
       withdrawMinReferrals: Math.max(0, Number(withdrawMinReferrals) || 0),
@@ -1127,13 +1127,11 @@ function SettingsPanel({ config, onSave, showToast, currentUserId }) {
       </div>
 
       <div className="setting-group">
-        <div className="sg-label"><Coins size={16} color="#FFD600" />Referral Commission (%)</div>
-        <div className="sg-slider-wrap">
-          <input type="range" min="1" max="30" step="0.5" value={referralRate} onChange={e=>setReferralRate(+e.target.value)} className="sg-slider"/>
-          <div className="sg-slider-val">
-            <span className="sg-rate-big">{referralRate}%</span>
-            <span className="sg-rate-label">per referral deposit</span>
-          </div>
+        <div className="sg-label"><Coins size={16} color="#FFD600" />Referral Reward</div>
+        <div className="sg-desc">Fixed TON credited once for each invited user after that user unlocks withdrawals.</div>
+        <div className="sg-row">
+          <input className="sg-input sg-input-sm" type="number" min="0" step="0.001" value={referralRewardTon} onChange={e=>setReferralRewardTon(+e.target.value)} />
+          <span className="sg-unit">TON per valid referral</span>
         </div>
       </div>
 

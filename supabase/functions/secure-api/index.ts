@@ -188,10 +188,8 @@ async function recordDeposit(userId: number, tgUser: TelegramUser, payload: Reco
   if (error) throw error
 
   if (!fromBalance) {
-    await supabase.rpc('credit_referral_commission', {
-      p_user_id: userId,
-      p_deposit_amount: amount,
-      p_deposit_tx_id: txId,
+    await supabase.rpc('credit_referral_reward', {
+      p_invitee_user_id: userId,
       p_now: now,
     })
   }
