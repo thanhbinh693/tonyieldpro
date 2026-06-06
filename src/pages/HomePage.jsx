@@ -357,6 +357,15 @@ export default function HomePage({ user, investments, transactions, plans, confi
   const [txTypeFilter, setTxTypeFilter] = useState('deposit')
   const [expandedProfitIds, setExpandedProfitIds] = useState({})
   const [showNotifications, setShowNotifications] = useState(false)
+  const mineVisible = config?.mineEnabled !== false
+  const visibleTxFilters = mineVisible ? TX_TYPE_FILTERS : TX_TYPE_FILTERS.filter(f => f.id !== 'mine')
+  const visibleTransactions = mineVisible ? transactions : transactions.filter(tx => !isMineTx(tx))
+
+  useEffect(() => {
+    if (!mineVisible && txTypeFilter === 'mine') {
+      setTxTypeFilter('deposit')
+    }
+  }, [mineVisible, txTypeFilter])
 
   // Determine today's inactive plans
   const inactivePlans = (plans || []).filter(p => !(p.activeDays || [1,2,3,4,5]).includes(TODAY_DOW))
@@ -618,22 +627,22 @@ export default function HomePage({ user, investments, transactions, plans, confi
         <div className="sec-hdr">
           <div className="sec-title">TRANSACTION HISTORY</div>
         </div>
-        {transactions.length === 0 && (
+        {visibleTransactions.length === 0 && (
           <div className="tx-empty">NO TRANSACTIONS<br/>Your transaction history will appear here once you make your first deposit.</div>
         )}
-        {transactions.length > 0 && (() => {
-          const counts = TX_TYPE_FILTERS.reduce((acc, f) => {
-            acc[f.id] = transactions.filter(tx => txMatchesFilter(tx, f.id)).length
+        {visibleTransactions.length > 0 && (() => {
+          const counts = visibleTxFilters.reduce((acc, f) => {
+            acc[f.id] = visibleTransactions.filter(tx => txMatchesFilter(tx, f.id)).length
             return acc
           }, {})
-          const activeType = txTypeFilter
-          const activeItems = transactions.filter(tx => txMatchesFilter(tx, activeType))
-          const displayItems = buildTxDisplayItems(activeItems, investments, transactions)
+          const activeType = visibleTxFilters.some(f => f.id === txTypeFilter) ? txTypeFilter : 'deposit'
+          const activeItems = visibleTransactions.filter(tx => txMatchesFilter(tx, activeType))
+          const displayItems = buildTxDisplayItems(activeItems, investments, visibleTransactions)
           return (
             <>
               {/* Day tab strip — swipe left/right */}
               <div className="tx-type-strip">
-                {TX_TYPE_FILTERS.map(f => (
+                {visibleTxFilters.map(f => (
                   <button
                     key={f.id}
                     className={`tx-type-tab ${activeType === f.id ? 'active' : ''} ${f.id}`}
@@ -647,7 +656,7 @@ export default function HomePage({ user, investments, transactions, plans, confi
               {/* Transactions for selected day */}
               <div className="tx-list card tx-list-animated">
                 {displayItems.length === 0 && (
-                  <div className="tx-filter-empty">No {TX_TYPE_FILTERS.find(f => f.id === activeType)?.label.toLowerCase()} transactions.</div>
+                  <div className="tx-filter-empty">No {visibleTxFilters.find(f => f.id === activeType)?.label.toLowerCase()} transactions.</div>
                 )}
                 {displayItems.map(item => {
                   if (item.kind === 'profitGroup') {
