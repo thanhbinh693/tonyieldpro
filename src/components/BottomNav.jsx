@@ -2,13 +2,13 @@ import React from 'react'
 import { Home, Layers, User, Bomb } from 'lucide-react'
 import './BottomNav.css'
 
-export default function BottomNav({ tab, setTab }) {
+export default function BottomNav({ tab, setTab, showMine = true }) {
   const tabs = [
     { id: 'home', label: 'HOME', Icon: Home },
     { id: 'plans', label: 'MARKETS', Icon: Layers },
-    { id: 'mine', label: 'MINE', Icon: Bomb },
+    showMine && { id: 'mine', label: 'MINE', Icon: Bomb },
     { id: 'profile', label: 'ACCOUNT', Icon: User },
-  ]
+  ].filter(Boolean)
 
   return (
     <nav className="bnav">

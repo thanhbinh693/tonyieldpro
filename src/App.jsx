@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useApp } from './hooks/useApp'
 import HomePage from './pages/HomePage'
 import PlansPage from './pages/PlansPage'
@@ -14,10 +14,18 @@ import './App.css'
 
 export default function App() {
   const appState = useApp()
-  const { tab, toast, isAdmin, isAdminView } = appState
+  const { tab, setTab, toast, isAdmin, isAdminView } = appState
   const [depositOpen, setDepositOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [depositPlan, setDepositPlan] = useState(null)
+  const mineVisible = appState.config?.mineEnabled !== false
+  const effectiveTab = !mineVisible && tab === 'mine' ? 'home' : tab
+
+  useEffect(() => {
+    if (!mineVisible && tab === 'mine') {
+      setTab('home')
+    }
+  }, [mineVisible, tab, setTab])
 
   const openDeposit = (plan = null) => {
     setDepositPlan(plan)
@@ -45,18 +53,18 @@ export default function App() {
   return (
     <div className="app">
       <div className="noise" />
-      <div className={`glow-top glow-gold  ${tab === 'home' ? 'on' : ''}`} />
-      <div className={`glow-top glow-blue  ${tab === 'plans' ? 'on' : ''}`} />
-      <div className={`glow-top glow-purple${tab === 'profile' ? 'on' : ''}`} />
+      <div className={`glow-top glow-gold  ${effectiveTab === 'home' ? 'on' : ''}`} />
+      <div className={`glow-top glow-blue  ${effectiveTab === 'plans' ? 'on' : ''}`} />
+      <div className={`glow-top glow-purple${effectiveTab === 'profile' ? 'on' : ''}`} />
 
        <div className="pages">
-         {tab === 'home' && <HomePage {...appState} onDeposit={openDeposit} onWithdraw={openWithdraw} />}
-         {tab === 'plans' && <PlansPage {...appState} onDeposit={openDeposit} />}
-         {tab === 'mine' && <MinePage {...appState} />}
-         {tab === 'profile' && <ProfilePage {...appState} />}
+         {effectiveTab === 'home' && <HomePage {...appState} onDeposit={openDeposit} onWithdraw={openWithdraw} />}
+         {effectiveTab === 'plans' && <PlansPage {...appState} onDeposit={openDeposit} />}
+         {mineVisible && effectiveTab === 'mine' && <MinePage {...appState} />}
+         {effectiveTab === 'profile' && <ProfilePage {...appState} />}
        </div>
 
-      <BottomNav tab={tab} setTab={appState.setTab} />
+      <BottomNav tab={effectiveTab} setTab={setTab} showMine={mineVisible} />
 
       {depositOpen && (
         <DepositModal
