@@ -638,7 +638,7 @@ export function useApp() {
       supabase.from('mine_games').select('bet_amount, fee_rate, status, result'),
     ])
     if (mineGamesRes.error) throw mineGamesRes.error
-    let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0
+    let totalDeposited=0, totalWithdrawn=0, todayPft=0, activeInv=0, pendingWithdraws=0, totalReferralEarned=0
     let userBalanceLiability=0, pendingWithdrawAmount=0, todayYieldReserve=0
     let mineFeeEarned=0, mineOpenGames=0, mineCompletedGames=0
     const now = Date.now()
@@ -653,6 +653,7 @@ export function useApp() {
       totalDeposited += Number(u.totalDeposit)||0
       totalWithdrawn += Number(u.totalWithdraw)||0
       todayPft       += Number(u.todayProfit)||0
+      totalReferralEarned += Number(bundle.referral?.commission)||0
       userBalanceLiability += Number(u.balance)||0
       ;(bundle.investments||[]).forEach(inv => {
         if(inv.status==='active') {
@@ -695,6 +696,7 @@ export function useApp() {
       bannedUsers: userList.filter(u=>u.status==='banned').length,
       totalDeposited, totalWithdrawn, netInCustody: totalDeposited - totalWithdrawn, activeInvestments: activeInv,
       todayProfit: todayPft, pendingWithdraws,
+      totalReferralEarned: +totalReferralEarned.toFixed(6),
       userBalanceLiability: +userBalanceLiability.toFixed(6),
       pendingWithdrawAmount: +pendingWithdrawAmount.toFixed(6),
       todayYieldReserve: +todayYieldReserve.toFixed(6),

@@ -303,6 +303,7 @@ export default function AdminPage({
     { label:'Active Positions',   val: adminStats.activeInvestments,         color:'blue',   Icon: Zap },
     { label:'Pending Withdrawals',val: adminStats.pendingWithdraws,          color: adminStats.pendingWithdraws > 0 ? 'red' : 'muted', Icon: Clock },
     { label:"Today's Yield",     val: formatTon(adminStats.todayProfit),    color:'green',  Icon: Coins },
+    { label:'Referral Earned',    val: formatTon(adminStats.totalReferralEarned), color:'green', Icon: Users },
     { label:'Mine Fees Earned',   val: formatTon(adminStats.mineFeeEarned),  color:'gold',   Icon: Bomb },
     { label:'Required Daily Reserve', val: formatTon(adminStats.requiredYieldReserve), color:'gold', Icon: Wallet },
   ] : []
